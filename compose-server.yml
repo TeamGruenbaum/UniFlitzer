@@ -1,0 +1,24 @@
+services:
+  database:
+    image: "postgres:17"
+    environment:
+      POSTGRES_USER: "administrator"
+      POSTGRES_PASSWORD: 12345678
+      POSTGRES_DB: "uniflitzer"
+    ports:
+      - "5432:5432"
+    volumes:
+      - "database-data:/var/lib/postgresql/data"
+
+  application:
+    image: "ghcr.io/stevensolleder/uniflitzerbackend:latest"
+    environment:
+      SPRING_DATASOURCE_URL: "jdbc:postgresql://database:5432/uniflitzer"
+      SPRING_DATASOURCE_USERNAME: "administrator"
+      SPRING_DATASOURCE_PASSWORD: 12345678
+      SPRING_DATASOURCE_DRIVERCLASSNAME: "org.postgresql.Driver"
+    ports:
+      - "8080:8080"
+
+volumes:
+  database-data:

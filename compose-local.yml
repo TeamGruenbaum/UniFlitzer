@@ -1,0 +1,14 @@
+services:
+  database:
+    image: "postgres:17"
+    environment:
+      POSTGRES_USER: "administrator"
+      POSTGRES_PASSWORD: 12345678
+      POSTGRES_DB: "uniflitzer"
+    ports:
+      - "5432:5432"
+    volumes:
+      - "database-data:/var/lib/postgresql/data"
+
+volumes:
+  database-data:
