@@ -1,4 +1,6 @@
-import de.uniflitzer.backend.applicationservices.communicators.version1.datapackages.LicencePlateFormat
+package de.uniflitzer.backend.applicationservices.communicators.version1.datapackages
+
+import de.uniflitzer.backend.applicationservices.communicators.version1.valuechecker.UUID
 import jakarta.validation.constraints.Pattern
 import jakarta.validation.constraints.Size
 

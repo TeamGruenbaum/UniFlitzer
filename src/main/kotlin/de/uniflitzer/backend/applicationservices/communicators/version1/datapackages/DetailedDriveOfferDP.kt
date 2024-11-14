@@ -1,6 +1,7 @@
 package de.uniflitzer.backend.applicationservices.communicators.version1.datapackages
 
 import com.fasterxml.jackson.annotation.JsonTypeInfo
+import de.uniflitzer.backend.applicationservices.communicators.version1.valuechecker.UUID
 import io.swagger.v3.oas.annotations.media.Schema
 import jakarta.validation.constraints.Max
 import jakarta.validation.constraints.Min
