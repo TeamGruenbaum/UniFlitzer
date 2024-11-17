@@ -44,7 +44,7 @@ private class DriveOffersCommunicator {
         ]
     )
     @GetMapping("")
-    fun getDriveOffers(@RequestParam @Min(1) pageNumber: Int, @RequestParam @Min(1) @Max(50) perPage: Int, @RequestParam sortDirection: SortDirection?): ResponseEntity<DriveOffersDP> {
+    fun getDriveOffers(@RequestParam @Min(1) pageNumber: Int, @RequestParam @Min(1) @Max(50) perPage: Int, @RequestParam sortDirection: SortDirection?): ResponseEntity<PageDP<PartialDriveOfferDP>> {
         TODO()
     }
 

@@ -1,6 +1,7 @@
 package de.uniflitzer.backend.applicationservices.communicators.version1
 
 import de.uniflitzer.backend.applicationservices.communicators.version1.datapackages.*
+import de.uniflitzer.backend.applicationservices.communicators.version1.documentationinformationadder.apiresponses.*
 import de.uniflitzer.backend.applicationservices.communicators.version1.valuechecker.UUID
 import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.annotations.media.Schema
@@ -23,145 +24,49 @@ import org.springframework.validation.annotation.Validated
 @Tag(name = "DriveRequests")
 private class DriveRequestsCommunicator
 {
-    @Operation(
-        description = "Create a new drive request.",
-        responses = [
-            ApiResponse(
-                responseCode = "201"),
-            ApiResponse(
-                responseCode = "400",
-                content = [Content(schema = Schema(implementation = ErrorsDP::class))]),
-            ApiResponse(
-                responseCode = "401",
-                content = [Content(schema = Schema(implementation = ErrorDP::class))]),
-            ApiResponse(
-                responseCode = "500",
-                content = [Content(schema = Schema(implementation = ErrorDP::class))]),
-        ]
-    )
+    @Operation(description = "Create a new drive request.")
+    @CommonApiResponses @CreatedApiResponse
     @PostMapping("")
-    fun createDriveRequest(@RequestBody @Valid driveRequestCreationDP: DriveRequestCreationDP): ResponseEntity<IdDP>
+    fun createDriveRequest(@RequestBody @Valid driveRequestCreation: DriveRequestCreationDP): ResponseEntity<IdDP>
     {
         TODO()
     }
 
-    @Operation(
-        description = "Get all drive requests.",
-        responses = [
-            ApiResponse(
-                responseCode = "200"),
-            ApiResponse(
-                responseCode = "400",
-                content = [Content(schema = Schema(implementation = ErrorsDP::class))]),
-            ApiResponse(
-                responseCode = "401",
-                content = [Content(schema = Schema(implementation = ErrorDP::class))]),
-            ApiResponse(
-                responseCode = "500",
-                content = [Content(schema = Schema(implementation = ErrorDP::class))]),
-        ]
-    )
+    @Operation(description = "Get all drive requests.")
+    @CommonApiResponses @OkApiResponse
     @GetMapping("")
     fun getDriveRequests(@RequestParam @Min(1) pageNumber: Int, @RequestParam @Min(1) @Max(50) perPage: Int,
-                         @RequestParam sortDirection: SortDirection?): ResponseEntity<DriveRequestsDP>
+                         @RequestParam sortDirection: SortDirection?): ResponseEntity<PageDP<PartialDriveRequestDP>>
     {
         TODO()
     }
 
-    @Operation(
-        description = "Get details for a specific drive request.",
-        responses = [
-            ApiResponse(
-                responseCode = "200"),
-            ApiResponse(
-                responseCode = "400",
-                content = [Content(schema = Schema(implementation = ErrorsDP::class))]),
-            ApiResponse(
-                responseCode = "401",
-                content = [Content(schema = Schema(implementation = ErrorDP::class))]),
-            ApiResponse(
-                responseCode = "404",
-                content = [Content(schema = Schema(implementation = ErrorDP::class))]),
-            ApiResponse(
-                responseCode = "500",
-                content = [Content(schema = Schema(implementation = ErrorDP::class))]),
-        ]
-    )
+    @Operation(description = "Get details of a specific drive request.")
+    @CommonApiResponses @OkApiResponse @NotFoundApiResponse
     @GetMapping("{id}")
-    fun getDriveRequestById(@PathVariable @UUID id:String): ResponseEntity<DetailedDriveRequestDP>
+    fun getDriveRequest(@PathVariable @UUID id:String): ResponseEntity<DetailedDriveRequestDP>
     {
         TODO()
     }
 
-    @Operation(
-        description = "Create a new drive offer for a specific drive request.",
-        responses = [
-            ApiResponse(
-                responseCode = "201"),
-            ApiResponse(
-                responseCode = "400",
-                content = [Content(schema = Schema(implementation = ErrorsDP::class))]),
-            ApiResponse(
-                responseCode = "401",
-                content = [Content(schema = Schema(implementation = ErrorDP::class))]),
-            ApiResponse(
-                responseCode = "404",
-                content = [Content(schema = Schema(implementation = ErrorDP::class))]),
-            ApiResponse(
-                responseCode = "500",
-                content = [Content(schema = Schema(implementation = ErrorDP::class))]),
-        ]
-    )
+    @Operation(description = "Create a new drive offer for a specific drive request.")
+    @CommonApiResponses @CreatedApiResponse @NotFoundApiResponse
     @PostMapping("{id}/drive-offers")
-    fun createDriveOfferForDriveRequest(@PathVariable @UUID id:String, @RequestBody @Valid driveOfferCreationDP: DriveOfferCreationDP): ResponseEntity<IdDP>
+    fun createDriveOfferForDriveRequest(@PathVariable @UUID id:String, @RequestBody @Valid driveOfferCreation: DriveOfferCreationDP): ResponseEntity<IdDP>
     {
         TODO("DriveRequest must be either deleted if it's a CarpoolDriveRequest or its driveOffers must be updated if it's a PublicDriveRequest.")
     }
 
-    @Operation(
-        description = "Reject a specific drive offer for a specific drive request.",
-        responses = [
-            ApiResponse(
-                responseCode = "204"),
-            ApiResponse(
-                responseCode = "400",
-                content = [Content(schema = Schema(implementation = ErrorsDP::class))]),
-            ApiResponse(
-                responseCode = "401",
-                content = [Content(schema = Schema(implementation = ErrorDP::class))]),
-            ApiResponse(
-                responseCode = "404",
-                content = [Content(schema = Schema(implementation = ErrorDP::class))]),
-            ApiResponse(
-                responseCode = "500",
-                content = [Content(schema = Schema(implementation = ErrorDP::class))]),
-        ]
-    )
+    @Operation(description = "Reject a specific drive offer for a specific drive request.")
+    @CommonApiResponses @NoContentApiResponse @NotFoundApiResponse
     @PostMapping("{driveRequestId}/drive-offers/{driveOfferId}/rejections")
     fun rejectDriveOffer(@PathVariable @UUID driveRequestId:String, @PathVariable @UUID driveOfferId:String): ResponseEntity<Void>
     {
         TODO("Neither the DriveRequest nor the DriveOffer is deleted.")
     }
 
-    @Operation(
-        description = "Accept a specific drive offer for a specific drive request.",
-        responses = [
-            ApiResponse(
-                responseCode = "204"),
-            ApiResponse(
-                responseCode = "400",
-                content = [Content(schema = Schema(implementation = ErrorsDP::class))]),
-            ApiResponse(
-                responseCode = "401",
-                content = [Content(schema = Schema(implementation = ErrorDP::class))]),
-            ApiResponse(
-                responseCode = "404",
-                content = [Content(schema = Schema(implementation = ErrorDP::class))]),
-            ApiResponse(
-                responseCode = "500",
-                content = [Content(schema = Schema(implementation = ErrorDP::class))]),
-        ]
-    )
+    @Operation(description = "Accept a specific drive offer for a specific drive request.")
+    @CommonApiResponses @NoContentApiResponse @NotFoundApiResponse
     @PostMapping("{driveRequestId}/drive-offers/{driveOfferId}/acceptances")
     fun acceptDriveOffer(@PathVariable @UUID driveRequestId:String, @PathVariable @UUID driveOfferId:String): ResponseEntity<Void>
     {
