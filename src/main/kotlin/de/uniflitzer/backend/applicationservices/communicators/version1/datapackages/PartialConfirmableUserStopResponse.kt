@@ -2,6 +2,8 @@ package de.uniflitzer.backend.applicationservices.communicators.version1.datapac
 
 import de.uniflitzer.backend.applicationservices.communicators.version1.valuechecker.UUID
 
-data class ImageDP private constructor(
-    @field:UUID val id: String //TODO
+data class PartialConfirmableUserStopResponse(
+    @field:UUID val userId: String,
+    val position: PositionDP,
+    val waitingConfirmed: Boolean
 )

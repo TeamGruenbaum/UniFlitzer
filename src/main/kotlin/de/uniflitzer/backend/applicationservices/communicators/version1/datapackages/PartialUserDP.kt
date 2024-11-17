@@ -7,7 +7,7 @@ import jakarta.validation.constraints.Size
 
 data class PartialUserDP(
     @field:UUID val id: String,
-    @field:UUID val profileImageId: String?, //TODO
+    @field:Size(min = 3, max = 30) val username: String,
     @field:Size(min=1, max=100) val firstName: String,
     @field:Size(min=1, max=100) val lastName: String,
     val isFavorite: Boolean,

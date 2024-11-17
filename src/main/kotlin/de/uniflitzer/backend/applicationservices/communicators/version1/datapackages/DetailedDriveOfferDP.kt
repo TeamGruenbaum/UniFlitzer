@@ -1,6 +1,7 @@
 package de.uniflitzer.backend.applicationservices.communicators.version1.datapackages
 
 import com.fasterxml.jackson.annotation.JsonTypeInfo
+import de.uniflitzer.backend.applicationservices.communicators.version1.valuechecker.UUID
 import io.swagger.v3.oas.annotations.media.Schema
 import jakarta.validation.constraints.Max
 import jakarta.validation.constraints.Min
@@ -20,5 +21,5 @@ sealed class DetailedDriveOfferDP(
     @field:Min(1) @field:Max(8) val freeSeats: Int,
     val route: RouteDP,
     val passengers: List<UserStopDP>,
-    @field:Pattern(regexp = DateTimeFormat) open val plannedDepartureTime: String
+    @field:Pattern(regexp = DateTimeFormat) open val plannedDepartureTime: String?
 )
