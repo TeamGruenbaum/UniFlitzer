@@ -21,5 +21,5 @@ sealed class DetailedDriveOfferDP(
     @field:Min(1) @field:Max(8) val freeSeats: Int,
     val route: RouteDP,
     val passengers: List<UserStopDP>,
-    @field:Pattern(regexp = DateTimeFormat) open val plannedDepartureTime: String
+    @field:Pattern(regexp = DateTimeFormat) open val plannedDepartureTime: String?
 )

@@ -8,6 +8,6 @@ class PartialPublicDriveOfferDP private constructor(
     freeSeats: Int,
     route: RouteDP,
     passengersCount: Int,
-    plannedDepartureTime: String,
+    plannedDepartureTime: String?,
     @field:Size(min = 0) val requestingUserIds: List<String>
 ): PartialDriveOfferDP(id, driver, freeSeats, route, passengersCount, plannedDepartureTime)

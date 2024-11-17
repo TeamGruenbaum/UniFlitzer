@@ -7,6 +7,6 @@ class DetailedPublicDriveOfferDP private constructor(
     freeSeats: Int,
     route: RouteDP,
     passengers: List<UserStopDP>,
-    plannedDepartureTime: String,
+    plannedDepartureTime: String?,
     val requestingUsers: List<PartialUserDP>?
 ): DetailedDriveOfferDP(id, driver, car, freeSeats, route, passengers, plannedDepartureTime)

@@ -8,6 +8,6 @@ class PartialCarpoolDriveOfferDP private constructor(
     freeSeats: Int,
     route: RouteDP,
     passengersCount: Int,
-    plannedDepartureTime: String,
+    plannedDepartureTime: String?,
     @field:UUID val carpoolId: String,
 ): PartialDriveOfferDP(id, driver, freeSeats, route, passengersCount, plannedDepartureTime)

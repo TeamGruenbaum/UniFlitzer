@@ -21,7 +21,7 @@ import org.springframework.validation.annotation.Validated
 @RequestMapping("v1/drive-requests")
 @Validated
 @SecurityRequirement(name = "bearerAuthentication")
-@Tag(name = "DriveRequests")
+@Tag(name = "Drive Requests")
 private class DriveRequestsCommunicator
 {
     @Operation(description = "Create a new drive request.")

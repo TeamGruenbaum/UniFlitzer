@@ -20,5 +20,5 @@ sealed class PartialDriveOfferDP(
     @field:Min(1) @field:Max(8) val freeSeats: Int,
     val route: RouteDP,
     @field:Min(1) @field:Max(8) val passengersCount: Int,
-    @field:Pattern(regexp = DateTimeFormat) val plannedDepartureTime: String
+    @field:Pattern(regexp = DateTimeFormat) val plannedDepartureTime: String?
 )
