@@ -2,15 +2,20 @@ package de.uniflitzer.backend.applicationservices.communicators.version1
 
 import de.uniflitzer.backend.applicationservices.communicators.version1.datapackages.DriveDP
 import de.uniflitzer.backend.applicationservices.communicators.version1.datapackages.DriveUpdateDP
+import de.uniflitzer.backend.applicationservices.communicators.version1.datapackages.QualityDP
 import de.uniflitzer.backend.applicationservices.communicators.version1.documentationinformationadder.apiresponses.CommonApiResponses
 import de.uniflitzer.backend.applicationservices.communicators.version1.documentationinformationadder.apiresponses.NoContentApiResponse
 import de.uniflitzer.backend.applicationservices.communicators.version1.documentationinformationadder.apiresponses.NotFoundApiResponse
 import de.uniflitzer.backend.applicationservices.communicators.version1.documentationinformationadder.apiresponses.OkApiResponse
 import de.uniflitzer.backend.applicationservices.communicators.version1.valuechecker.UUID
 import io.swagger.v3.oas.annotations.Operation
+import io.swagger.v3.oas.annotations.media.Content
+import io.swagger.v3.oas.annotations.responses.ApiResponse
+import io.swagger.v3.oas.annotations.responses.ApiResponses
 import io.swagger.v3.oas.annotations.security.SecurityRequirement
 import io.swagger.v3.oas.annotations.tags.Tag
 import jakarta.validation.Valid
+import org.springframework.http.MediaType
 import org.springframework.http.ResponseEntity
 import org.springframework.validation.annotation.Validated
 import org.springframework.web.bind.annotation.*
@@ -27,6 +32,21 @@ private class DrivesCommunicator
     @GetMapping("{id}")
     fun getDrive(@PathVariable @UUID id:String): ResponseEntity<DriveDP>
     {
+        TODO()
+    }
+
+    @Operation(description = "Get the image of a specific car of a specific drive.")
+    @ApiResponses(
+        value = [
+            ApiResponse(
+                responseCode = "200",
+                content =  [Content(mediaType = MediaType.IMAGE_JPEG_VALUE)]
+            )
+        ]
+    )
+    @CommonApiResponses @NotFoundApiResponse
+    @GetMapping("{id}/car/image")
+    fun getImageOfCar(@PathVariable @UUID id: String, @RequestParam quality: QualityDP): ResponseEntity<ByteArray> {
         TODO()
     }
 

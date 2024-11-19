@@ -11,7 +11,9 @@ import io.swagger.v3.oas.annotations.security.SecurityRequirement
 import io.swagger.v3.oas.annotations.tags.Tag
 import io.swagger.v3.oas.annotations.media.Content
 import jakarta.validation.Valid
+import jakarta.validation.constraints.Max
 import jakarta.validation.constraints.Min
+import org.hibernate.query.SortDirection
 import org.springframework.http.MediaType
 import org.springframework.http.ResponseEntity
 import org.springframework.validation.annotation.Validated
@@ -121,6 +123,27 @@ private class UsersCommunicator {
     @CommonApiResponses @NoContentApiResponse @NotFoundApiResponse
     @DeleteMapping("{userId}/cars/{carIndex}")
     fun deleteCarOfUser(@PathVariable @UUID userId: String, @PathVariable @Min(0) carIndex: Int): ResponseEntity<CarDP> {
+        TODO()
+    }
+
+    @Operation(description = "Get all drive offers of a specific user.")
+    @CommonApiResponses @OkApiResponse
+    @GetMapping("{id}/drive-offers")
+    fun getDriveOffersOfUser(@PathVariable @UUID id: String, @RequestParam @Min(1) pageNumber: Int, @RequestParam @Min(1) @Max(50) perPage: Int, @RequestParam sortDirection: SortDirection?): ResponseEntity<PageDP<PartialDriveOfferDP>> {
+        TODO()
+    }
+
+    @Operation(description = "Get all drive requests of a specific user.")
+    @CommonApiResponses @OkApiResponse
+    @GetMapping("{id}/drive-requests")
+    fun getDriveRequestsOfUser(@PathVariable @UUID id: String, @RequestParam @Min(1) pageNumber: Int, @RequestParam @Min(1) @Max(50) perPage: Int, @RequestParam sortDirection: SortDirection?): ResponseEntity<PageDP<PartialDriveRequestDP>> {
+        TODO()
+    }
+
+    @Operation(description = "Get all drives of a specific user.")
+    @CommonApiResponses @OkApiResponse
+    @GetMapping("{id}/drives")
+    fun getDrivesOfUser(@PathVariable @UUID id: String, @RequestParam @Min(1) pageNumber: Int, @RequestParam @Min(1) @Max(50) perPage: Int, @RequestParam sortDirection: SortDirection?): ResponseEntity<PageDP<DriveDP>> {
         TODO()
     }
 }

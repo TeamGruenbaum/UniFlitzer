@@ -21,7 +21,4 @@ data class DetailedUserDP(
     @field:Size(min = 0, max = 10) val animals: List<AnimalDP>,
     val drivingStyle: DrivingStyleDP?,
     @field:Size(min = 0, max = 5) val cars: List<CarDP>,
-    @field:Size(min = 0) val driveRequests: List<PartialDriveRequestDP>,
-    @field:Size(min = 0) val driveOffers: List<PartialDriveOfferDP>,
-    @field:Size(min = 0) val drives: List<DriveDP>,
 )
