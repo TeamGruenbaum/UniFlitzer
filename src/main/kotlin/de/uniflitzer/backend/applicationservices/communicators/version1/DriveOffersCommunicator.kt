@@ -71,7 +71,7 @@ private class DriveOffersCommunicator {
     @Operation(description = "Request the ride for a specific drive offer.")
     @CommonApiResponses @NoContentApiResponse @NotFoundApiResponse
     @PostMapping("{id}/requests")
-    fun requestRide(@PathVariable @UUID id: String):ResponseEntity<Void> {
+    fun requestRide(@PathVariable @UUID id: String, @RequestBody @Valid position: PositionDP):ResponseEntity<Void> {
         TODO()
     }
 

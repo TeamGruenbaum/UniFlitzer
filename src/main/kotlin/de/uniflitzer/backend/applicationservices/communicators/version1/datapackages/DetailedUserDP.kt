@@ -14,7 +14,7 @@ data class DetailedUserDP(
     @field:Pattern(regexp = DateTimeFormat) val birthday: String,
     val gender: GenderDP,
     @field:Email val emailAddress: String,
-    val address: AddressDP,
+    val address: AddressDP?,
     @field:Size(min = 1, max=300) val description: String?,
     @field:Size(min = 2, max = 200) val studyProgramme: String,
     val isSmoking: Boolean?,
