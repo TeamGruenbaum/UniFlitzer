@@ -1,5 +1,6 @@
 package de.uniflitzer.backend.applicationservices.communicators.version1.datapackages
 
+import de.uniflitzer.backend.applicationservices.communicators.version1.formats.DateTimeFormat
 import de.uniflitzer.backend.applicationservices.communicators.version1.valuechecker.UUID
 import jakarta.validation.constraints.Email
 import jakarta.validation.constraints.Pattern
@@ -10,7 +11,7 @@ data class DetailedUserDP(
     @field:Size(min = 3, max = 30) val username: String,
     @field:Size(min = 1, max = 100) val firstName: String,
     @field:Size(min = 1, max = 100) val lastName: String,
-    @field:Pattern(regexp = DateFormat) val birthday: String,
+    @field:Pattern(regexp = DateTimeFormat) val birthday: String,
     val gender: GenderDP,
     @field:Email val emailAddress: String,
     val address: AddressDP,
