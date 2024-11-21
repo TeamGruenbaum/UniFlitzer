@@ -23,7 +23,8 @@ import org.springframework.web.bind.annotation.*
 @RequestMapping("v1/drive-offers")
 @Validated
 @Tag(name = "Drive Offers")
-@SecurityRequirement(name = "bearerAuthentication")
+@SecurityRequirement(name = "Token Authentication (uniflitzer-auth.stevensolleder.de)")
+@SecurityRequirement(name = "Token Authentication (localhost)")
 private class DriveOffersCommunicator {
     @Operation(description = "Get all drive offers.")
     @CommonApiResponses @OkApiResponse

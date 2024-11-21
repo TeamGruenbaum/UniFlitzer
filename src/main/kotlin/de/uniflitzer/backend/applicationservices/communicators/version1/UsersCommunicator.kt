@@ -20,7 +20,8 @@ import org.springframework.validation.annotation.Validated
 import org.springframework.web.bind.annotation.*
 import org.springframework.web.multipart.MultipartFile
 
-@SecurityRequirement(name = "bearerAuthentication")
+@SecurityRequirement(name = "Token Authentication (uniflitzer-auth.stevensolleder.de)")
+@SecurityRequirement(name = "Token Authentication (localhost)")
 @RestController
 @RequestMapping("v1/users")
 @Validated
