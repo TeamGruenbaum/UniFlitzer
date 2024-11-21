@@ -10,5 +10,19 @@ services:
     volumes:
       - "database-data:/var/lib/postgresql/data"
 
+  authentication:
+    image: keycloak/keycloak:26.0
+    ports:
+      - "7374:7374"
+    volumes:
+      - "authentication-data:/opt/keycloak/data/"
+    environment:
+      KEYCLOAK_ADMIN: admin
+      KEYCLOAK_ADMIN_PASSWORD: admin
+      KC_FEATURES_DISABLED: ciba,device-flow,kerberos,par,step-up-authentication,web-authn
+      KC_HTTP_PORT: 7374
+    command: start-dev
+
 volumes:
   database-data:
+  authentication-data:
