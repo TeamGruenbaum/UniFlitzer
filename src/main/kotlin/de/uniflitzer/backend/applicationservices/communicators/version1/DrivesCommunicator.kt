@@ -23,7 +23,8 @@ import org.springframework.web.bind.annotation.*
 @RestController
 @RequestMapping("v1/drives")
 @Validated
-@SecurityRequirement(name = "bearerAuthentication")
+@SecurityRequirement(name = "Token Authentication (uniflitzer-auth.stevensolleder.de)")
+@SecurityRequirement(name = "Token Authentication (localhost)")
 @Tag(name = "Drives")
 private class DrivesCommunicator
 {

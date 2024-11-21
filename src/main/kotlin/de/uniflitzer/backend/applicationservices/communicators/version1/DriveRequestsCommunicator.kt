@@ -20,7 +20,8 @@ import org.springframework.validation.annotation.Validated
 @RestController
 @RequestMapping("v1/drive-requests")
 @Validated
-@SecurityRequirement(name = "bearerAuthentication")
+@SecurityRequirement(name = "Token Authentication (uniflitzer-auth.stevensolleder.de)")
+@SecurityRequirement(name = "Token Authentication (localhost)")
 @Tag(name = "Drive Requests")
 private class DriveRequestsCommunicator
 {
