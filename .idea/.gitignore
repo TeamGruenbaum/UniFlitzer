@@ -1,9 +1,0 @@
-.name
-*.xml
-icon.svg
-/modules/
-/shelf/
-/workspace.xml
-/httpRequests/
-/dataSources/
-/dataSources.local.xml
