@@ -25,11 +25,12 @@ class CompleteRoute{
     var destination: Position = null!!
 
     @field:ElementCollection
-    var userStops: MutableList<ConfirmableUserStop> = null!!
+    private var _userStops: MutableList<ConfirmableUserStop> = null!!
+    val userStops: List<ConfirmableUserStop> get() = _userStops
 
     constructor(start: Position, destination: Position, userStops: MutableList<ConfirmableUserStop>) {
         this.start = start
         this.destination = destination
-        this.userStops = userStops
+        this._userStops = userStops
     }
 }

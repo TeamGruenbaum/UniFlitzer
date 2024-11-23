@@ -12,27 +12,32 @@ class Carpool{
 
     var name: Name = null!!
 
-    @field:ManyToMany
-    var users: MutableList<User> = null!!
+    @field:ManyToMany(fetch = FetchType.LAZY)
+    private var _users: MutableList<User> = null!!
+    val users: List<User> get() = _users
 
     @field:OneToMany(mappedBy = "carpool", fetch = FetchType.LAZY, cascade = [CascadeType.ALL])
-    var driveRequests: MutableList<CarpoolDriveRequest> = null!!
+    private var _driveRequests: MutableList<CarpoolDriveRequest> = null!!
+    val driveRequests: List<CarpoolDriveRequest> = _driveRequests
 
     @field:OneToMany(mappedBy = "carpool", fetch = FetchType.LAZY, cascade = [CascadeType.ALL])
-    var driveOffers: MutableList<CarpoolDriveOffer> = null!!
+    private var _driveOffers: MutableList<CarpoolDriveOffer> = null!!
+    val driveOffers: List<CarpoolDriveOffer> = _driveOffers
 
     @field:OneToMany(fetch = FetchType.LAZY, cascade = [CascadeType.ALL])
-    var drives: MutableList<Drive> = null!!
+    private var _drives: MutableList<Drive> = null!!
+    val drives: List<Drive> = _drives
 
     @field:ElementCollection
-    var messages: MutableList<Message> = null!!
+    private var _messages: MutableList<Message> = null!!
+    val messages: List<Message> = _messages
 
     constructor(name: Name, users: MutableList<User>) {
         this.name = name
-        this.users = users
-        this.driveRequests = mutableListOf()
-        this.driveOffers = mutableListOf()
-        this.drives = mutableListOf()
-        this.messages = mutableListOf()
+        this._users = users
+        this._driveRequests = mutableListOf()
+        this._driveOffers = mutableListOf()
+        this._drives = mutableListOf()
+        this._messages = mutableListOf()
     }
 }

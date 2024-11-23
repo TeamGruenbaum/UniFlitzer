@@ -16,7 +16,8 @@ class Drive {
     var car: Car = null!!
 
     @field:ManyToMany(fetch = FetchType.LAZY)
-    var passengers: MutableList<User> = null!!
+    private var _passengers: MutableList<User> = null!!
+    val passengers: List<User> get() = _passengers
 
     var route: CompleteRoute = null!!
     var plannedDeparture: ZonedDateTime = null!!
@@ -24,17 +25,18 @@ class Drive {
     var arrival: ZonedDateTime? = null
 
     @field:ElementCollection
-    var messages: MutableList<Message> = null!!
+    private var _messages: MutableList<Message> = null!!
+    val messages: List<Message> get() = _messages
 
     constructor(driver: User, car: Car, route: CompleteRoute, plannedDeparture: ZonedDateTime, actualDeparture: ZonedDateTime?, arrival: ZonedDateTime?) {
         this.driver = driver
         this.car = car
-        this.passengers = mutableListOf()
+        this._passengers = mutableListOf()
         this.route = route
         this.plannedDeparture = plannedDeparture
         this.actualDeparture = actualDeparture
         this.arrival = arrival
-        this.messages = mutableListOf()
+        this._messages = mutableListOf()
     }
 }
 

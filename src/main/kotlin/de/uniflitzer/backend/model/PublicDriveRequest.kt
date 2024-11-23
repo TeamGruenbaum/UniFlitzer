@@ -7,9 +7,10 @@ import java.time.ZonedDateTime
 @Entity
 class PublicDriveRequest : DriveRequest {
     @field:OneToMany
-    var driveOffers: MutableList<PublicDriveOffer> = null!!
+    private var _driveOffers: MutableList<PublicDriveOffer> = null!!
+    val driveOffers: List<PublicDriveOffer> get() = _driveOffers
 
     constructor(requestingUser: User, route: Route, plannedDeparture: ZonedDateTime) : super(requestingUser, route, plannedDeparture) {
-        this.driveOffers = mutableListOf()
+        this._driveOffers = mutableListOf()
     }
 }
