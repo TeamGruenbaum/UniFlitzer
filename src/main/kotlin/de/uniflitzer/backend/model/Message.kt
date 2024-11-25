@@ -6,15 +6,18 @@ import jakarta.persistence.ManyToOne
 import java.time.ZonedDateTime
 
 @Embeddable
-class Message{
+class Message(user: User, content: Content, sent: ZonedDateTime){
     @field:ManyToOne(fetch = FetchType.LAZY)
-    var user: User = null!!
+    final var user: User = user
+        private set
 
-    var content: Content = null!!
+    final var content: Content = content
+        private set
 
-    var sent: ZonedDateTime = null!!
+    final var sent: ZonedDateTime = sent
+        private set
 
-    constructor(user: User, content: Content, sent: ZonedDateTime) {
+    init {
         this.user = user
         this.content = content
         this.sent = sent

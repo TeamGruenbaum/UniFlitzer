@@ -5,13 +5,18 @@ import jakarta.persistence.FetchType
 import jakarta.persistence.ManyToOne
 
 @Embeddable
-class ConfirmableUserStop{
+class ConfirmableUserStop(user: User, position: Position, waitingConfirmed: Boolean){
     @field:ManyToOne(fetch = FetchType.LAZY)
-    var user: User = null!!
-    var position: Position = null!!
-    var waitingConfirmed: Boolean = null!!
+    final var user: User = user
+        private set
 
-    constructor(user: User, position: Position, waitingConfirmed: Boolean) {
+    final var position: Position = position
+        private set
+
+    final var waitingConfirmed: Boolean = waitingConfirmed
+        private set
+
+    init {
         this.user = user
         this.position = position
         this.waitingConfirmed = waitingConfirmed

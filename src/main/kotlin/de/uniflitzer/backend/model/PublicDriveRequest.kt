@@ -5,12 +5,8 @@ import jakarta.persistence.OneToMany
 import java.time.ZonedDateTime
 
 @Entity
-class PublicDriveRequest : DriveRequest {
+class PublicDriveRequest(requestingUser: User, route: Route, plannedDeparture: ZonedDateTime) : DriveRequest(requestingUser, route, plannedDeparture) {
     @field:OneToMany
-    private var _driveOffers: MutableList<PublicDriveOffer> = null!!
+    private var _driveOffers: MutableList<PublicDriveOffer> = mutableListOf()
     val driveOffers: List<PublicDriveOffer> get() = _driveOffers
-
-    constructor(requestingUser: User, route: Route, plannedDeparture: ZonedDateTime) : super(requestingUser, route, plannedDeparture) {
-        this._driveOffers = mutableListOf()
-    }
 }

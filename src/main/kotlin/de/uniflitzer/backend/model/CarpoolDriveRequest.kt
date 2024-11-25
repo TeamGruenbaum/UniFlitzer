@@ -5,11 +5,7 @@ import jakarta.persistence.ManyToOne
 import java.time.ZonedDateTime
 
 @Entity
-class CarpoolDriveRequest : DriveRequest{
+class CarpoolDriveRequest(requestingUser: User, route: Route, plannedDeparture: ZonedDateTime, carpool: Carpool) : DriveRequest(requestingUser, route, plannedDeparture) {
     @field:ManyToOne
-    var carpool: Carpool = null!!
-
-    constructor(requestingUser: User, route: Route, plannedDeparture: ZonedDateTime, carpool: Carpool) : super(requestingUser, route, plannedDeparture) {
-        this.carpool = carpool
-    }
+    var carpool: Carpool = carpool
 }

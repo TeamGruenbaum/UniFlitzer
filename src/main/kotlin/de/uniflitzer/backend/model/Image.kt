@@ -5,11 +5,9 @@ import java.util.*
 
 @Embeddable
 class Image{
-    var fileNameFullQuality: UUID = UUID.randomUUID()
-    var fileNamePreviewQuality: UUID = UUID.randomUUID()
+    final var fileNameFullQuality: UUID = UUID.randomUUID()
+        private set
 
-    constructor() {
-        this.fileNameFullQuality = UUID.randomUUID()
-        this.fileNamePreviewQuality = UUID.randomUUID()
-    }
+    final var fileNamePreviewQuality: UUID = UUID.randomUUID()
+        private set
 }
