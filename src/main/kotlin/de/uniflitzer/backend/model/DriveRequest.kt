@@ -7,6 +7,7 @@ import java.util.*
 @Entity
 @Inheritance(strategy = InheritanceType.SINGLE_TABLE)
 @DiscriminatorColumn(name = "type")
+// Should be sealed, but Hibernate 6 does not support sealed classes
 class DriveRequest {
     @field:Id
     @field:GeneratedValue(strategy = GenerationType.UUID)
