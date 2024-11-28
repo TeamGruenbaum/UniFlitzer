@@ -2,6 +2,7 @@ package de.uniflitzer.backend.applicationservices.communicators.version1.datapac
 
 import com.fasterxml.jackson.annotation.JsonTypeInfo
 import de.uniflitzer.backend.applicationservices.communicators.version1.formats.DateTimeFormat
+import de.uniflitzer.backend.applicationservices.communicators.version1.formats.DateTimeFormatExample
 import de.uniflitzer.backend.applicationservices.communicators.version1.valuechecker.UUID
 import io.swagger.v3.oas.annotations.media.Schema
 import jakarta.validation.constraints.Pattern
@@ -17,5 +18,5 @@ sealed class DetailedDriveRequestDP(
     @field:UUID val id: String,
     val requestingUser: PartialUserDP,
     val route: RouteDP,
-    @field:Pattern(regexp = DateTimeFormat) val plannedDeparture: String?
+    @field:Pattern(regexp = DateTimeFormat) @field:Schema(example = DateTimeFormatExample) val plannedDeparture: String?
 )

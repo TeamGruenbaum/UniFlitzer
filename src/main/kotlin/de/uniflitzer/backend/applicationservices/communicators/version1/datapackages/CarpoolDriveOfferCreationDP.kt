@@ -5,7 +5,7 @@ import de.uniflitzer.backend.applicationservices.communicators.version1.valueche
 class CarpoolDriveOfferCreationDP private constructor(
     carIndex: Int,
     freeSeats: Int,
-    route: RouteDP,
+    route: RouteCreationDP,
     plannedDepartureTime: String?,
     @field:UUID val carpoolId: String
 ) : DriveOfferCreationDP(carIndex, freeSeats, route, plannedDepartureTime)

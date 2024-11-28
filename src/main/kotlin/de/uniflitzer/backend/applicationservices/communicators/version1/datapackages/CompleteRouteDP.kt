@@ -3,5 +3,5 @@ package de.uniflitzer.backend.applicationservices.communicators.version1.datapac
 data class CompleteRouteDP(
     val start: PositionDP,
     val destination: PositionDP,
-    val userStops: List<PartialConfirmableUserStopResponse>
+    val userStops: List<PartialConfirmableUserStop>
 )

@@ -23,7 +23,7 @@ class DriveOffer(driver: User, car: Car, freeSeats: Seats, route: Route, planned
     var route: Route = route
 
     @field:ElementCollection
-    private var _passengers: MutableList<UserStop> = mutableListOf()
+    protected var _passengers: MutableList<UserStop> = mutableListOf()
     val passengers: List<UserStop> get() = _passengers
 
     var plannedDeparture: ZonedDateTime? = plannedDeparture

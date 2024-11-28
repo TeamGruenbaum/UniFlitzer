@@ -1,6 +1,6 @@
 package de.uniflitzer.backend.applicationservices.communicators.version1.datapackages
 
-class DetailedPublicDriveOfferDP private constructor(
+class DetailedPublicDriveOfferDP constructor(
     id: String,
     driver: PartialUserDP,
     car: CarDP,

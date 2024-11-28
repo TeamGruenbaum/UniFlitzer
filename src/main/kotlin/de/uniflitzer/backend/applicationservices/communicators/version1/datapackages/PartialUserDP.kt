@@ -1,6 +1,7 @@
 package de.uniflitzer.backend.applicationservices.communicators.version1.datapackages
 
 import de.uniflitzer.backend.applicationservices.communicators.version1.valuechecker.UUID
+import de.uniflitzer.backend.model.User
 import jakarta.validation.constraints.Max
 import jakarta.validation.constraints.Min
 import jakarta.validation.constraints.Size
@@ -12,4 +13,16 @@ data class PartialUserDP(
     val isFavorite: Boolean,
     @field:Min(0) @field:Max(5) val averageStars: Double,
     @field:Min(0) val numberOfRatings: Int
-)
+) {
+    companion object {
+        fun fromUser(user: User): PartialUserDP =
+            PartialUserDP(
+                user.id.toString(),
+                user.firstName.value,
+                user.lastName.value,
+                false,
+                0.0,
+                0
+            )
+    }
+}

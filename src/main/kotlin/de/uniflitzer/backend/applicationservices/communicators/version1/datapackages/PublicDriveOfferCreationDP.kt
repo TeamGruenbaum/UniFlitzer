@@ -3,6 +3,6 @@ package de.uniflitzer.backend.applicationservices.communicators.version1.datapac
 class PublicDriveOfferCreationDP private constructor(
     carIndex: Int,
     freeSeats: Int,
-    route: RouteDP,
+    route: RouteCreationDP,
     plannedDepartureTime: String?,
 ) : DriveOfferCreationDP(carIndex, freeSeats, route, plannedDepartureTime)

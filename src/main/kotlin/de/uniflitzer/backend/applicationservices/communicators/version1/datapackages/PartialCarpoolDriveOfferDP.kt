@@ -2,7 +2,7 @@ package de.uniflitzer.backend.applicationservices.communicators.version1.datapac
 
 import de.uniflitzer.backend.applicationservices.communicators.version1.valuechecker.UUID
 
-class PartialCarpoolDriveOfferDP private constructor(
+class PartialCarpoolDriveOfferDP constructor(
     id: String,
     driver: PartialUserDP,
     freeSeats: Int,
