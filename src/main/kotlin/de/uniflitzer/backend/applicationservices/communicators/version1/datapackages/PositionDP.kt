@@ -1,10 +1,11 @@
 package de.uniflitzer.backend.applicationservices.communicators.version1.datapackages
 
 import de.uniflitzer.backend.model.Position
+import jakarta.validation.Valid
 
 data class PositionDP private constructor(
-    val coordinate: CoordinateDP,
-    val nearestAddress: AddressDP
+    @field:Valid val coordinate: CoordinateDP,
+    @field:Valid val nearestAddress: AddressDP
 ) {
     companion object {
         fun fromPosition(position: Position): PositionDP {
@@ -15,4 +16,3 @@ data class PositionDP private constructor(
         }
     }
 }
-

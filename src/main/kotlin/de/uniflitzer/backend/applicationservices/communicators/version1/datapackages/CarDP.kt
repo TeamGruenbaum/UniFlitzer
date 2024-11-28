@@ -1,7 +1,6 @@
 package de.uniflitzer.backend.applicationservices.communicators.version1.datapackages
 
 import de.uniflitzer.backend.applicationservices.communicators.version1.formats.LicencePlateFormat
-import de.uniflitzer.backend.applicationservices.communicators.version1.valuechecker.UUID
 import de.uniflitzer.backend.model.Brand
 import de.uniflitzer.backend.model.Car
 import de.uniflitzer.backend.model.Color

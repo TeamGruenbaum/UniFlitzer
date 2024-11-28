@@ -1,10 +1,11 @@
 package de.uniflitzer.backend.applicationservices.communicators.version1.datapackages
 
 import de.uniflitzer.backend.model.Route
+import jakarta.validation.Valid
 
 data class RouteDP private constructor(
-    val start: PositionDP,
-    val destination: PositionDP
+    @field:Valid val start: PositionDP,
+    @field:Valid val destination: PositionDP
 ) {
     companion object {
         fun fromRoute(route: Route): RouteDP {

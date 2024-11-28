@@ -1,6 +1,8 @@
 package de.uniflitzer.backend.applicationservices.communicators.version1.datapackages
 
+import jakarta.validation.Valid
+
 data class RouteCreationDP(
-    val start: CoordinateDP,
-    val destination: CoordinateDP
+    @field:Valid val start: CoordinateDP,
+    @field:Valid val destination: CoordinateDP
 )

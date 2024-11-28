@@ -1,10 +1,11 @@
 package de.uniflitzer.backend.applicationservices.communicators.version1.datapackages;
 
 import de.uniflitzer.backend.model.UserStop
+import jakarta.validation.Valid
 
 data class UserStopDP private constructor(
-    val user: PartialUserDP,
-    val stop: PositionDP
+    @field:Valid val user: PartialUserDP,
+    @field:Valid val stop: PositionDP
 ) {
     companion object {
         fun fromUserStop(userStop: UserStop): UserStopDP =
