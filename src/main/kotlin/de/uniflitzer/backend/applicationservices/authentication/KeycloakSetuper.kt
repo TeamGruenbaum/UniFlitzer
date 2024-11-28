@@ -76,7 +76,7 @@ class KeycloakSetuper(@field:Autowired private val environment: Environment): In
                         },
                         UPAttribute().apply {
                             name = "email"
-                            displayName = "\${email}" //TODO
+                            displayName = "\${email}"
                             isMultivalued = false
                             required = UPAttributeRequired().apply {
                                 this.roles = setOf("user")
