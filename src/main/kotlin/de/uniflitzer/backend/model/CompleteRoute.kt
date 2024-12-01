@@ -1,9 +1,10 @@
 package de.uniflitzer.backend.model
 
 import jakarta.persistence.*
+import java.util.*
 
 @Embeddable
-class CompleteRoute(start: Position, destination: Position, userStops: List<ConfirmableUserStop>){
+class CompleteRoute(start: Position, destination: Position, userStops: List<ConfirmableUserStop>, polyline: GeoJsonLineString) {
     @AttributeOverrides(
         AttributeOverride(name = "coordinate.latitude", column = Column(name = "start_latitude")),
         AttributeOverride(name = "coordinate.longitude", column = Column(name = "start_longitude")),
@@ -30,9 +31,14 @@ class CompleteRoute(start: Position, destination: Position, userStops: List<Conf
     private final var _userStops: MutableList<ConfirmableUserStop> = userStops.toMutableList()
     final val userStops: List<ConfirmableUserStop> get() = _userStops
 
+    final var polyline: GeoJsonLineString = polyline
+        private set
+
     init {
         this.start = start
         this.destination = destination
         this._userStops = userStops.toMutableList()
+        this.polyline = polyline
+    }
     }
 }

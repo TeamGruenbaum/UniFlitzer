@@ -6,14 +6,16 @@ import jakarta.validation.Valid
 data class CompleteRouteDP(
     @field:Valid val start: PositionDP,
     @field:Valid val destination: PositionDP,
-    @field:Valid val userStops: List<PartialConfirmableUserStop>
+    @field:Valid val userStops: List<PartialConfirmableUserStop>,
+    @field:Valid val polyline: GeoJsonLineStringDP
 ) {
     companion object {
         fun fromCompleteRoute(completeRoute: CompleteRoute): CompleteRouteDP {
             return CompleteRouteDP(
                 PositionDP.fromPosition(completeRoute.start),
                 PositionDP.fromPosition(completeRoute.destination),
-                completeRoute.userStops.map { PartialConfirmableUserStop.fromConfirmableUserStop(it) }
+                completeRoute.userStops.map { PartialConfirmableUserStop.fromConfirmableUserStop(it) },
+                GeoJsonLineStringDP.fromGeoJsonLineString(completeRoute.polyline)
             )
         }
     }
