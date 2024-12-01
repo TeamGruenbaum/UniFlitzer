@@ -2,25 +2,27 @@ package de.uniflitzer.backend.applicationservices.authentication
 
 import com.fasterxml.jackson.databind.ObjectMapper
 import de.uniflitzer.backend.applicationservices.communicators.version1.datapackages.ErrorDP
-import jakarta.servlet.http.HttpServletRequest
 import jakarta.servlet.http.HttpServletResponse
+import org.keycloak.admin.client.Keycloak
+import org.keycloak.admin.client.KeycloakBuilder
+import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import org.springframework.core.convert.converter.Converter
+import org.springframework.core.env.Environment
 import org.springframework.security.authentication.AbstractAuthenticationToken
 import org.springframework.security.config.Customizer
 import org.springframework.security.config.annotation.web.builders.HttpSecurity
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity
 import org.springframework.security.config.http.SessionCreationPolicy
-import org.springframework.security.core.AuthenticationException
 import org.springframework.security.oauth2.jwt.Jwt
-import org.springframework.security.web.AuthenticationEntryPoint
 import org.springframework.security.web.SecurityFilterChain
-import org.springframework.stereotype.Component
 
 @Configuration
 @EnableWebSecurity
-class AuthenticationConfigurator {
+class AuthenticationConfigurator(
+    @field:Autowired private val environment: Environment
+) {
     @Bean
     fun resourceServerSecurityFilterChain(http: HttpSecurity, authenticationConverter: Converter<Jwt?, AbstractAuthenticationToken?>?): SecurityFilterChain {
         http
@@ -55,5 +57,16 @@ class AuthenticationConfigurator {
             .cors(Customizer.withDefaults())
 
         return http.build()
+    }
+
+    @Bean
+    fun authenticationAdministrator(): Keycloak {
+        return KeycloakBuilder.builder()
+            .serverUrl(environment.getProperty("keycloak.keycloakUrl") ?: "http://localhost:8080")
+            .realm(environment.getProperty("keycloak.administrator.realm.name") ?: "master")
+            .clientId(environment.getProperty("keycloak.administrator.clientId") ?: "admin-cli")
+            .username(environment.getProperty("keycloak.administrator.username") ?: "admin")
+            .password(environment.getProperty("keycloak.administrator.password") ?: "admin")
+            .build()
     }
 }
