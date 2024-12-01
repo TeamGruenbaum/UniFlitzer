@@ -1,13 +1,15 @@
 package de.uniflitzer.backend.model
 
-import jakarta.persistence.Embeddable
+import jakarta.persistence.*
 import java.util.*
 
-@Embeddable
-class Image{
-    final var fileNameFullQuality: UUID = UUID.randomUUID()
-        private set
+@Entity
+class Image(fileEnding: String){
+    @field:Id
+    @field:GeneratedValue(strategy = GenerationType.UUID)
+    lateinit var id: UUID
 
-    final var fileNamePreviewQuality: UUID = UUID.randomUUID()
-        private set
+    val fileNameFullQuality: String = UUID.randomUUID().toString() + fileEnding
+
+    val fileNamePreviewQuality: String = UUID.randomUUID().toString() + fileEnding
 }
