@@ -21,4 +21,9 @@ class ConfirmableUserStop(user: User, position: Position, waitingConfirmed: Bool
         this.position = position
         this.waitingConfirmed = waitingConfirmed
     }
+
+    fun confirm()
+    {
+        this.waitingConfirmed = true
+    }
 }

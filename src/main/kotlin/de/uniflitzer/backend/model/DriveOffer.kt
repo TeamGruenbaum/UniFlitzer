@@ -35,4 +35,8 @@ class DriveOffer(driver: User, car: Car, freeSeats: Seats, route: Route, planned
         this.route = route
         this.plannedDeparture = plannedDeparture
     }
+
+    fun addPassenger(userStop: UserStop) {
+        _passengers.add(userStop)
+    }
 }

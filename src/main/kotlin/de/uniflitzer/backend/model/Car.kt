@@ -1,11 +1,12 @@
 package de.uniflitzer.backend.model
 
 import jakarta.persistence.Embeddable
+import jakarta.persistence.OneToOne
 
 @Embeddable
 class Car(brand: Brand, model:Model, color: Color, licencePlate: LicencePlate) {
+    @OneToOne
     final var image: Image? = null
-        private set
 
     final var brand: Brand = brand
         private set
