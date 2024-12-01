@@ -3,20 +3,18 @@ package de.uniflitzer.backend.applicationservices.communicators.version1
 import de.uniflitzer.backend.applicationservices.authentication.UserToken
 import de.uniflitzer.backend.applicationservices.communicators.version1.datapackages.*
 import de.uniflitzer.backend.applicationservices.communicators.version1.documentationinformationadder.apiresponses.*
-import de.uniflitzer.backend.applicationservices.communicators.version1.errors.*
+import de.uniflitzer.backend.applicationservices.communicators.version1.errors.ForbiddenError
+import de.uniflitzer.backend.applicationservices.communicators.version1.errors.NotFoundError
 import de.uniflitzer.backend.applicationservices.communicators.version1.valuechecker.UUID
 import de.uniflitzer.backend.applicationservices.geography.GeographyService
-import de.uniflitzer.backend.model.Car
-import de.uniflitzer.backend.model.CarpoolDriveOffer
-import de.uniflitzer.backend.model.Coordinate
-import de.uniflitzer.backend.model.DriveOffer
-import de.uniflitzer.backend.model.PublicDriveOffer
-import de.uniflitzer.backend.model.errors.*
-import de.uniflitzer.backend.model.Route
-import de.uniflitzer.backend.model.Seats
-import de.uniflitzer.backend.model.User
+import de.uniflitzer.backend.model.*
+import de.uniflitzer.backend.model.errors.MissingActionError
+import de.uniflitzer.backend.model.errors.NotAvailableError
+import de.uniflitzer.backend.model.errors.RepeatedActionError
 import de.uniflitzer.backend.repositories.DriveOffersRepository
+import de.uniflitzer.backend.repositories.ImagesRepository
 import de.uniflitzer.backend.repositories.UsersRepository
+import de.uniflitzer.backend.repositories.errors.ImageDirectoryMissingError
 import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.annotations.media.Content
 import io.swagger.v3.oas.annotations.responses.ApiResponse
@@ -34,8 +32,8 @@ import org.springframework.http.ResponseEntity
 import org.springframework.validation.annotation.Validated
 import org.springframework.web.bind.annotation.*
 import java.time.ZonedDateTime
-import java.util.UUID as UUIDType
 import kotlin.jvm.optionals.getOrNull
+import java.util.UUID as UUIDType
 
 @RestController
 @RequestMapping("v1/drive-offers")
@@ -45,7 +43,8 @@ import kotlin.jvm.optionals.getOrNull
 private class DriveOffersCommunicator(
     @field:Autowired private val driveOffersRepository: DriveOffersRepository,
     @field:Autowired private val usersRepository: UsersRepository,
-    @field:Autowired private val geographyService: GeographyService
+    @field:Autowired private val geographyService: GeographyService,
+    @field:Autowired private val imagesRepository: ImagesRepository
 ) {
     @Operation(description = "Get all drive offers.")
     @CommonApiResponses @OkApiResponse
@@ -87,7 +86,7 @@ private class DriveOffersCommunicator(
         )
     }
 
-    @Operation(description = "Get the image of a specific car of a specific drive offer.")
+    @Operation(description = "Get the image of the car of a specific drive offer.")
     @ApiResponses(
         value = [
             ApiResponse(
@@ -98,8 +97,19 @@ private class DriveOffersCommunicator(
     )
     @CommonApiResponses @NotFoundApiResponse
     @GetMapping("{id}/car/image")
-    fun getImageOfCar(@PathVariable @UUID id: String, @RequestParam quality: QualityDP): ResponseEntity<ByteArray> {
-        TODO()
+    fun getImageOfCar(@PathVariable @UUID id: String, @RequestParam quality: QualityDP, userToken: UserToken): ResponseEntity<ByteArray> {
+        if(!usersRepository.existsById(UUIDType.fromString(userToken.id))) throw ForbiddenError(ErrorDP("User with id ${userToken.id} does not exist in resource server."))
+
+        val driveOffer: DriveOffer = driveOffersRepository.findById(UUIDType.fromString(id)).getOrNull() ?: throw NotFoundError(ErrorDP("DriveOffer with id $id not found."))
+
+        val car: Car = driveOffer.car
+        if (car.image == null) throw NotFoundError(ErrorDP("Car has no image."))
+        try {
+            val image:ByteArray = imagesRepository.getById(car.image!!.id, if(quality == QualityDP.Preview) ImagesRepository.Quality.Preview else ImagesRepository.Quality.Full).getOrNull() ?: throw NotFoundError(ErrorDP("Image not found."))
+            return ResponseEntity.ok().contentType(MediaType.IMAGE_JPEG).body(image)
+        } catch (error: ImageDirectoryMissingError) {
+            throw NotFoundError(ErrorDP(error.message!!))
+        }
     }
 
     @Operation(description = "Create a new drive offer.")

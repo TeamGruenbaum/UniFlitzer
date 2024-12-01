@@ -3,12 +3,16 @@ package de.uniflitzer.backend.applicationservices.communicators.version1
 import de.uniflitzer.backend.applicationservices.authentication.UserToken
 import de.uniflitzer.backend.applicationservices.communicators.version1.datapackages.*
 import de.uniflitzer.backend.applicationservices.communicators.version1.documentationinformationadder.apiresponses.*
+import de.uniflitzer.backend.applicationservices.communicators.version1.errors.BadRequestError
 import de.uniflitzer.backend.applicationservices.communicators.version1.errors.ForbiddenError
 import de.uniflitzer.backend.applicationservices.communicators.version1.errors.InternalServerError
 import de.uniflitzer.backend.applicationservices.communicators.version1.errors.NotFoundError
 import de.uniflitzer.backend.applicationservices.communicators.version1.valuechecker.UUID
 import de.uniflitzer.backend.model.*
+import de.uniflitzer.backend.model.errors.NotAvailableError
+import de.uniflitzer.backend.repositories.ImagesRepository
 import de.uniflitzer.backend.repositories.UsersRepository
+import de.uniflitzer.backend.repositories.errors.*
 import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.annotations.media.Content
 import io.swagger.v3.oas.annotations.responses.ApiResponse
@@ -42,17 +46,9 @@ import java.util.UUID as UUIDType
 private class UsersCommunicator(
     @field:Autowired private val usersRepository: UsersRepository,
     @field:Autowired private val keycloak: Keycloak,
-    @field:Autowired private val environment: Environment
+    @field:Autowired private val environment: Environment,
+    @field:Autowired private val imagesRepository: ImagesRepository
 ) {
-    @Autowired
-    private lateinit var defaultErrorAttributes: DefaultErrorAttributes
-
-    @GetMapping("test")
-    fun test():ResponseEntity<Void>{
-        throw IllegalStateException("Test")
-        return ResponseEntity.ok().build()
-    }
-
     @Operation(description = "Get details of a specific user.")
     @CommonApiResponses @OkApiResponse @NotFoundApiResponse
     @GetMapping("{id}")
@@ -137,17 +133,50 @@ private class UsersCommunicator(
     }
 
     @Operation(description = "Create an image for a specific user.")
-    @CommonApiResponses @NoContentApiResponse @NotFoundApiResponse
+    @CommonApiResponses @CreatedApiResponse @NotFoundApiResponse
     @PostMapping("{id}/image", consumes = [MediaType.MULTIPART_FORM_DATA_VALUE])
-    fun createImageForUser(@PathVariable @UUID id: String, @RequestPart image: MultipartFile): ResponseEntity<Void> {
-        TODO()
+    fun createImageForUser(@PathVariable @UUID id: String, @RequestPart image: MultipartFile, userToken: UserToken): ResponseEntity<IdDP> {
+        if (userToken.id != id) throw ForbiddenError(ErrorDP("UserToken id does not match the user id."))
+        val user: User = usersRepository.findById(UUIDType.fromString(userToken.id)).getOrNull() ?: throw ForbiddenError(ErrorDP("User with id ${userToken.id} does not exist in resource server."))
+
+        if(user.profilePicture != null) throw BadRequestError(ErrorsDP(listOf("User already has a profile picture.")))
+
+        val imageEntity:Image
+        try {
+            imageEntity = imagesRepository.save(image)
+        } catch (error: FileCorruptedError) {
+            throw BadRequestError(ErrorsDP(listOf(error.message!!)))
+        }
+        catch (error: WrongFileFormatError) {
+            throw BadRequestError(ErrorsDP(listOf(error.message!!)))
+        }
+        user.profilePicture = imageEntity
+        usersRepository.save(user)
+
+        return ResponseEntity.status(201).body(IdDP(imageEntity.id.toString()))
     }
 
     @Operation(description = "Delete the image of a specific user.")
     @CommonApiResponses @NoContentApiResponse @NotFoundApiResponse
     @DeleteMapping("{id}/image")
-    fun deleteImageOfUser(@PathVariable @UUID id: String): ResponseEntity<Void> {
-        TODO()
+    fun deleteImageOfUser(@PathVariable @UUID id: String, userToken: UserToken): ResponseEntity<Void> {
+        if (userToken.id != id) throw ForbiddenError(ErrorDP("UserToken id does not match the user id."))
+        val user: User = usersRepository.findById(UUIDType.fromString(userToken.id)).getOrNull() ?: throw ForbiddenError(ErrorDP("User with id ${userToken.id} does not exist in resource server."))
+        if(user.profilePicture == null) throw NotFoundError(ErrorDP("User has no profile picture."))
+
+        try {
+            val profilePictureId:UUIDType = user.profilePicture!!.id
+            user.profilePicture = null
+            usersRepository.save(user)
+            imagesRepository.deleteById(profilePictureId)
+        }
+        catch (error: ImageDirectoryMissingError) {
+            throw NotFoundError(ErrorDP(error.message ?: "Image not found."))
+        }
+        catch (error: FileMissingError) {
+            throw NotFoundError(ErrorDP(error.message ?: "Image not found."))
+        }
+        return ResponseEntity.noContent().build()
     }
 
     @Operation(description = "Get the image of a specific user.")
@@ -159,10 +188,21 @@ private class UsersCommunicator(
             )
         ]
     )
+
     @CommonApiResponses @NotFoundApiResponse
     @GetMapping("{id}/image")
-    fun getImageOfUser(@PathVariable @UUID id: String, @RequestParam quality: QualityDP): ResponseEntity<ByteArray> {
-        TODO()
+    fun getImageOfUser(@PathVariable @UUID id: String, @RequestParam quality: QualityDP, userToken: UserToken): ResponseEntity<ByteArray> {
+        if (userToken.id != id) throw ForbiddenError(ErrorDP("UserToken id does not match the user id."))
+        val user: User = usersRepository.findById(UUIDType.fromString(userToken.id)).getOrNull() ?: throw ForbiddenError(ErrorDP("User with id ${userToken.id} does not exist in resource server."))
+
+        if (user.profilePicture == null) throw NotFoundError(ErrorDP("User has no profile picture."))
+
+        try {
+            val image:ByteArray = imagesRepository.getById(user.profilePicture!!.id, if(quality == QualityDP.Preview) ImagesRepository.Quality.Preview else ImagesRepository.Quality.Full).getOrNull() ?: throw NotFoundError(ErrorDP("Image not found."))
+            return ResponseEntity.ok().contentType(MediaType.IMAGE_JPEG).body(image)
+        } catch (error: ImageDirectoryMissingError) {
+            throw NotFoundError(ErrorDP(error.message!!))
+        }
     }
 
     @Operation(description = "Create a car for a specific user.")
@@ -179,10 +219,29 @@ private class UsersCommunicator(
     }
 
     @Operation(description = "Create an image for a specific car of a specific user.")
-    @CommonApiResponses @NoContentApiResponse @NotFoundApiResponse
+    @CommonApiResponses @CreatedApiResponse @NotFoundApiResponse
     @PostMapping("{userId}/cars/{carIndex}/image", consumes = [MediaType.MULTIPART_FORM_DATA_VALUE])
-    fun createImageForCarOfUser(@PathVariable @UUID userId: String, @PathVariable @Min(0) carIndex: Int, @RequestPart image: MultipartFile):ResponseEntity<Void> {
-        TODO()
+    fun createImageForCarOfUser(@PathVariable @UUID userId: String, @PathVariable @Min(0) carIndex: Int, @RequestPart image: MultipartFile, userToken: UserToken):ResponseEntity<IdDP> {
+        if (userToken.id != userId) throw ForbiddenError(ErrorDP("UserToken id does not match the user id."))
+        val user: User = usersRepository.findById(UUIDType.fromString(userToken.id)).getOrNull() ?: throw ForbiddenError(ErrorDP("User with id ${userToken.id} does not exist in resource server."))
+
+        val car: Car
+        try { car = user.getCarByIndex(carIndex) } catch (error: NotAvailableError) { throw NotFoundError(ErrorDP(error.message!!)) }
+        if(car.image != null) throw BadRequestError(ErrorsDP(listOf("Car already has an image.")))
+
+        val imageEntity:Image
+        try {
+            imageEntity = imagesRepository.save(image)
+        } catch (error: FileCorruptedError) {
+            throw BadRequestError(ErrorsDP(listOf(error.message!!)))
+        }
+        catch (error: WrongFileFormatError) {
+            throw BadRequestError(ErrorsDP(listOf(error.message!!)))
+        }
+        car.image = imageEntity
+        usersRepository.save(user)
+
+        return ResponseEntity.status(201).body(IdDP(imageEntity.id.toString()))
     }
 
     @Operation(description = "Get the image of a specific car of a specific user.")
@@ -196,8 +255,20 @@ private class UsersCommunicator(
     )
     @CommonApiResponses @NotFoundApiResponse
     @GetMapping("{userId}/cars/{carIndex}/image")
-    fun getImageOfCarOfUser(@PathVariable @UUID userId: String, @PathVariable @Min(0) carIndex: Int, @RequestParam quality: QualityDP): ResponseEntity<ByteArray> {
-        TODO()
+    fun getImageOfCarOfUser(@PathVariable @UUID userId: String, @PathVariable @Min(0) carIndex: Int, @RequestParam quality: QualityDP, userToken: UserToken): ResponseEntity<ByteArray> {
+        if (userToken.id != userId) throw ForbiddenError(ErrorDP("UserToken id does not match the user id."))
+        val user: User = usersRepository.findById(UUIDType.fromString(userToken.id)).getOrNull() ?: throw ForbiddenError(ErrorDP("User with id ${userToken.id} does not exist in resource server."))
+
+        val car: Car
+        try { car = user.getCarByIndex(carIndex) } catch (error: NotAvailableError) { throw NotFoundError(ErrorDP(error.message!!)) }
+        if (car.image == null) throw NotFoundError(ErrorDP("Car has no image."))
+
+        try {
+            val image:ByteArray = imagesRepository.getById(car.image!!.id, if(quality == QualityDP.Preview) ImagesRepository.Quality.Preview else ImagesRepository.Quality.Full).getOrNull() ?: throw NotFoundError(ErrorDP("Image not found."))
+            return ResponseEntity.ok().contentType(MediaType.IMAGE_JPEG).body(image)
+        } catch (error: ImageDirectoryMissingError) {
+            throw NotFoundError(ErrorDP(error.message!!))
+        }
     }
 
     @Operation(description = "Delete the car of a specific user.")
