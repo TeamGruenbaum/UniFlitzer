@@ -2,7 +2,9 @@ package de.uniflitzer.backend.applicationservices.communicators.version1.datapac
 
 import com.fasterxml.jackson.annotation.JsonTypeInfo
 import de.uniflitzer.backend.applicationservices.communicators.version1.formats.DateTimeFormat
+import de.uniflitzer.backend.applicationservices.communicators.version1.formats.DateTimeFormatExample
 import io.swagger.v3.oas.annotations.media.Schema
+import jakarta.validation.Valid
 import jakarta.validation.constraints.Pattern
 
 @Schema(
@@ -13,6 +15,6 @@ import jakarta.validation.constraints.Pattern
 )
 @JsonTypeInfo(use = JsonTypeInfo.Id.SIMPLE_NAME, include = JsonTypeInfo.As.PROPERTY, property = "type")
 sealed class DriveRequestCreationDP(
-    val route: RouteDP,
-    @field:Pattern(regexp = DateTimeFormat) val plannedDeparture: String?
+    @field:Valid val route: RouteCreationDP,
+    @field:Pattern(regexp = DateTimeFormat) @field:Schema(example = DateTimeFormatExample) val plannedDeparture: String?
 )

@@ -18,10 +18,9 @@ import java.util.UUID
 
 @Entity
 @Table(name = "\"user\"") //user is a SQL keyword, so we need to escape it
-class User(firstName: FirstName, lastName: LastName, birthday: ZonedDateTime, gender: Gender, address: Address, studyProgramme: StudyProgramme) {
+class User(id: UUID, firstName: FirstName, lastName: LastName, birthday: ZonedDateTime, gender: Gender, address: Address, studyProgramme: StudyProgramme) {
     @field:Id
-    @field:GeneratedValue(strategy = GenerationType.UUID)
-    lateinit var id: UUID
+    var id: UUID = id
 
     //username is in Keycloak
 
@@ -45,7 +44,7 @@ class User(firstName: FirstName, lastName: LastName, birthday: ZonedDateTime, ge
     @field:Enumerated(EnumType.STRING)
     @field:ElementCollection
     private var _animals: MutableList<Animal> = mutableListOf()
-    val animals: List<Animal> get() = animals
+    val animals: List<Animal> get() = _animals
 
     fun refillAnimals(animals: List<Animal>) {
         _animals.clear()
