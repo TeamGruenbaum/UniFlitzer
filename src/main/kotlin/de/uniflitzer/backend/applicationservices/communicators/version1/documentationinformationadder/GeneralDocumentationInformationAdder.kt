@@ -11,8 +11,7 @@ import io.swagger.v3.oas.annotations.security.OAuthScope
 
 @OpenAPIDefinition(
     servers = [
-        Server(url = "https://uniflitzer-api.stevensolleder.de"),
-        Server(url = "http://localhost:8080")
+        Server(url = "\${base.url}"),
     ],
     info = Info(
         title = "UniFlitzer API",
@@ -21,32 +20,15 @@ import io.swagger.v3.oas.annotations.security.OAuthScope
     )
 )
 @SecurityScheme(
-    name = "Token Authentication (uniflitzer-auth.stevensolleder.de)",
+    name = "Token Authentication",
     type = SecuritySchemeType.OAUTH2,
     bearerFormat = "JWT",
     scheme = "bearer",
     flows = OAuthFlows(
         authorizationCode = OAuthFlow(
-            authorizationUrl = "https://uniflitzer-auth.stevensolleder.de/realms/uniflitzer/protocol/openid-connect/auth",
-            tokenUrl = "https://uniflitzer-auth.stevensolleder.de/uniflitzer/protocol/openid-connect/token",
-            scopes = [
-                OAuthScope(name = "profile", description = "OpenID Connect built-in scope")
-            ]
-        )
-    )
-)
-@SecurityScheme(
-    name = "Token Authentication (localhost)",
-    type = SecuritySchemeType.OAUTH2,
-    bearerFormat = "JWT",
-    scheme = "bearer",
-    flows = OAuthFlows(
-        authorizationCode = OAuthFlow(
-            authorizationUrl = "http://localhost:7374/realms/uniflitzer/protocol/openid-connect/auth",
-            tokenUrl = "http://localhost:7374/realms/uniflitzer/protocol/openid-connect/token",
-            scopes = [
-                OAuthScope(name = "profile", description = "OpenID Connect built-in scope")
-            ]
+            authorizationUrl = "\${keycloak.url.authorization}",
+            tokenUrl = "\${keycloak.url.token}",
+            refreshUrl = "\${keycloak.url.refresh}"
         )
     )
 )
