@@ -6,7 +6,7 @@ import org.springframework.security.oauth2.server.resource.authentication.JwtAut
 class UserToken(private val jwt: Jwt, private val authenticated:Boolean) : JwtAuthenticationToken(jwt)
 {
     init {
-        super.isAuthenticated = authenticated
+        super.setAuthenticated(authenticated)
     }
 
     val id: String = jwt.claims?.get("sub") as? String ?: throw IllegalArgumentException("ID (Claim \"sub\") not found in JWT")
