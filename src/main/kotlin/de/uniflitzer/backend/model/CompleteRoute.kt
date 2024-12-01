@@ -40,5 +40,4 @@ class CompleteRoute(start: Position, destination: Position, userStops: List<Conf
         this._userStops = userStops.toMutableList()
         this.polyline = polyline
     }
-    }
 }

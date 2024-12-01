@@ -5,7 +5,7 @@ import java.time.ZonedDateTime
 import java.util.*
 
 @Entity
-class Drive(driver: User, car: Car, route: CompleteRoute, plannedDeparture: ZonedDateTime) {
+class Drive(driver: User, car: Car, route: CompleteRoute, passenger: List<User>, plannedDeparture: ZonedDateTime) {
     @field:Id
     @field:GeneratedValue(strategy = GenerationType.UUID)
     lateinit var id: UUID
@@ -16,7 +16,7 @@ class Drive(driver: User, car: Car, route: CompleteRoute, plannedDeparture: Zone
     var car: Car = car
 
     @field:ManyToMany(fetch = FetchType.LAZY)
-    private var _passengers: MutableList<User> = mutableListOf()
+    private var _passengers: MutableList<User> = passenger.toMutableList()
     val passengers: List<User> get() = _passengers
 
     var route: CompleteRoute = route
@@ -27,12 +27,5 @@ class Drive(driver: User, car: Car, route: CompleteRoute, plannedDeparture: Zone
     @field:ElementCollection
     private var _messages: MutableList<Message> = mutableListOf()
     val messages: List<Message> get() = _messages
-
-    init {
-        this.driver = driver
-        this.car = car
-        this.route = route
-        this.plannedDeparture = plannedDeparture
-    }
 }
 

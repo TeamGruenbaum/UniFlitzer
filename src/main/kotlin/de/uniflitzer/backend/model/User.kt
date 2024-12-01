@@ -1,5 +1,6 @@
 package de.uniflitzer.backend.model
 
+import de.uniflitzer.backend.model.errors.NotAvailableError
 import jakarta.persistence.CascadeType
 import jakarta.persistence.ElementCollection
 import jakarta.persistence.Entity
@@ -15,6 +16,7 @@ import jakarta.persistence.Table
 import jakarta.persistence.Transient
 import java.time.ZonedDateTime
 import java.util.UUID
+import kotlin.jvm.Throws
 
 @Entity
 @Table(name = "\"user\"") //user is a SQL keyword, so we need to escape it
@@ -97,5 +99,13 @@ class User(id: UUID, firstName: FirstName, lastName: LastName, birthday: ZonedDa
         this.gender = gender
         this.address = address
         this.studyProgramme = studyProgramme
+    }
+
+    fun addCar(car: Car) = _cars.add(car)
+
+    @Throws(NotAvailableError::class)
+    fun removeCarAtIndex(index: UInt){
+        if(index.toInt() >= _cars.size) throw NotAvailableError("Index out of bounds")
+        _cars.removeAt(index.toInt())
     }
 }
