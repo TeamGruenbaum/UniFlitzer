@@ -5,6 +5,7 @@ import de.uniflitzer.backend.applicationservices.communicators.version1.datapack
 import de.uniflitzer.backend.applicationservices.communicators.version1.errors.*
 import jakarta.validation.ConstraintViolationException
 import org.springframework.http.HttpStatus
+import org.springframework.http.MediaType
 import org.springframework.http.ResponseEntity
 import org.springframework.web.HttpRequestMethodNotSupportedException
 import org.springframework.web.bind.MethodArgumentNotValidException
@@ -15,12 +16,12 @@ import org.springframework.web.bind.annotation.ExceptionHandler
 class ErrorsCommunicator {
     @ExceptionHandler(ForbiddenError::class)
     fun handleForbiddenErrors(forbiddenError: ForbiddenError): ResponseEntity<ErrorDP> {
-        return ResponseEntity<ErrorDP>(forbiddenError.errorDP, HttpStatus.FORBIDDEN)
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).contentType(MediaType.APPLICATION_JSON).body(forbiddenError.errorDP)
     }
 
     @ExceptionHandler(NotFoundError::class)
     fun handleNotFoundErrors(notFoundError: NotFoundError): ResponseEntity<ErrorDP> {
-        return ResponseEntity<ErrorDP>(notFoundError.errorDP, HttpStatus.NOT_FOUND)
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).contentType(MediaType.APPLICATION_JSON).body(notFoundError.errorDP)
     }
 
     @ExceptionHandler(
@@ -30,21 +31,20 @@ class ErrorsCommunicator {
         IllegalArgumentException::class
     )
     fun handleBadRequestErrors(error: Exception): ResponseEntity<ErrorsDP> {
-        return ResponseEntity<ErrorsDP>(
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).contentType(MediaType.APPLICATION_JSON).body(
             when (error) {
                 is BadRequestError -> error.errorsDP
                 is ConstraintViolationException -> ErrorsDP(error.constraintViolations.stream().map { it.message }.toList())
                 is MethodArgumentNotValidException -> ErrorsDP(error.bindingResult.fieldErrors.stream().map<String>{ it.defaultMessage }.toList())
                 is IllegalArgumentException -> ErrorsDP(listOf(error.message ?: "Some validation failed."))
                 else -> throw InternalServerError(ErrorDP("Unexpected error occurred."))
-            },
-            HttpStatus.BAD_REQUEST
+            }
         )
     }
 
     @ExceptionHandler(HttpRequestMethodNotSupportedException::class)
     fun handleMethodNotSupportedErrors(error: HttpRequestMethodNotSupportedException): ResponseEntity<ErrorDP> {
-        return ResponseEntity<ErrorDP>(ErrorDP("Method not supported on this endpoint."), HttpStatus.METHOD_NOT_ALLOWED)
+        return ResponseEntity.status(HttpStatus.METHOD_NOT_ALLOWED).contentType(MediaType.APPLICATION_JSON).body(ErrorDP("Method not supported on this endpoint."))
     }
 
     @ExceptionHandler(
@@ -52,12 +52,11 @@ class ErrorsCommunicator {
         Exception::class
     )
     fun handleOtherErrors(error: Exception): ResponseEntity<ErrorDP> {
-        return ResponseEntity<ErrorDP>(
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).contentType(MediaType.APPLICATION_JSON).body(
             when (error) {
                 is InternalServerError -> error.errorDP
                 else -> ErrorDP("Unexpected error occurred.")
-            },
-            HttpStatus.INTERNAL_SERVER_ERROR
+            }
         )
     }
 }

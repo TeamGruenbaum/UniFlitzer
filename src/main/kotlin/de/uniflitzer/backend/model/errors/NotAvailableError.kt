@@ -1,3 +1,3 @@
 package de.uniflitzer.backend.model.errors
 
-class NotAvailableError(message: String): Exception(message)
+class NotAvailableError(message: String): RuntimeException(message)

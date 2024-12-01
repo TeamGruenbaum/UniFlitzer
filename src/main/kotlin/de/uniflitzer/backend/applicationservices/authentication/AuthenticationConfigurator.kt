@@ -36,11 +36,7 @@ class AuthenticationConfigurator {
                         UserToken(jwt, true)
                     }
                 }
-            }
-            .sessionManagement { sessions -> sessions.sessionCreationPolicy(SessionCreationPolicy.STATELESS) }
-            .csrf { csrf -> csrf.disable() }
-            .exceptionHandling { exceptions ->
-                exceptions.authenticationEntryPoint { _, response, _ ->
+                .authenticationEntryPoint { _, response, _ ->
                     response.apply {
                         status = HttpServletResponse.SC_UNAUTHORIZED
                         contentType = "application/json"
@@ -48,6 +44,8 @@ class AuthenticationConfigurator {
                     }
                 }
             }
+            .sessionManagement { sessions -> sessions.sessionCreationPolicy(SessionCreationPolicy.STATELESS) }
+            .csrf { csrf -> csrf.disable() }
             .authorizeHttpRequests { requests ->
                 requests
                     .requestMatchers("/swagger-ui/**").permitAll()

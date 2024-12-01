@@ -1,3 +1,3 @@
 package de.uniflitzer.backend.model.errors
 
-class EntityNotFoundError(message: String): Exception(message)
+class EntityNotFoundError(message: String): RuntimeException(message)

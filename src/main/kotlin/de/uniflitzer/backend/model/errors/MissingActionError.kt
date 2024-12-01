@@ -1,3 +1,3 @@
 package de.uniflitzer.backend.model.errors
 
-class MissingActionError(message: String): Exception(message)
+class MissingActionError(message: String): RuntimeException(message)
