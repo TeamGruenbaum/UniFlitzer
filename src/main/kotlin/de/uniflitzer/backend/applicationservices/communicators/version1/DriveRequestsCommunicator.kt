@@ -13,6 +13,7 @@ import de.uniflitzer.backend.model.errors.EntityNotFoundError
 import de.uniflitzer.backend.model.errors.NotAvailableError
 import de.uniflitzer.backend.repositories.DriveOffersRepository
 import de.uniflitzer.backend.repositories.DriveRequestsRepository
+import de.uniflitzer.backend.repositories.ImagesRepository
 import de.uniflitzer.backend.repositories.UsersRepository
 import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.annotations.security.SecurityRequirement
@@ -39,7 +40,8 @@ private class DriveRequestsCommunicator(
     @field:Autowired private val usersRepository: UsersRepository,
     @field:Autowired private val driveRequestsRepository: DriveRequestsRepository,
     @field:Autowired private val driveOffersRepository: DriveOffersRepository,
-    @field:Autowired private val geographyService: GeographyService
+    @field:Autowired private val geographyService: GeographyService,
+    @field:Autowired private val imagesRepository: ImagesRepository
 )
 {
     @Operation(description = "Create a new drive request.")
@@ -157,22 +159,24 @@ private class DriveRequestsCommunicator(
                 {
                     is CarpoolDriveOfferCreationDP -> { throw ForbiddenError(ErrorDP("CarpoolDriveOffer creation is not allowed for PublicDriveRequest.")) }
                     is PublicDriveOfferCreationDP -> {
-                        PublicDriveOffer(
+                        val car:Car = try{ user.getCarByIndex(driveOfferCreation.carIndex) } catch(error:NotAvailableError){ throw NotFoundError(ErrorDP(error.message!!)) }
+                        val driveOffer:PublicDriveOffer = PublicDriveOffer(
                             user,
-                            try{ user.getCarByIndex(driveOfferCreation.carIndex) } catch(error:NotAvailableError){ throw NotFoundError(ErrorDP(error.message!!)) },
+                            car,
                             Seats(driveOfferCreation.freeSeats.toUInt()),
                             Route(
                                 geographyService.createPosition(driveOfferCreation.route.start.toCoordinate()),
                                 geographyService.createPosition(driveOfferCreation.route.destination.toCoordinate())
                             ),
                             driveOfferCreation.plannedDepartureTime?.let { ZonedDateTime.parse(it) }
-                        ).let {
-                            driveRequest.addDriveOffer(it)
-                            driveOffersRepository.saveAndFlush(it)
-                            driveRequestsRepository.saveAndFlush(driveRequest)
+                        )
+                        car.image?.let { driveOffer.car.image = imagesRepository.copy(it) }
 
-                            return ResponseEntity.status(201).body(IdDP(it.id.toString()))
-                        }
+                        driveRequest.addDriveOffer(driveOffer)
+                        driveOffersRepository.saveAndFlush(driveOffer)
+                        driveRequestsRepository.saveAndFlush(driveRequest)
+
+                        return ResponseEntity.status(201).body(IdDP(driveOffer.id.toString()))
                     }
                 }
             }
