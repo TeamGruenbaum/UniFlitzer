@@ -14,13 +14,13 @@ import kotlin.math.tan
 class Coordinate(latitude: Double, longitude: Double) {
     final var latitude: Double = latitude
         private set(value) {
-            require(value in (-90.0..90.0)) //TODO
+            require(value in (-90.0..90.0))
             field = value
         }
 
     final var longitude: Double = longitude
         private set(value) {
-            require(value in (0.0..360.0)) //TODO
+            require(value in (-180.0..180.0))
             field = value
         }
 

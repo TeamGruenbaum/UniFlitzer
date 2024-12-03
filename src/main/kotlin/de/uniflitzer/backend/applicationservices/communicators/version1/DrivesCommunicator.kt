@@ -125,24 +125,8 @@ private class DrivesCommunicator(@field:Autowired private val usersRepository: U
         val drive: Drive = drivesRepository.findById(UUIDType.fromString(driveId)).getOrNull() ?: throw NotFoundError(ErrorDP("Drive with id $driveId not found."))
         if(drive.passengers.none { it.id == user.id }) throw ForbiddenError(ErrorDP("User is not a passenger of this drive."))
         drive.route.confirmUserStop(user.id)
-        
+
         drivesRepository.save(drive)
         return ResponseEntity.noContent().build()
-    }
-
-    @OkApiResponse
-    @GetMapping("compute-route")
-    fun testComputeRoute(userToken: UserToken): ResponseEntity<CompleteRouteDP>
-    {
-        val user: User = usersRepository.findById(UUIDType.fromString(userToken.id)).getOrNull() ?: throw ForbiddenError(ErrorDP("User with id ${userToken.id} does not exist in resource server."))
-        val completeRoute:CompleteRoute = geographyService.createRoute(
-            Position(Coordinate(50.316944, 11.927306), Address("Testingston", "23","95028","Hof")),
-            listOf(
-                UserStop(user, Position(Coordinate(50.321694, 11.924083), Address("Test", "3","95028","Hof"))),
-                UserStop(user, Position(Coordinate(50.319001, 11.931654), Address("Test", "56","95028","Hof")))
-            ),
-            Position(Coordinate(50.324833, 11.941250), Address("Testinger", "45","95028","Hof"))
-        )
-        return ResponseEntity.ok(CompleteRouteDP.fromCompleteRoute(completeRoute))
     }
 }

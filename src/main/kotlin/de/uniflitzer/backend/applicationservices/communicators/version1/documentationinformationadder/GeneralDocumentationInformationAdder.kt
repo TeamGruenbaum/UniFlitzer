@@ -11,7 +11,7 @@ import io.swagger.v3.oas.annotations.security.OAuthScope
 
 @OpenAPIDefinition(
     servers = [
-        Server(url = "\${base.url}"),
+        Server(url = "\${swagger.url.application}"),
     ],
     info = Info(
         title = "UniFlitzer API",
@@ -26,9 +26,9 @@ import io.swagger.v3.oas.annotations.security.OAuthScope
     scheme = "bearer",
     flows = OAuthFlows(
         authorizationCode = OAuthFlow(
-            authorizationUrl = "\${keycloak.url.authorization}",
-            tokenUrl = "\${keycloak.url.token}",
-            refreshUrl = "\${keycloak.url.refresh}"
+            authorizationUrl = "\${swagger.url.keycloak}/realms/uniflitzer/protocol/openid-connect/auth",
+            tokenUrl = "\${swagger.url.keycloak}/realms/uniflitzer/protocol/openid-connect/token",
+            refreshUrl = "\${swagger.url.keycloak}/realms/uniflitzer/clients-registrations/openid-connect"
         )
     )
 )

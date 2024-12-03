@@ -62,7 +62,7 @@ class AuthenticationConfigurator(
     @Bean
     fun authenticationAdministrator(): Keycloak {
         return KeycloakBuilder.builder()
-            .serverUrl(environment.getProperty("keycloak.keycloakUrl") ?: "http://localhost:8080")
+            .serverUrl(environment.getProperty("keycloak.url") ?: "http://localhost:8080")
             .realm(environment.getProperty("keycloak.administrator.realm.name") ?: "master")
             .clientId(environment.getProperty("keycloak.administrator.clientId") ?: "admin-cli")
             .username(environment.getProperty("keycloak.administrator.username") ?: "admin")

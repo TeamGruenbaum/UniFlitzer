@@ -68,7 +68,7 @@ class GoogleMapsPlatformGeographyService(
         )
         .body()
 
-        val address: Address = ObjectMapper()
+        val address: Address? = ObjectMapper()
             .readTree(responseBody)
             .path("results")
             .get(0)
@@ -80,10 +80,10 @@ class GoogleMapsPlatformGeographyService(
             .entries
             .let {
                 Address(
-                    street = it.find { entry -> entry.key.contains("route") }?.value!!,
-                    houseNumber = it.find { entry -> entry.key.contains("street_number") }?.value!!,
-                    postalCode = it.find { entry -> entry.key.contains("postal_code") }?.value!!,
-                    city = it.find { entry -> entry.key.contains("locality") }?.value!!
+                    street = it.find { entry -> entry.key.contains("route") }?.value ?: return@let null,
+                    houseNumber = it.find { entry -> entry.key.contains("street_number") }?.value ?: return@let null,
+                    postalCode = it.find { entry -> entry.key.contains("postal_code") }?.value ?: return@let null,
+                    city = it.find { entry -> entry.key.contains("locality") }?.value ?: return@let null
                 )
             }
 

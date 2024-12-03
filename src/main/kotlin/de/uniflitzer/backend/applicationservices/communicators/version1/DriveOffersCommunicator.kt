@@ -133,6 +133,7 @@ private class DriveOffersCommunicator(
                 )
             is CarpoolDriveOfferCreationDP -> TODO()
         }
+        selectedCarForDriverOffer.image?.let { actingUserCarImage -> newDriveOffer.car.image = imagesRepository.copy(actingUserCarImage) }
         driveOffersRepository.save(newDriveOffer)
 
         return ResponseEntity.status(HttpStatus.CREATED).body(IdDP(newDriveOffer.id.toString()))

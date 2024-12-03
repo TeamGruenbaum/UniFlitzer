@@ -82,7 +82,7 @@ Headers: ${ObjectMapper().writeValueAsString(request.headerNames.toList().associ
 Method: ${request.method}
 Path: ${request.requestURI}
 QueryParams: ${request.queryString ?: "None"}
-Body: ${request.reader.readLines().joinToString("\n")}
+Body: ${try{ request.reader.readText() }catch(_: Exception){ request.contentType }}
 
 STACKTRACE:
 ${error.stackTraceToString()}
