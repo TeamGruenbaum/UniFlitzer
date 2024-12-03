@@ -6,7 +6,6 @@ import de.uniflitzer.backend.model.Position
 import de.uniflitzer.backend.model.UserStop
 import org.springframework.stereotype.Service
 
-@Service
 interface GeographyService {
     fun createRoute(start: Position, stops: List<UserStop>, destination: Position): CompleteRoute
     fun createPosition(coordinate: Coordinate): Position

@@ -21,6 +21,7 @@ import org.springframework.web.bind.MissingServletRequestParameterException
 import org.springframework.web.bind.annotation.ControllerAdvice
 import org.springframework.web.bind.annotation.ExceptionHandler
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException
+import org.springframework.web.multipart.MaxUploadSizeExceededException
 import java.util.*
 
 @ControllerAdvice
@@ -44,7 +45,8 @@ private class ErrorsCommunicator {
         MethodArgumentTypeMismatchException::class,
         MissingServletRequestParameterException::class,
         HttpMessageNotReadableException::class,
-        IllegalArgumentException::class
+        IllegalArgumentException::class,
+        MaxUploadSizeExceededException::class
     )
     fun handleBadRequestErrors(error: Exception): ResponseEntity<ErrorsDP> {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).contentType(MediaType.APPLICATION_JSON).body(
@@ -56,6 +58,7 @@ private class ErrorsCommunicator {
                 is MissingServletRequestParameterException -> ErrorsDP(listOf("Value for parameter \"${error.parameterName}\" is missing."))
                 is HttpMessageNotReadableException -> ErrorsDP(listOf("Request body is missing or has wrong format."))
                 is IllegalArgumentException -> ErrorsDP(listOf("Some validation failed."))
+                is MaxUploadSizeExceededException -> ErrorsDP(listOf("File size exceeds the limit of 5MB."))
                 else -> throw InternalServerError(ErrorDP("Unexpected error occurred."))
             }
         )
@@ -79,7 +82,7 @@ Headers: ${ObjectMapper().writeValueAsString(request.headerNames.toList().associ
 Method: ${request.method}
 Path: ${request.requestURI}
 QueryParams: ${request.queryString ?: "None"}
-Body: ${request.reader.readLines().joinToString("\n")}
+Body: ${try{ request.reader.readText() }catch(_: Exception){ request.contentType }}
 
 STACKTRACE:
 ${error.stackTraceToString()}

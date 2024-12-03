@@ -1,20 +1,9 @@
 package de.uniflitzer.backend.model
 
-import jakarta.persistence.CascadeType
-import jakarta.persistence.ElementCollection
-import jakarta.persistence.Entity
-import jakarta.persistence.EnumType
-import jakarta.persistence.Enumerated
-import jakarta.persistence.FetchType
-import jakarta.persistence.GeneratedValue
-import jakarta.persistence.GenerationType
-import jakarta.persistence.Id
-import jakarta.persistence.ManyToMany
-import jakarta.persistence.OneToMany
-import jakarta.persistence.Table
-import jakarta.persistence.Transient
+import de.uniflitzer.backend.model.errors.NotAvailableError
+import jakarta.persistence.*
 import java.time.ZonedDateTime
-import java.util.UUID
+import java.util.*
 
 @Entity
 @Table(name = "\"user\"") //user is a SQL keyword, so we need to escape it
@@ -24,6 +13,7 @@ class User(id: UUID, firstName: FirstName, lastName: LastName, birthday: ZonedDa
 
     //username is in Keycloak
 
+    @OneToOne
     var profilePicture: Image? = null
 
     var firstName: FirstName = firstName
@@ -97,5 +87,18 @@ class User(id: UUID, firstName: FirstName, lastName: LastName, birthday: ZonedDa
         this.gender = gender
         this.address = address
         this.studyProgramme = studyProgramme
+    }
+
+    fun addCar(car: Car) = _cars.add(car)
+
+    @Throws(NotAvailableError::class)
+    fun removeCarAtIndex(index: UInt) {
+        if (index.toInt() >= _cars.size) throw NotAvailableError("Index out of bounds")
+        _cars.removeAt(index.toInt())
+    }
+
+    @Throws(NotAvailableError::class)
+    fun getCarByIndex(index: Int): Car {
+        return cars.getOrNull(index) ?: throw NotAvailableError("The car with index $index does not exist.")
     }
 }

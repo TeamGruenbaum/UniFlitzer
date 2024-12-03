@@ -1,5 +1,6 @@
 package de.uniflitzer.backend.model
 
+import de.uniflitzer.backend.model.errors.NotAvailableError
 import jakarta.persistence.*
 import java.util.*
 
@@ -40,5 +41,11 @@ class CompleteRoute(start: Position, destination: Position, userStops: List<Conf
         this._userStops = userStops.toMutableList()
         this.polyline = polyline
     }
+    
+    @Throws(NotAvailableError::class)
+    fun confirmUserStop(userId: UUID)
+    {
+        if(userStops.none { it.user.id == userId }) throw NotAvailableError("No user stop for this user available.")
+        userStops.first { it.user.id == userId }.confirm()
     }
 }

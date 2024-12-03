@@ -43,3 +43,6 @@ secrets.yml
 node_modules
 .idea/
 .env
+images/
+*.log
+logs/

@@ -23,6 +23,12 @@ services:
       KC_HTTP_PORT: 7374
     command: start-dev
 
+  virus-scanning:
+    image: mkodockx/docker-clamav:alpine
+    ports:
+      - "3310:3310/tcp"
+    restart: always
+
 volumes:
   database-data:
   authentication-data:
