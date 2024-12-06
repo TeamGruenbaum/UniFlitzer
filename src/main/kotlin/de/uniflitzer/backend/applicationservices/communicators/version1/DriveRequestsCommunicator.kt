@@ -74,11 +74,11 @@ private class DriveRequestsCommunicator(
     @CommonApiResponses @OkApiResponse
     @GetMapping("")
     fun getDriveRequests(@RequestParam @Min(1) pageNumber: Int, @RequestParam @Min(1) @Max(50) perPage: Int,
-                         @RequestParam sortingDirection: SortingDirection?, userToken: UserToken): ResponseEntity<PageDP<PartialDriveRequestDP>>
+                         @RequestParam sortingDirection: SortingDirection = SortingDirection.Ascending, userToken: UserToken): ResponseEntity<PageDP<PartialDriveRequestDP>>
     {
         val user: User = usersRepository.findById(UUIDType.fromString(userToken.id)).getOrNull() ?: throw ForbiddenError(ErrorDP("User with id ${userToken.id} does not exist in resource server."))
 
-        val sort:Sort = if (sortingDirection == null || sortingDirection == SortingDirection.Ascending) Sort.by("id").ascending() else Sort.by("id").descending()
+        val sort:Sort = if (sortingDirection == SortingDirection.Ascending) Sort.by("id").ascending() else Sort.by("id").descending()
         val page:Page<DriveRequest> = driveRequestsRepository.findDriveRequests(PageRequest.of(pageNumber - 1, perPage, sort))
 
         // TODO("Outsource filtering to the repository.")
