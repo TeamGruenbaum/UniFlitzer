@@ -22,6 +22,7 @@ import org.springframework.web.bind.annotation.ControllerAdvice
 import org.springframework.web.bind.annotation.ExceptionHandler
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException
 import org.springframework.web.multipart.MaxUploadSizeExceededException
+import org.springframework.web.servlet.resource.NoResourceFoundException
 import java.util.*
 
 @ControllerAdvice
@@ -33,9 +34,18 @@ private class ErrorsCommunicator {
         return ResponseEntity.status(HttpStatus.FORBIDDEN).contentType(MediaType.APPLICATION_JSON).body(forbiddenError.errorDP)
     }
 
-    @ExceptionHandler(NotFoundError::class)
-    fun handleNotFoundErrors(notFoundError: NotFoundError): ResponseEntity<ErrorDP> {
-        return ResponseEntity.status(HttpStatus.NOT_FOUND).contentType(MediaType.APPLICATION_JSON).body(notFoundError.errorDP)
+    @ExceptionHandler(
+        NotFoundError::class,
+        NoResourceFoundException::class
+    )
+    fun handleNotFoundErrors(exception: Exception): ResponseEntity<ErrorDP> {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).contentType(MediaType.APPLICATION_JSON).body(
+            when(exception) {
+                is NotFoundError -> exception.errorDP
+                is NoResourceFoundException -> ErrorDP("Resource not found.")
+                else -> throw InternalServerError(ErrorDP("Unexpected error occurred."))
+            }
+        )
     }
 
     @ExceptionHandler(

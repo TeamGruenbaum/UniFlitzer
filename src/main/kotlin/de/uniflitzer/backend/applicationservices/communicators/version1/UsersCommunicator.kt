@@ -10,6 +10,8 @@ import de.uniflitzer.backend.applicationservices.communicators.version1.errors.N
 import de.uniflitzer.backend.applicationservices.communicators.version1.valuechecker.UUID
 import de.uniflitzer.backend.model.*
 import de.uniflitzer.backend.model.errors.NotAvailableError
+import de.uniflitzer.backend.repositories.DriveRequestsRepository
+import de.uniflitzer.backend.repositories.DrivesRepository
 import de.uniflitzer.backend.repositories.ImagesRepository
 import de.uniflitzer.backend.repositories.UsersRepository
 import de.uniflitzer.backend.repositories.errors.*
@@ -28,6 +30,9 @@ import org.keycloak.representations.idm.UserRepresentation
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.web.servlet.error.DefaultErrorAttributes
 import org.springframework.core.env.Environment
+import org.springframework.data.domain.Page
+import org.springframework.data.domain.Sort
+import org.springframework.data.domain.PageRequest
 import org.springframework.http.HttpStatus
 import org.springframework.http.MediaType
 import org.springframework.http.ResponseEntity
@@ -38,6 +43,8 @@ import java.time.ZonedDateTime
 import kotlin.jvm.optionals.getOrNull
 import java.util.UUID as UUIDType
 
+
+
 @SecurityRequirement(name = "Token Authentication")
 @RestController
 @RequestMapping("v1/users")
@@ -45,6 +52,8 @@ import java.util.UUID as UUIDType
 @Tag(name = "User")
 private class UsersCommunicator(
     @field:Autowired private val usersRepository: UsersRepository,
+    @field:Autowired private val drivesRepository: DrivesRepository,
+    @field:Autowired private val driveRequestsRepository: DriveRequestsRepository,
     @field:Autowired private val keycloak: Keycloak,
     @field:Autowired private val environment: Environment,
     @field:Autowired private val imagesRepository: ImagesRepository
@@ -304,11 +313,10 @@ private class UsersCommunicator(
                                                         }
 
         return ResponseEntity.ok(
-            PageDP(
-                maximumPage = (allDriveOffersOfUser.size / perPage) + 1,
-                content = allDriveOffersOfUser
-                    .subList((pageNumber - 1) * perPage, pageNumber * perPage)
-                    .map { PartialDriveOfferDP.fromDriveOffer(it) }
+            PageDP.fromList(
+                allDriveOffersOfUser.map { PartialDriveOfferDP.fromDriveOffer(it) },
+                pageNumber.toUInt(),
+                perPage.toUInt()
             )
         )
     }
@@ -316,15 +324,40 @@ private class UsersCommunicator(
     @Operation(description = "Get all drive requests of a specific user.")
     @CommonApiResponses @OkApiResponse
     @GetMapping("{id}/drive-requests")
-    fun getDriveRequestsOfUser(@PathVariable @UUID id: String, @RequestParam @Min(1) pageNumber: Int, @RequestParam @Min(1) @Max(50) perPage: Int, @RequestParam sortingDirection: SortingDirection = SortingDirection.Ascending): ResponseEntity<PageDP<PartialDriveRequestDP>> {
-        TODO()
+    fun getDriveRequestsOfUser(@PathVariable @UUID id: String, @RequestParam @Min(1) pageNumber: Int, @RequestParam @Min(1) @Max(50) perPage: Int, @RequestParam sortingDirection: SortingDirection = SortingDirection.Ascending, userToken: UserToken): ResponseEntity<PageDP<PartialDriveRequestDP>> {
+        val user: User = usersRepository.findById(UUIDType.fromString(userToken.id)).getOrNull() ?: throw ForbiddenError(ErrorDP("User with id ${userToken.id} does not exist in resource server."))
+        if(user.id != UUIDType.fromString(id)) throw ForbiddenError(ErrorDP("The user can only get his own drive requests."))
+
+        val sort: Sort = if (sortingDirection == SortingDirection.Ascending) Sort.by("id").ascending() else Sort.by("id").descending()
+        val page: Page<DriveRequest> = driveRequestsRepository.findDriveRequests(PageRequest.of(pageNumber - 1, perPage, sort), user.id)
+
+        return ResponseEntity.ok(
+            PageDP(
+                page.totalPages,
+                page.content.map {
+                    when (it) {
+                        is CarpoolDriveRequest -> PartialCarpoolDriveRequestDP.fromCarpoolDriveRequest(it)
+                        is PublicDriveRequest -> PartialPublicDriveRequestDP.fromPublicDriveRequest(it)
+                        else -> throw Exception()
+                    }
+                }
+            )
+        )
     }
 
     @Operation(description = "Get all drives of a specific user.")
     @CommonApiResponses @OkApiResponse
     @GetMapping("{id}/drives")
-    fun getDrivesOfUser(@PathVariable @UUID id: String, @RequestParam @Min(1) pageNumber: Int, @RequestParam @Min(1) @Max(50) perPage: Int, @RequestParam sortDirection: SortingDirection = SortingDirection.Ascending): ResponseEntity<PageDP<DriveDP>> {
-        TODO()
+    fun getDrivesOfUser(@PathVariable @UUID id: String, @RequestParam @Min(1) pageNumber: Int, @RequestParam @Min(1) @Max(50) perPage: Int, @RequestParam sortingDirection: SortingDirection = SortingDirection.Ascending, userToken: UserToken): ResponseEntity<PageDP<DriveDP>> {
+        val user: User = usersRepository.findById(UUIDType.fromString(userToken.id)).getOrNull() ?: throw ForbiddenError(ErrorDP("User with id ${userToken.id} does not exist in resource server."))
+        if(user.id != UUIDType.fromString(id)) throw ForbiddenError(ErrorDP("The user can only get his own drives."))
+
+        val sort: Sort = if (sortingDirection == SortingDirection.Ascending) Sort.by("id").ascending() else Sort.by("id").descending()
+        val page: Page<Drive> = drivesRepository.findDrives(PageRequest.of(pageNumber - 1, perPage, sort), user.id)
+
+        return ResponseEntity.ok(
+            PageDP(page.totalPages, page.content.map { DriveDP.fromDrive(it) })
+        )
     }
 }
 
