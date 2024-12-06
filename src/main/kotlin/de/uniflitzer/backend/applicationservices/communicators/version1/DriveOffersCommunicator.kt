@@ -62,14 +62,13 @@ private class DriveOffersCommunicator(
                 DriveOffer::plannedDeparture.name
             )
         )
-        .filter { it.route.destination.coordinate distanceTo destinationCoordinate <= 1000.0 }
+        .filter {(it.route.destination.coordinate distanceTo destinationCoordinate).value <= 1000.0 }
 
         return ResponseEntity.ok(
-            PageDP(
-                maximumPage = (searchedDriveOffers.size / perPage) + 1,
-                content = searchedDriveOffers
-                    .subList((pageNumber - 1) * perPage, pageNumber * perPage)
-                    .map { PartialDriveOfferDP.fromDriveOffer(it) }
+            PageDP.fromList(
+                searchedDriveOffers.map { PartialDriveOfferDP.fromDriveOffer(it) },
+                pageNumber.toUInt(),
+                perPage.toUInt()
             )
         )
     }
