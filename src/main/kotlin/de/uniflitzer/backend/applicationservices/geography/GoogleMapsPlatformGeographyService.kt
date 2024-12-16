@@ -1,5 +1,6 @@
 package de.uniflitzer.backend.applicationservices.geography
 
+import com.fasterxml.jackson.databind.JsonNode
 import com.fasterxml.jackson.databind.ObjectMapper
 import de.uniflitzer.backend.model.*
 import org.springframework.beans.factory.annotation.Autowired
@@ -15,7 +16,8 @@ class GoogleMapsPlatformGeographyService(
     @field:Autowired private val environment: Environment,
     @field:Autowired private val httpClient: HttpClient
 ): GeographyService {
-    override fun createRoute(start: Position, stops: List<UserStop>, destination: Position): CompleteRoute {
+    private fun computeRoute(start: Coordinate, stops: List<Waypoint>?, destination: Coordinate): JsonNode
+    {
         val responseBody: String = httpClient.send(
             HttpRequest.newBuilder()
                 .uri(URI.create("https://routes.googleapis.com/directions/v2:computeRoutes?key=${environment.getProperty("google.maps.platform.api-key")}&fields=routes.polyline,routes.optimized_intermediate_waypoint_index"))
@@ -23,39 +25,100 @@ class GoogleMapsPlatformGeographyService(
                 .POST(HttpRequest.BodyPublishers.ofString(ObjectMapper().writeValueAsString(
                     ComputeRoutesRequest(
                         origin = Waypoint(
-                            location = Location(LatLng(start.coordinate.latitude, start.coordinate.longitude))
+                            location = Location(LatLng(start.latitude, start.longitude))
                         ),
                         destination = Waypoint(
-                            location = Location(LatLng(destination.coordinate.latitude, destination.coordinate.longitude))
+                            location = Location(LatLng(destination.latitude, destination.longitude))
                         ),
-                        intermediates = stops.map {
-                            Waypoint(
-                                location = Location(LatLng(it.position.coordinate.latitude, it.position.coordinate.longitude))
-                            )
-                        }
+                        intermediates = stops
                     )
                 ))).build(),
             HttpResponse.BodyHandlers.ofString()
         ).body()
 
-        val completeRoute:CompleteRoute = ObjectMapper()
+        return ObjectMapper()
             .readTree(responseBody)
             .path("routes")
             .get(0)
-            .let {
-                CompleteRoute(
-                    start = start,
-                    destination = destination,
-                    userStops = stops.map { ConfirmableUserStop(it.user, it.position, false) },
-                    polyline = GeoJsonLineString(
-                        it.path("polyline")
-                            .path("geoJsonLinestring")
-                            .path("coordinates")
-                            .toList().map { coordinate -> Coordinate(coordinate[1].asDouble(), coordinate[0].asDouble()) })
-                )
-            }
+    }
 
-        return completeRoute
+    override fun createCompleteRouteBasedOnUserStops(start: Position, stops: List<UserStop>, destination: Position): CompleteRoute {
+        return computeRoute(
+            start.coordinate,
+            stops.flatMap {
+                listOf(
+                    Waypoint(
+                        location = Location(LatLng(it.start.coordinate.latitude, it.start.coordinate.longitude))
+                    ),
+                    Waypoint(
+                        location = Location(LatLng(it.destination.coordinate.latitude, it.destination.coordinate.longitude))
+                    )
+                )
+            },
+            destination.coordinate
+        )
+        .let {
+            CompleteRoute(
+                start = start,
+                destination = destination,
+                userStops = stops.map { ConfirmableUserStop(it.user, it.start, it.destination, false) },
+                polyline = GeoJsonLineString(
+                    it.path("polyline")
+                        .path("geoJsonLinestring")
+                        .path("coordinates")
+                        .toList().map { coordinate -> Coordinate(coordinate[1].asDouble(), coordinate[0].asDouble()) })
+            )
+        }
+    }
+
+    override fun createCompleteRouteBasedOnConfirmableUserStops(start: Position, stops: List<ConfirmableUserStop>, destination: Position): CompleteRoute
+    {
+        return computeRoute(
+            start.coordinate,
+            stops.flatMap {
+                listOf(
+                    Waypoint(
+                        location = Location(LatLng(it.start.coordinate.latitude, it.start.coordinate.longitude))
+                    ),
+                    Waypoint(
+                        location = Location(LatLng(it.destination.coordinate.latitude, it.destination.coordinate.longitude))
+                    )
+                )
+            },
+            destination.coordinate
+        )
+        .let {
+            CompleteRoute(
+                start = start,
+                destination = destination,
+                userStops = stops.map { ConfirmableUserStop(it.user, it.start, it.destination, false) },
+                polyline = GeoJsonLineString(
+                    it.path("polyline")
+                        .path("geoJsonLinestring")
+                        .path("coordinates")
+                        .toList().map { coordinate -> Coordinate(coordinate[1].asDouble(), coordinate[0].asDouble()) })
+            )
+        }
+    }
+
+    override fun createRoute(start: Position, destination: Position): Route
+    {
+        return computeRoute(
+            start.coordinate,
+            null,
+            destination.coordinate
+        )
+        .let {
+            Route(
+                start = start,
+                destination = destination,
+                polyline = GeoJsonLineString(
+                    it.path("polyline")
+                        .path("geoJsonLinestring")
+                        .path("coordinates")
+                        .toList().map { coordinate -> Coordinate(coordinate[1].asDouble(), coordinate[0].asDouble()) })
+            )
+        }
     }
 
     override fun createPosition(coordinate: Coordinate): Position {
@@ -93,7 +156,7 @@ class GoogleMapsPlatformGeographyService(
     private data class ComputeRoutesRequest(
         val origin: Waypoint,
         val destination: Waypoint,
-        val intermediates: List<Waypoint>,
+        val intermediates: List<Waypoint>? = null,
         val travelMode: String = "DRIVE",
         val polylineQuality: String = "HIGH_QUALITY",
         val polylineEncoding: String = "GEO_JSON_LINESTRING",

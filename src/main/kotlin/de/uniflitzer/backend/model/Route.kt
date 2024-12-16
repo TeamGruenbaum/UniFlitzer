@@ -6,7 +6,7 @@ import jakarta.persistence.Column
 import jakarta.persistence.Embeddable
 
 @Embeddable
-class Route(start: Position, destination: Position){
+class Route(start: Position, destination: Position, polyline: GeoJsonLineString){
     @AttributeOverrides(
         AttributeOverride(name = "coordinate.latitude", column = Column(name = "start_latitude")),
         AttributeOverride(name = "coordinate.longitude", column = Column(name = "start_longitude")),
@@ -29,8 +29,12 @@ class Route(start: Position, destination: Position){
     final var destination: Position = destination
         private set
 
+    final var polyline: GeoJsonLineString = polyline
+        private set
+
     init {
         this.start = start
         this.destination = destination
+        this.polyline = polyline
     }
 }
