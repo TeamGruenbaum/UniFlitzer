@@ -45,7 +45,14 @@ class CompleteRoute(start: Position, destination: Position, userStops: List<Conf
     @Throws(NotAvailableError::class)
     fun confirmUserStop(userId: UUID)
     {
-        if(userStops.none { it.user.id == userId }) throw NotAvailableError("No user stop for this user available.")
+        if(userStops.none { it.user.id == userId }) throw NotAvailableError("No user stop for user with id $userId available.")
         userStops.first { it.user.id == userId }.confirm()
+    }
+
+    @Throws(NotAvailableError::class)
+    fun cancelUserStop(userId: UUID)
+    {
+        if(userStops.none { it.user.id == userId }) throw NotAvailableError("No user stop for user with id $userId available.")
+        _userStops.remove(userStops.first { it.user.id == userId })
     }
 }

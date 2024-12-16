@@ -145,6 +145,24 @@ private class DrivesCommunicator(
         return ResponseEntity.noContent().build()
     }
 
+    @Operation(description = "Cancel a specific user stop of a specific drive.")
+    @CommonApiResponses @NoContentApiResponse @NotFoundApiResponse
+    @PostMapping("{driveId}/complete-route/user-stops/{userId}/cancellation")
+    fun cancelUserStop(@PathVariable @UUID driveId: String, @PathVariable @UUID userId: String, userToken: UserToken): ResponseEntity<Void>
+    {
+        if(userId != userToken.id) throw ForbiddenError(ErrorDP("UserToken id does not match the userId."))
+        val user: User = usersRepository.findById(UUIDType.fromString(userToken.id)).getOrNull() ?: throw ForbiddenError(ErrorDP("User with id ${userToken.id} does not exist in resource server."))
+
+        val drive: Drive = drivesRepository.findById(UUIDType.fromString(driveId)).getOrNull() ?: throw NotFoundError(ErrorDP("Drive with id $driveId not found."))
+        if(drive.passengers.none { it.id == user.id }) throw ForbiddenError(ErrorDP("User is not a passenger of this drive."))
+        if(drive.isCancelled) throw ForbiddenError(ErrorDP("Drive with id $driveId is cancelled."))
+        drive.route.cancelUserStop(user.id)
+        drive.route = geographyService.createCompleteRouteBasedOnConfirmableUserStops(drive.route.start, drive.route.userStops, drive.route.destination)
+
+        drivesRepository.save(drive)
+        return ResponseEntity.noContent().build()
+    }
+
     @Operation(description = "Cancel a specific drive.")
     @CommonApiResponses @NoContentApiResponse @NotFoundApiResponse
     @PostMapping("{id}/cancellation")
