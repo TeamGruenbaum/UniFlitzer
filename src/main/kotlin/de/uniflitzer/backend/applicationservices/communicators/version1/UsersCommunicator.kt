@@ -56,7 +56,8 @@ private class UsersCommunicator(
     @field:Autowired private val driveRequestsRepository: DriveRequestsRepository,
     @field:Autowired private val keycloak: Keycloak,
     @field:Autowired private val environment: Environment,
-    @field:Autowired private val imagesRepository: ImagesRepository
+    @field:Autowired private val imagesRepository: ImagesRepository,
+    @field:Autowired private val geographyService: GeographyService,
 ) {
     @Operation(description = "Get details of a specific user.")
     @CommonApiResponses @OkApiResponse @NotFoundApiResponse
@@ -72,13 +73,14 @@ private class UsersCommunicator(
                 searchedUser.lastName.value,
                 searchedUser.birthday.toString(),
                 GenderDP.valueOf(searchedUser.gender.name),
-                AddressDP.fromAddress(searchedUser.address),
+                if(searchedUser.id == UUIDType.fromString(userToken.id)) AddressDP.fromAddress(searchedUser.address) else null,
                 searchedUser.description?.value,
                 searchedUser.studyProgramme.value,
                 searchedUser.isSmoking,
                 searchedUser.animals.map { AnimalDP.fromAnimal(it) },
                 DrivingStyleDP.fromDrivingStyle(searchedUser.drivingStyle),
-                searchedUser.cars.map { CarDP.fromCar(it) }
+                searchedUser.cars.map { CarDP.fromCar(it) },
+                searchedUser.favoriteAddresses.map { AddressDP.fromAddress(it) },
             )
         )
     }
@@ -410,17 +412,27 @@ private class UsersCommunicator(
     @Operation(description = "Get all drive offers of a specific user.")
     @CommonApiResponses @OkApiResponse
     @GetMapping("{id}/drive-offers")
-    fun getDriveOffersOfUser(@PathVariable @UUID id: String, @RequestParam @Min(1) pageNumber: Int, @RequestParam @Min(1) @Max(50) perPage: Int, @RequestParam sortingDirection: SortingDirection = SortingDirection.Ascending, userToken: UserToken): ResponseEntity<PageDP<PartialDriveOfferDP>> {
+    fun getDriveOffersOfUser(@PathVariable @UUID id: String, @RequestParam @Min(1) pageNumber: Int, @RequestParam @Min(1) @Max(50) perPage: Int, @RequestParam sortingDirection: SortingDirection = SortingDirection.Ascending, role: DriverOfferRoleDP? = null, userToken: UserToken): ResponseEntity<PageDP<PartialDriveOfferDP>> {
         val actingUser: User = usersRepository.findById(UUIDType.fromString(userToken.id)).getOrNull() ?: throw ForbiddenError(ErrorDP("User with id ${userToken.id} does not exist in resource server."))
         if(actingUser.id != UUIDType.fromString(id)) throw ForbiddenError(ErrorDP("The user can only get their own drive offers."))
 
-        val allDriveOffersOfUser: List<DriveOffer> = (actingUser.driveOffersAsRequestingUser + actingUser.driveOffersAsPassenger + actingUser.driveOffersAsDriver)
-                                                        .let {
-                                                            when(sortingDirection) {
-                                                                SortingDirection.Ascending -> it.sortedBy(DriveOffer::plannedDeparture)
-                                                                SortingDirection.Descending -> it.sortedByDescending(DriveOffer::plannedDeparture)
-                                                            }
-                                                        }
+        val resultingDriveOffersOfUser: List<DriveOffer> =
+            if(role == null) {
+                actingUser.driveOffersAsRequestingUser + actingUser.driveOffersAsPassenger + actingUser.driveOffersAsDriver
+            }
+            else {
+                when (role) {
+                    DriverOfferRoleDP.Driver -> actingUser.driveOffersAsDriver
+                    DriverOfferRoleDP.Passenger -> actingUser.driveOffersAsPassenger
+                    DriverOfferRoleDP.Requester -> actingUser.driveOffersAsRequestingUser
+                }
+            }
+            .let {
+                when(sortingDirection) {
+                    SortingDirection.Ascending -> it.sortedBy(DriveOffer::plannedDeparture)
+                    SortingDirection.Descending -> it.sortedByDescending(DriveOffer::plannedDeparture)
+                }
+            }
 
         return ResponseEntity.ok(
             PartialDriveOfferPageDP.fromList(
