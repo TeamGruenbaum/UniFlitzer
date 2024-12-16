@@ -1,8 +1,6 @@
 package de.uniflitzer.backend.model
 
-import jakarta.persistence.Embeddable
-import jakarta.persistence.FetchType
-import jakarta.persistence.ManyToOne
+import jakarta.persistence.*
 
 @Embeddable
 class ConfirmableUserStop(user: User, start: Position, destination: Position, waitingConfirmed: Boolean){
@@ -10,9 +8,25 @@ class ConfirmableUserStop(user: User, start: Position, destination: Position, wa
     final var user: User = user
         private set
 
+    @AttributeOverrides(
+        AttributeOverride(name = "coordinate.latitude", column = Column(name = "confirmableuserstop_start_coordinate_latitude")),
+        AttributeOverride(name = "coordinate.longitude", column = Column(name = "confirmableuserstop_start_coordinate_longitude")),
+        AttributeOverride(name = "nearestAddress.street", column = Column(name = "confirmableuserstop_start_nearestAddress_street")),
+        AttributeOverride(name = "nearestAddress.houseNumber", column = Column(name = "confirmableuserstop_start_nearestAddress_houseNumber")),
+        AttributeOverride(name = "nearestAddress.postalCode", column = Column(name = "confirmableuserstop_start_nearestAddress_postalCode")),
+        AttributeOverride(name = "nearestAddress.city", column = Column(name = "confirmableuserstop_start_nearestAddress_city"))
+    )
     final var start: Position = start
         private set
 
+    @AttributeOverrides(
+        AttributeOverride(name = "coordinate.latitude", column = Column(name = "confirmableuserstop_destination_coordinate_latitude")),
+        AttributeOverride(name = "coordinate.longitude", column = Column(name = "confirmableuserstop_destination_coordinate_longitude")),
+        AttributeOverride(name = "nearestAddress.street", column = Column(name = "confirmableuserstop_destination_nearestAddress_street")),
+        AttributeOverride(name = "nearestAddress.houseNumber", column = Column(name = "confirmableuserstop_destination_nearestAddress_houseNumber")),
+        AttributeOverride(name = "nearestAddress.postalCode", column = Column(name = "confirmableuserstop_destination_nearestAddress_postalCode")),
+        AttributeOverride(name = "nearestAddress.city", column = Column(name = "confirmableuserstop_destination_nearestAddress_city"))
+    )
     final var destination: Position = destination
         private set
 
