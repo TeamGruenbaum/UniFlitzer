@@ -83,7 +83,7 @@ private class DriveRequestsCommunicator(
 
         // TODO("Outsource filtering to the repository.")
         return ResponseEntity.ok(
-            PageDP(
+            PartialDriveRequestPageDP(
                 page.totalPages,
                 page.content.filter {
                     when (it) {

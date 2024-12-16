@@ -6,7 +6,7 @@ import java.time.ZonedDateTime
 
 @Entity
 @Inheritance(strategy = InheritanceType.SINGLE_TABLE)
-@DiscriminatorColumn(name = "type")
+@DiscriminatorColumn(name = "discriminator_type")
 // Should be sealed, but Hibernate 6 does not support sealed classes
 class DriveOffer(driver: User, car: Car, freeSeats: Seats, route: Route, plannedDeparture: ZonedDateTime?) {
     @field:Id
@@ -38,5 +38,19 @@ class DriveOffer(driver: User, car: Car, freeSeats: Seats, route: Route, planned
 
     fun addPassenger(userStop: UserStop) {
         _passengers.add(userStop)
+    }
+
+
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (other !is DriveOffer) return false
+
+        if (id != other.id) return false
+
+        return true
+    }
+
+    override fun hashCode(): Int {
+        return id.hashCode()
     }
 }

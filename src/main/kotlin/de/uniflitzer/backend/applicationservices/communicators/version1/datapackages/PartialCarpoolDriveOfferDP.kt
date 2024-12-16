@@ -3,7 +3,8 @@ package de.uniflitzer.backend.applicationservices.communicators.version1.datapac
 import de.uniflitzer.backend.applicationservices.communicators.version1.valuechecker.UUID
 import de.uniflitzer.backend.model.CarpoolDriveOffer
 
-class PartialCarpoolDriveOfferDP constructor(
+class PartialCarpoolDriveOfferDP (
+    containsFavoriteDriver: Boolean,
     id: String,
     driver: PartialUserDP,
     freeSeats: Int,
@@ -11,10 +12,11 @@ class PartialCarpoolDriveOfferDP constructor(
     passengersCount: Int,
     plannedDepartureTime: String?,
     @field:UUID val carpoolId: String,
-): PartialDriveOfferDP(id, driver, freeSeats, route, passengersCount, plannedDepartureTime) {
+): PartialDriveOfferDP(containsFavoriteDriver, id, driver, freeSeats, route, passengersCount, plannedDepartureTime) {
     companion object {
-        fun fromCarpoolDriveOffer(carpoolDriveOffer: CarpoolDriveOffer): PartialCarpoolDriveOfferDP =
+        fun fromCarpoolDriveOffer(carpoolDriveOffer: CarpoolDriveOffer, containsFavoriteDriver: Boolean): PartialCarpoolDriveOfferDP =
             PartialCarpoolDriveOfferDP(
+                containsFavoriteDriver,
                 carpoolDriveOffer.id.toString(),
                 PartialUserDP.fromUser(carpoolDriveOffer.driver),
                 carpoolDriveOffer.freeSeats.value.toInt(),

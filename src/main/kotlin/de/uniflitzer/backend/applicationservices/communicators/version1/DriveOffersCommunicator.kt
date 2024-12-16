@@ -50,7 +50,7 @@ private class DriveOffersCommunicator(
     @CommonApiResponses @OkApiResponse
     @GetMapping("")
     fun getDriveOffers(@RequestParam @Min(1) pageNumber: Int, @RequestParam @Min(1) @Max(50) perPage: Int, @RequestParam latitude:Double, @RequestParam longitude: Double, @RequestParam sortingDirection: SortingDirection = SortingDirection.Ascending, userToken: UserToken): ResponseEntity<PageDP<PartialDriveOfferDP>> {
-        if(!usersRepository.existsById(UUIDType.fromString(userToken.id))) throw ForbiddenError(ErrorDP("User with id ${userToken.id} does not exist in resource server."))
+        val actingUser: User = usersRepository.findById(UUIDType.fromString(userToken.id)).getOrNull() ?: throw ForbiddenError(ErrorDP("User with id ${userToken.id} does not exist in resource server."))
 
         val destinationCoordinate: Coordinate = Coordinate(latitude, longitude)
         val searchedDriveOffers: List<DriveOffer> = driveOffersRepository.findAll(
@@ -65,8 +65,8 @@ private class DriveOffersCommunicator(
         .filter {(it.route.destination.coordinate distanceTo destinationCoordinate).value <= 1000.0 }
 
         return ResponseEntity.ok(
-            PageDP.fromList(
-                searchedDriveOffers.map { PartialDriveOfferDP.fromDriveOffer(it) },
+            PartialDriveOfferPageDP.fromList(
+                searchedDriveOffers.map { PartialDriveOfferDP.fromDriveOffer(it, it.driver in actingUser.favoriteUsers) },
                 pageNumber.toUInt(),
                 perPage.toUInt()
             )
@@ -77,11 +77,11 @@ private class DriveOffersCommunicator(
     @CommonApiResponses @OkApiResponse @NotFoundApiResponse
     @GetMapping("{id}")
     fun getDriveOffer(@PathVariable @UUID id: String, userToken: UserToken): ResponseEntity<DetailedDriveOfferDP> {
-        if(!usersRepository.existsById(UUIDType.fromString(userToken.id))) throw ForbiddenError(ErrorDP("User with id ${userToken.id} does not exist in resource server."))
+        val actingUser: User = usersRepository.findById(UUIDType.fromString(userToken.id)).getOrNull() ?: throw ForbiddenError(ErrorDP("User with id ${userToken.id} does not exist in resource server."))
         val searchedDriveOffer: DriveOffer = driveOffersRepository.findById(UUIDType.fromString(id)).getOrNull() ?: throw NotFoundError(ErrorDP("The drive offer with the id $id could not be found."))
 
         return ResponseEntity.ok(
-            DetailedDriveOfferDP.fromDriveOffer(searchedDriveOffer)
+            DetailedDriveOfferDP.fromDriveOffer(searchedDriveOffer, searchedDriveOffer.driver in actingUser.favoriteUsers)
         )
     }
 
@@ -159,6 +159,7 @@ private class DriveOffersCommunicator(
         val actingUser: User = usersRepository.findById(UUIDType.fromString(userToken.id)).getOrNull() ?: throw ForbiddenError(ErrorDP("User with id ${userToken.id} does not exist in resource server."))
         val driveOfferInEditing: DriveOffer = driveOffersRepository.findById(UUIDType.fromString(id)).getOrNull() ?: throw NotFoundError(ErrorDP("The drive offer with the id $id could not be found."))
         if(driveOfferInEditing.driver.id == actingUser.id) throw ForbiddenError(ErrorDP("The requesting user cannot be the driver of the same drive offer."))
+        if(actingUser in driveOfferInEditing.driver.blockedUsers) throw ForbiddenError(ErrorDP("The requesting user ${actingUser.id} is blocked by the driver and cannot request a seat in this drive offer."))
 
         when (driveOfferInEditing) {
             is PublicDriveOffer -> {

@@ -49,6 +49,15 @@ class User(id: UUID, firstName: FirstName, lastName: LastName, birthday: ZonedDa
     val cars: List<Car> get() = _cars
 
     @field:OneToMany(mappedBy = "requestingUser", fetch = FetchType.LAZY, cascade = [CascadeType.ALL])
+
+    @field:ManyToMany(fetch = FetchType.LAZY)
+    private var _favoriteUsers: MutableList<User> = mutableListOf()
+    val favoriteUsers: List<User> get() = _favoriteUsers
+
+    @field:ManyToMany(fetch = FetchType.LAZY)
+    private var _blockedUsers: MutableList<User> = mutableListOf()
+    val blockedUsers: List<User> get() = _blockedUsers
+
     private var _driveRequests: MutableList<DriveRequest> = mutableListOf()
     val driveRequests: List<DriveRequest> get() = _driveRequests
 
@@ -100,5 +109,36 @@ class User(id: UUID, firstName: FirstName, lastName: LastName, birthday: ZonedDa
     @Throws(NotAvailableError::class)
     fun getCarByIndex(index: Int): Car {
         return cars.getOrNull(index) ?: throw NotAvailableError("The car with index $index does not exist.")
+    }
+
+
+    fun addFavoriteUser(user: User) = _favoriteUsers.add(user)
+
+    @Throws(NotAvailableError::class)
+    fun removeFavoriteUser(user: User) {
+        if(user !in _favoriteUsers)throw NotAvailableError("The user is not a favorite user.")
+        _favoriteUsers.remove(user)
+    }
+
+    fun addBlockedUser(user: User) = _blockedUsers.add(user)
+
+    @Throws(NotAvailableError::class)
+    fun removeBlockedUser(user: User) {
+        if(user !in _blockedUsers) throw NotAvailableError("The user is not a blocked user.")
+        _blockedUsers.remove(user)
+    }
+
+
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (other !is User) return false
+
+        if (id != other.id) return false
+
+        return true
+    }
+
+    override fun hashCode(): Int {
+        return id.hashCode()
     }
 }

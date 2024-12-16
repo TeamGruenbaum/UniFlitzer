@@ -297,6 +297,71 @@ private class UsersCommunicator(
         return ResponseEntity.noContent().build<Void>()
     }
 
+
+    @Operation(description = "Add favorite user to a specific user")
+    @CommonApiResponses @NoContentApiResponse @NotFoundApiResponse
+    @PostMapping("/{userId}/favorite-users/")
+    fun addFavoriteUserToUser(@PathVariable @UUID userId: String, @RequestBody @Valid favoriteUserAddition: UserAdditionDP, userToken: UserToken): ResponseEntity<Void> {
+        if (userToken.id != userId) throw ForbiddenError(ErrorDP("Users can only add favorite users to their own account."))
+        val actingUser: User = usersRepository.findById(UUIDType.fromString(userId)).getOrNull() ?: throw ForbiddenError(ErrorDP("Acting user with id $userId does not exist in resource server."))
+        val userToFavorite = usersRepository.findById(UUIDType.fromString(favoriteUserAddition.id)).getOrNull() ?: throw NotFoundError(ErrorDP("User to favorite with id ${favoriteUserAddition.id} was not found"))
+
+        actingUser.addFavoriteUser(userToFavorite)
+        usersRepository.save(actingUser)
+
+        return ResponseEntity.noContent().build<Void>()
+    }
+
+    @Operation(description = "Delete favorite user of a specific user")
+    @CommonApiResponses @NoContentApiResponse @NotFoundApiResponse
+    @DeleteMapping("/{userId}/favorite-users/{favoriteUserId}")
+    fun deleteFavoriteUserOfUser(@PathVariable @UUID userId: String, @PathVariable @UUID favoriteUserId: String,  userToken: UserToken): ResponseEntity<Void> {
+        if (userToken.id != userId) throw ForbiddenError(ErrorDP("Users can only delete favorite users of their own account."))
+        val actingUser: User = usersRepository.findById(UUIDType.fromString(userId)).getOrNull() ?: throw ForbiddenError(ErrorDP("Acting user with id $userId does not exist in resource server."))
+        val favoriteUserToDelete = usersRepository.findById(UUIDType.fromString(favoriteUserId)).getOrNull() ?: throw NotFoundError(ErrorDP("Favorite user to delete with id $favoriteUserId was not found"))
+
+        try {
+            actingUser.removeFavoriteUser(favoriteUserToDelete)
+        } catch (_: NotAvailableError) {
+            throw NotFoundError(ErrorDP("Favorite user with id $favoriteUserId was not found."))
+        }
+        usersRepository.save(actingUser)
+
+        return ResponseEntity.noContent().build<Void>()
+    }
+
+    @Operation(description = "Add blocked user to a specific user")
+    @CommonApiResponses @NoContentApiResponse @NotFoundApiResponse
+    @PostMapping("/{userId}/blocked-users/")
+    fun addBlockedUserToUser(@PathVariable @UUID userId: String, @RequestBody @Valid blockedUserAddition: UserAdditionDP, userToken: UserToken): ResponseEntity<Void> {
+        if (userToken.id != userId) throw ForbiddenError(ErrorDP("Users can only add blocked users to their own account."))
+        val actingUser: User = usersRepository.findById(UUIDType.fromString(userId)).getOrNull() ?: throw ForbiddenError(ErrorDP("Acting user with id $userId does not exist in resource server."))
+        val userToBlock = usersRepository.findById(UUIDType.fromString(blockedUserAddition.id)).getOrNull() ?: throw NotFoundError(ErrorDP("User to block with ${blockedUserAddition.id} was not found"))
+
+        actingUser.addBlockedUser(userToBlock)
+        usersRepository.save(actingUser)
+
+        return ResponseEntity.noContent().build<Void>()
+    }
+
+    @Operation(description = "Delete blocked user of a specific user")
+    @CommonApiResponses @NoContentApiResponse @NotFoundApiResponse
+    @DeleteMapping("/{userId}/blocked-users/{blockedUserId}")
+    fun deleteBlockedUserOfUser(@PathVariable @UUID userId: String, @PathVariable @UUID blockedUserId: String,  userToken: UserToken): ResponseEntity<Void> {
+        if (userToken.id != userId) throw ForbiddenError(ErrorDP("Users can only delete blocked users of their own account."))
+        val actingUser: User = usersRepository.findById(UUIDType.fromString(userId)).getOrNull() ?: throw ForbiddenError(ErrorDP("Acting user with id $userId does not exist in resource server."))
+        val blockedUserToDelete = usersRepository.findById(UUIDType.fromString(blockedUserId)).getOrNull() ?: throw NotFoundError(ErrorDP("Blocked user to delete with id $blockedUserId was not found"))
+
+        try {
+            actingUser.removeBlockedUser(blockedUserToDelete)
+        } catch (_: NotAvailableError) {
+            throw NotFoundError(ErrorDP("Blocked user with id $blockedUserId was not found."))
+        }
+        usersRepository.save(actingUser)
+
+        return ResponseEntity.noContent().build<Void>()
+    }
+
     @Operation(description = "Get all drive offers of a specific user.")
     @CommonApiResponses @OkApiResponse
     @GetMapping("{id}/drive-offers")
@@ -313,8 +378,8 @@ private class UsersCommunicator(
                                                         }
 
         return ResponseEntity.ok(
-            PageDP.fromList(
-                allDriveOffersOfUser.map { PartialDriveOfferDP.fromDriveOffer(it) },
+            PartialDriveOfferPageDP.fromList(
+                resultingDriveOffersOfUser.map { PartialDriveOfferDP.fromDriveOffer(it, it.driver in actingUser.favoriteUsers) },
                 pageNumber.toUInt(),
                 perPage.toUInt()
             )
@@ -332,7 +397,7 @@ private class UsersCommunicator(
         val page: Page<DriveRequest> = driveRequestsRepository.findDriveRequests(PageRequest.of(pageNumber - 1, perPage, sort), user.id)
 
         return ResponseEntity.ok(
-            PageDP(
+            PartialDriveRequestPageDP(
                 page.totalPages,
                 page.content.map {
                     when (it) {
@@ -356,7 +421,7 @@ private class UsersCommunicator(
         val page: Page<Drive> = drivesRepository.findDrives(PageRequest.of(pageNumber - 1, perPage, sort), user.id)
 
         return ResponseEntity.ok(
-            PageDP(page.totalPages, page.content.map { DriveDP.fromDrive(it) })
+            DrivePageDP(page.totalPages, page.content.map { DriveDP.fromDrive(it) })
         )
     }
 }

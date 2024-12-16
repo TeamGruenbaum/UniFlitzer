@@ -15,7 +15,7 @@ import io.swagger.v3.oas.annotations.security.OAuthScope
     ],
     info = Info(
         title = "UniFlitzer API",
-        version = "v0.0.1",
+        version = "v0.1.0",
         description = "The UniFlitzer API enables users to offer, join or request rides and communicate with each other. It also promotes the formation of long-term carpools. Verifying through university login and providing detailed information about drivers and passengers, ensures a safe, student-only community",
     )
 )
