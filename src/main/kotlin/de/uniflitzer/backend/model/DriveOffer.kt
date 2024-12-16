@@ -1,5 +1,6 @@
 package de.uniflitzer.backend.model
 
+import de.uniflitzer.backend.model.errors.NotAvailableError
 import jakarta.persistence.*
 import java.util.UUID
 import java.time.ZonedDateTime
@@ -40,6 +41,21 @@ class DriveOffer(driver: User, car: Car, freeSeats: Seats, route: Route, planned
         _passengers.add(userStop)
     }
 
+    fun removePassenger(user: User) {
+        val searcherUserStop: UserStop = _passengers.find { it.user == user } ?: throw NotAvailableError("User is not a passenger of this drive offer")
+        _passengers.remove(searcherUserStop)
+    }
+
+    @PostRemove
+    private fun doAfterRemove() {
+        _passengers.forEach {
+            try {
+                it.user.leftDriveOfferAsRequestingUser(this)
+                it.user.leftDriveOfferAsPassenger(this)
+            }
+            catch (_: NotAvailableError) {}
+        }
+    }
 
     override fun equals(other: Any?): Boolean {
         if (this === other) return true

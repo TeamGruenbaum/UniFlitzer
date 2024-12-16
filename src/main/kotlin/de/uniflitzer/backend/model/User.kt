@@ -62,10 +62,10 @@ class User(id: UUID, firstName: FirstName, lastName: LastName, birthday: ZonedDa
     @field:OneToMany(mappedBy = "driver", fetch = FetchType.LAZY, cascade = [CascadeType.ALL])
     var driveOffersAsDriver: MutableList<DriveOffer> = mutableListOf()
 
-    @field:OneToMany(fetch = FetchType.LAZY, cascade = [CascadeType.ALL])
+    @field:OneToMany(fetch = FetchType.LAZY)
     var driveOffersAsPassenger: MutableList<DriveOffer> = mutableListOf()
 
-    @field:OneToMany(fetch = FetchType.LAZY, cascade = [CascadeType.ALL])
+    @field:OneToMany(fetch = FetchType.LAZY)
     var driveOffersAsRequestingUser: MutableList<PublicDriveOffer> = mutableListOf()
 
     @field:ManyToMany(mappedBy = "_users", fetch = FetchType.LAZY)
@@ -76,7 +76,7 @@ class User(id: UUID, firstName: FirstName, lastName: LastName, birthday: ZonedDa
     private var _drivesAsDriver: MutableList<Drive> = mutableListOf()
     val drivesAsDriver: List<Drive> get() = _drivesAsDriver
 
-    @field:ManyToMany(mappedBy = "_passengers", fetch = FetchType.LAZY, cascade = [CascadeType.ALL])
+    @field:ManyToMany(mappedBy = "_passengers", fetch = FetchType.LAZY)
     private var _drivesAsPassenger: MutableList<Drive> = mutableListOf()
     val drivesAsPassenger: List<Drive> get() = _drivesAsPassenger
 
@@ -138,6 +138,17 @@ class User(id: UUID, firstName: FirstName, lastName: LastName, birthday: ZonedDa
         _blockedUsers.remove(user)
     }
 
+    fun leftDriveOfferAsRequestingUser(driveOffer: DriveOffer) {
+        if(driveOffer !in driveOffersAsRequestingUser)  throw NotAvailableError("The user is not a passenger of the drive offer.")
+        driveOffersAsPassenger.remove(driveOffer)
+    }
+
+    fun leftDriveOfferAsPassenger(driveOffer: DriveOffer) {
+        if(driveOffer !in driveOffersAsPassenger) throw NotAvailableError("The user is not a requesting user of the drive offer.")
+        driveOffersAsRequestingUser.remove(driveOffer)
+    }
+
+    fun removeRatingOfUser(user: User) = _ratings.removeIf { it.author == user }
 
     override fun equals(other: Any?): Boolean {
         if (this === other) return true

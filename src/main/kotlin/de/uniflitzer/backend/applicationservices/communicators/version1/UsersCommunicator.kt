@@ -113,8 +113,24 @@ private class UsersCommunicator(
     @Operation(description = "Delete a specific user.")
     @CommonApiResponses @NoContentApiResponse @NotFoundApiResponse
     @DeleteMapping("{id}")
-    fun deleteUser(@PathVariable @UUID id: String): ResponseEntity<Void> {
-        TODO()
+    fun deleteUser(@PathVariable @UUID id: String, userToken: UserToken): ResponseEntity<Void> {
+        if(userToken.id != id) throw ForbiddenError(ErrorDP("The User can only its own account."))
+        val actingUser: User = usersRepository.findById(UUIDType.fromString(id)).getOrNull() ?: throw NotFoundError(ErrorDP("User with id $id not found."))
+
+        imagesRepository.deleteById(UUIDType.fromString(id))
+        actingUser.cars.forEach { car -> car.image?.let { image -> imagesRepository.deleteById(image.id) } }
+        usersRepository.findAll().forEach { it.removeRatingOfUser(actingUser) }
+        actingUser.driveOffersAsPassenger.forEach { it.removePassenger(actingUser) }
+        actingUser.driveOffersAsRequestingUser.forEach { it.rejectRequestFromUser(actingUser.id) }
+        actingUser.drivesAsPassenger.forEach { it.route = geographyService.createCompleteRouteBasedOnConfirmableUserStops(it.route.start, it.route.userStops, it.route.destination) }
+        usersRepository.delete(actingUser)
+        usersRepository.flush()
+        keycloak
+            .realm(environment.getProperty("keycloak.realm.name") ?: throw InternalServerError(ErrorDP("Keycloak realm name not defined.")))
+            .users()
+            .delete(userToken.id)
+
+        return ResponseEntity.noContent().build<Void>()
     }
 
     @Operation(description = "Update a specific user.")
