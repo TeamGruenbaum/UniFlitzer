@@ -1,20 +1,37 @@
 package de.uniflitzer.backend.applicationservices.communicators.version1
 
 import com.fasterxml.jackson.databind.ObjectMapper
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule
 import de.uniflitzer.backend.applicationservices.communicators.version1.datapackages.ErrorDP
 import de.uniflitzer.backend.applicationservices.communicators.version1.datapackages.ErrorsDP
 import de.uniflitzer.backend.applicationservices.communicators.version1.datapackages.TraceableErrorDP
+import de.uniflitzer.backend.applicationservices.communicators.version1.datapackages.TraceableErrorsDP
 import de.uniflitzer.backend.applicationservices.communicators.version1.errors.BadRequestError
 import de.uniflitzer.backend.applicationservices.communicators.version1.errors.ForbiddenError
 import de.uniflitzer.backend.applicationservices.communicators.version1.errors.InternalServerError
 import de.uniflitzer.backend.applicationservices.communicators.version1.errors.NotFoundError
+import de.uniflitzer.backend.applicationservices.communicators.version1.errors.StompError
 import jakarta.servlet.http.HttpServletRequest
 import jakarta.validation.ConstraintViolationException
 import org.slf4j.LoggerFactory
+import org.springframework.beans.factory.annotation.Autowired
+import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.http.HttpStatus
 import org.springframework.http.MediaType
 import org.springframework.http.ResponseEntity
 import org.springframework.http.converter.HttpMessageNotReadableException
+import org.springframework.messaging.Message
+import org.springframework.messaging.MessageChannel
+import org.springframework.messaging.converter.MessageConversionException
+import org.springframework.messaging.handler.annotation.Header
+import org.springframework.messaging.handler.annotation.MessageExceptionHandler
+import org.springframework.messaging.simp.stomp.StompCommand
+import org.springframework.messaging.simp.stomp.StompHeaderAccessor
+import org.springframework.messaging.simp.user.SimpUserRegistry
+import org.springframework.messaging.support.MessageBuilder
+import org.springframework.scheduling.annotation.Scheduled
+import org.springframework.stereotype.Component
+import org.springframework.stereotype.Service
 import org.springframework.web.HttpRequestMethodNotSupportedException
 import org.springframework.web.bind.MethodArgumentNotValidException
 import org.springframework.web.bind.MissingServletRequestParameterException
@@ -24,9 +41,12 @@ import org.springframework.web.method.annotation.MethodArgumentTypeMismatchExcep
 import org.springframework.web.multipart.MaxUploadSizeExceededException
 import org.springframework.web.servlet.resource.NoResourceFoundException
 import java.util.*
+import kotlin.collections.toList
 
 @ControllerAdvice
-private class ErrorsCommunicator {
+private class ErrorsCommunicator(
+    @field:Autowired private val clientOutboundChannel: MessageChannel
+) {
     private val logger = LoggerFactory.getLogger(ErrorsCommunicator::class.java)
 
     @ExceptionHandler(ForbiddenError::class)
@@ -62,8 +82,8 @@ private class ErrorsCommunicator {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).contentType(MediaType.APPLICATION_JSON).body(
             when (error) {
                 is BadRequestError -> error.errorsDP
-                is ConstraintViolationException -> ErrorsDP(error.constraintViolations.stream().map { "\"${it.propertyPath.toList().last().name}\": ${it.messageTemplate}" }.toList())
-                is MethodArgumentNotValidException -> ErrorsDP(error.bindingResult.fieldErrors.stream().map{ "${it.field}: ${it.defaultMessage}" }.toList())
+                is ConstraintViolationException -> ErrorsDP(error.toList())
+                is MethodArgumentNotValidException -> ErrorsDP(error.toList())
                 is MethodArgumentTypeMismatchException -> ErrorsDP(listOf("Value for parameter \"${error.name}\" has wrong type."))
                 is MissingServletRequestParameterException -> ErrorsDP(listOf("Value for parameter \"${error.parameterName}\" is missing."))
                 is HttpMessageNotReadableException -> ErrorsDP(listOf("Request body is missing or has wrong format."))
@@ -107,4 +127,59 @@ ${error.stackTraceToString()}
             HttpStatus.INTERNAL_SERVER_ERROR
         )
     }
+
+    @MessageExceptionHandler
+    fun handleAllErrors(error: Exception, currentMessage: Message<*>, @Header("simpSessionId") currentSessionId: String) {
+        fun closeSession(errorMessage: String) {
+            clientOutboundChannel.send(
+                MessageBuilder.createMessage(
+                    ByteArray(5),
+                    StompHeaderAccessor
+                        .create(StompCommand.ERROR)
+                        .apply {
+                            message = errorMessage
+                            sessionId = currentSessionId
+                        }
+                        .messageHeaders
+                )
+            )
+        }
+
+        val objectMapper = ObjectMapper().apply {
+            registerModule(JavaTimeModule())
+        }
+
+        closeSession(
+            objectMapper.writeValueAsString(
+                when (error) {
+                    is StompError -> error.errorsDP
+                    is ConstraintViolationException -> ErrorsDP(error.toList())
+                    is MethodArgumentNotValidException -> ErrorsDP(error.toList())
+                    is MethodArgumentTypeMismatchException -> ErrorsDP(listOf("Value for parameter \"${error.name}\" has wrong type."))
+                    else -> {
+                        val traceId: UUID = UUID.randomUUID()
+                        logger.error(
+                            """An unexpected error occurred. (Trace-ID: $traceId)
+MESSAGE:
+Headers: ${objectMapper.writeValueAsString(currentMessage.headers.toMap())}
+Payload: ${objectMapper.writeValueAsString(currentMessage.payload)}
+
+STACKTRACE:
+${error.stackTraceToString()}
+"""
+                        )
+
+                        TraceableErrorsDP(traceId.toString(), listOf<String>("An unexpected error occurred."))
+                    }
+                }
+            )
+        )
+    }
+
+    private fun ConstraintViolationException.toList():List<String> =
+        this.constraintViolations.stream().map { "\"${it.propertyPath.toList().last().name}\": ${it.messageTemplate}" }.toList()
+
+    private fun MethodArgumentNotValidException.toList():List<String> =
+        this.bindingResult.fieldErrors.stream().map{ "${it.field}: ${it.defaultMessage}" }.toList()
 }
+

@@ -4,8 +4,9 @@ import jakarta.validation.Valid
 
 class DetailedCarpoolDriveRequestDP(
     id: String,
+    containsFavoriteRequestingUser: Boolean,
     requestingUser: PartialUserDP,
     route: RouteDP,
     plannedDeparture: String?,
     @field:Valid val carpool: PartialCarpoolDP
-) : DetailedDriveRequestDP(id, requestingUser, route, plannedDeparture)
+) : DetailedDriveRequestDP(id, containsFavoriteRequestingUser, requestingUser, route, plannedDeparture)

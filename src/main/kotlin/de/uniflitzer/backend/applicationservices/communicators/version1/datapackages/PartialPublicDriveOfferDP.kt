@@ -22,7 +22,7 @@ class PartialPublicDriveOfferDP constructor(
                 publicDriveOffer.freeSeats.value.toInt(),
                 RouteDP.fromRoute(publicDriveOffer.route),
                 publicDriveOffer.passengers.size,
-                publicDriveOffer.plannedDeparture.toString(),
+                publicDriveOffer.plannedDeparture?.toString(),
                 publicDriveOffer.requestingUsers.map { it.user.id.toString() }
             )
         }

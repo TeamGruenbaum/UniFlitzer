@@ -11,18 +11,13 @@ import de.uniflitzer.backend.applicationservices.geography.GeographyService
 import de.uniflitzer.backend.model.*
 import de.uniflitzer.backend.model.errors.EntityNotFoundError
 import de.uniflitzer.backend.model.errors.NotAvailableError
-import de.uniflitzer.backend.repositories.DriveOffersRepository
-import de.uniflitzer.backend.repositories.DriveRequestsRepository
-import de.uniflitzer.backend.repositories.ImagesRepository
-import de.uniflitzer.backend.repositories.UsersRepository
+import de.uniflitzer.backend.repositories.*
 import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.annotations.security.SecurityRequirement
 import io.swagger.v3.oas.annotations.tags.Tag
 import jakarta.validation.Valid
 import jakarta.validation.constraints.*
 import org.springframework.beans.factory.annotation.Autowired
-import org.springframework.data.domain.Page
-import org.springframework.data.domain.PageRequest
 import org.springframework.data.domain.Sort
 import org.springframework.http.ResponseEntity
 import org.springframework.validation.annotation.Validated
@@ -40,6 +35,7 @@ private class DriveRequestsCommunicator(
     @field:Autowired private val usersRepository: UsersRepository,
     @field:Autowired private val driveRequestsRepository: DriveRequestsRepository,
     @field:Autowired private val driveOffersRepository: DriveOffersRepository,
+    @field:Autowired private val carpoolsRepository: CarpoolsRepository,
     @field:Autowired private val geographyService: GeographyService,
     @field:Autowired private val imagesRepository: ImagesRepository
 )
@@ -51,53 +47,88 @@ private class DriveRequestsCommunicator(
     {
         val user: User = usersRepository.findById(UUIDType.fromString(userToken.id)).getOrNull() ?: throw ForbiddenError(ErrorDP("User with id ${userToken.id} does not exist in resource server."))
 
+        val driveRequest: DriveRequest =
         when (driveRequestCreation)
         {
-            is CarpoolDriveRequestCreationDP -> { TODO() }
+            is CarpoolDriveRequestCreationDP -> {
+                CarpoolDriveRequest(
+                    user,
+                    geographyService.createRoute(geographyService.createPosition(driveRequestCreation.route.start.toCoordinate()), geographyService.createPosition(driveRequestCreation.route.destination.toCoordinate())),
+                    driveRequestCreation.plannedDeparture?.let { ZonedDateTime.parse(it) },
+                    carpoolsRepository.findById(UUIDType.fromString(driveRequestCreation.carpoolId)).getOrNull() ?: throw NotFoundError(ErrorDP("Carpool with id ${driveRequestCreation.carpoolId} not found."))
+                )
+            }
             is PublicDriveRequestCreationDP -> {
                 PublicDriveRequest(
                     user,
-                    geographyService.createRoute(
-                        geographyService.createPosition(driveRequestCreation.route.start.toCoordinate()),
-                        geographyService.createPosition(driveRequestCreation.route.destination.toCoordinate())
-                    ),
+                    geographyService.createRoute(geographyService.createPosition(driveRequestCreation.route.start.toCoordinate()), geographyService.createPosition(driveRequestCreation.route.destination.toCoordinate())),
                     driveRequestCreation.plannedDeparture?.let { ZonedDateTime.parse(it) }
-                ).let {
-                    driveRequestsRepository.saveAndFlush(it)
-                    return ResponseEntity.status(201).body(IdDP(it.id.toString()))
-                }
+                )
             }
         }
+        driveRequestsRepository.saveAndFlush(driveRequest)
+        return ResponseEntity.status(201).body(IdDP(driveRequest.id.toString()))
     }
 
     @Operation(description = "Get all drive requests.")
     @CommonApiResponses @OkApiResponse
     @GetMapping("")
-    fun getDriveRequests(@RequestParam @Min(1) pageNumber: Int, @RequestParam @Min(1) @Max(50) perPage: Int,
-                         @RequestParam sortingDirection: SortingDirection = SortingDirection.Ascending, userToken: UserToken): ResponseEntity<PageDP<PartialDriveRequestDP>>
+    fun getDriveRequests(
+        @RequestParam @Min(1) pageNumber: Int,
+        @RequestParam @Min(1) @Max(50) perPage: Int,
+        @RequestParam role: RoleDP? = null,
+        @RequestParam currentLatitude: Double? = null,
+        @RequestParam currentLongitude: Double? = null,
+        @RequestParam sortingDirection: SortingDirection = SortingDirection.Ascending,
+        userToken: UserToken): ResponseEntity<PageDP<PartialDriveRequestDP>>
     {
         val user: User = usersRepository.findById(UUIDType.fromString(userToken.id)).getOrNull() ?: throw ForbiddenError(ErrorDP("User with id ${userToken.id} does not exist in resource server."))
 
-        val sort:Sort = if (sortingDirection == SortingDirection.Ascending) Sort.by("id").ascending() else Sort.by("id").descending()
-        val page:Page<DriveRequest> = driveRequestsRepository.findDriveRequests(PageRequest.of(pageNumber - 1, perPage, sort))
+        var driveRequests:List<DriveRequest> = driveRequestsRepository.findAll(
+            Sort.by(
+                when(sortingDirection) {
+                    SortingDirection.Ascending -> Sort.Direction.ASC
+                    SortingDirection.Descending -> Sort.Direction.DESC
+                },
+                DriveRequest::plannedDeparture.name
+            )
+        )
 
-        // TODO("Outsource filtering to the repository.")
+        if(role != null)
+        {
+            if(currentLatitude == null || currentLongitude == null) throw ForbiddenError(ErrorDP("Current latitude and longitude must be provided when filtering by role."))
+
+            val currentCoordinate: Coordinate = Coordinate(currentLatitude, currentLongitude)
+            driveRequests = driveRequests.filter {
+                when(role) {
+                    RoleDP.Driver -> (it.route.start.coordinate distanceTo currentCoordinate).value <= 1000.0
+                    RoleDP.Passenger -> it.route.isCoordinateOnRoute(currentCoordinate, Meters(1000.0))
+                }
+            }
+        }
+        else if(currentLatitude != null || currentLongitude != null) throw ForbiddenError(ErrorDP("Role must be provided when filtering by current latitude and longitude."))
+
+        driveRequests = driveRequests
+            .filter {
+                when (it) {
+                    is CarpoolDriveRequest -> user.carpools.contains(it.carpool)
+                    is PublicDriveRequest -> true
+                    else -> false
+                }
+            }
+            .filter { it.requestingUser !in user.blockedUsers }
+
         return ResponseEntity.ok(
-            PartialDriveRequestPageDP(
-                page.totalPages,
-                page.content.filter {
+            PartialDriveRequestPageDP.fromList(
+                driveRequests.map {
                     when (it) {
-                        is CarpoolDriveRequest -> user.carpools.contains(it.carpool)
-                        is PublicDriveRequest -> true
-                        else -> false
-                    }
-                }.map {
-                    when (it) {
-                        is CarpoolDriveRequest -> PartialCarpoolDriveRequestDP.fromCarpoolDriveRequest(it)
-                        is PublicDriveRequest -> PartialPublicDriveRequestDP.fromPublicDriveRequest(it)
+                        is CarpoolDriveRequest -> PartialCarpoolDriveRequestDP.fromCarpoolDriveRequest(it, it.requestingUser in user.favoriteUsers)
+                        is PublicDriveRequest -> PartialPublicDriveRequestDP.fromPublicDriveRequest(it, it.requestingUser in user.favoriteUsers)
                         else -> throw Exception()
                     }
-                }
+                },
+                pageNumber.toUInt(),
+                perPage.toUInt()
             )
         )
     }
@@ -107,7 +138,7 @@ private class DriveRequestsCommunicator(
     @GetMapping("{id}")
     fun getDriveRequest(@PathVariable @UUID id:String, userToken: UserToken): ResponseEntity<DetailedDriveRequestDP>
     {
-        if(!usersRepository.existsById(UUIDType.fromString(userToken.id))) throw ForbiddenError(ErrorDP("User with id ${userToken.id} does not exist in resource server."))
+        val user: User = usersRepository.findById(UUIDType.fromString(userToken.id)).getOrNull() ?: throw ForbiddenError(ErrorDP("User with id ${userToken.id} does not exist in resource server."))
 
         val driveRequest: DriveRequest = driveRequestsRepository.findById(UUIDType.fromString(id)).getOrNull() ?: throw NotFoundError(ErrorDP("DriveRequest with id $id not found."))
 
@@ -115,22 +146,38 @@ private class DriveRequestsCommunicator(
         {
             is CarpoolDriveRequest -> DetailedCarpoolDriveRequestDP(
                 driveRequest.id.toString(),
+                driveRequest.requestingUser in user.favoriteUsers,
                 PartialUserDP.fromUser(driveRequest.requestingUser),
                 RouteDP.fromRoute(driveRequest.route),
-                driveRequest.plannedDeparture.toString(),
+                driveRequest.plannedDeparture?.toString(),
                 PartialCarpoolDP.fromCarpool(driveRequest.carpool)
             )
             is PublicDriveRequest -> DetailedPublicDriveRequestDP(
                 driveRequest.id.toString(),
+                driveRequest.requestingUser in user.favoriteUsers,
                 PartialUserDP.fromUser(driveRequest.requestingUser),
                 RouteDP.fromRoute(driveRequest.route),
-                driveRequest.plannedDeparture.toString(),
-                driveRequest.driveOffers.map { PartialPublicDriveOfferDP.fromPublicDriveOffer(it) }
+                driveRequest.plannedDeparture?.toString(),
+                driveRequest.driveOffers.map { PartialPublicDriveOfferDP.fromPublicDriveOffer(it, it.driver in user.favoriteUsers) }
             )
             else -> { throw InternalServerError(ErrorDP("DriveRequest is neither a CarpoolDriveRequest nor a PublicDriveRequest.")) }
         }
 
         return ResponseEntity.ok(detailedDriveRequestDP)
+    }
+
+    @Operation(description = "Delete a specific drive request.")
+    @CommonApiResponses @NoContentApiResponse @NotFoundApiResponse
+    @DeleteMapping("{id}")
+    fun deleteDriveRequest(@PathVariable @UUID id:String, userToken: UserToken): ResponseEntity<Void>
+    {
+        if(!usersRepository.existsById(UUIDType.fromString(userToken.id))) throw ForbiddenError(ErrorDP("User with id ${userToken.id} does not exist in resource server."))
+
+        val driveRequest: DriveRequest = driveRequestsRepository.findById(UUIDType.fromString(id)).getOrNull() ?: throw NotFoundError(ErrorDP("DriveRequest with id $id not found."))
+        if(driveRequest.requestingUser.id != UUIDType.fromString(userToken.id)) throw ForbiddenError(ErrorDP("UserToken id does not match the requesting user id of the drive request."))
+
+        driveRequestsRepository.delete(driveRequest)
+        return ResponseEntity.noContent().build()
     }
 
     @Operation(description = "Create a new drive offer for a specific drive request. The drive request is either deleted if it's a CarpoolDriveRequest or its drive offers list is updated if it's a PublicDriveRequest.")
@@ -141,6 +188,9 @@ private class DriveRequestsCommunicator(
         val user: User = usersRepository.findById(UUIDType.fromString(userToken.id)).getOrNull() ?: throw ForbiddenError(ErrorDP("User with id ${userToken.id} does not exist in resource server."))
 
         val driveRequest: DriveRequest = driveRequestsRepository.findById(UUIDType.fromString(id)).getOrNull() ?: throw NotFoundError(ErrorDP("DriveRequest with id $id not found."))
+        if(user in driveRequest.requestingUser.blockedUsers) throw ForbiddenError(ErrorDP("User with id ${user.id} is blocked by the requesting user of the drive request."))
+
+        val driveOffer: DriveOffer
         when(driveRequest)
         {
             is CarpoolDriveRequest -> {
@@ -148,40 +198,48 @@ private class DriveRequestsCommunicator(
                 {
                     is CarpoolDriveOfferCreationDP ->
                     {
-                        TODO("Create and persist a new CarpoolDriveOffer.")
+                        val car:Car = try{ user.getCarByIndex(driveOfferCreation.carIndex) } catch(error:NotAvailableError){ throw NotFoundError(ErrorDP(error.message!!)) }
+                        driveOffer = CarpoolDriveOffer(
+                            user,
+                            car,
+                            Seats(driveOfferCreation.freeSeats.toUInt()),
+                            geographyService.createRoute(geographyService.createPosition(driveOfferCreation.route.start.toCoordinate()), geographyService.createPosition(driveOfferCreation.route.destination.toCoordinate())),
+                            driveOfferCreation.plannedDepartureTime?.let { ZonedDateTime.parse(it) },
+                            carpoolsRepository.findById(UUIDType.fromString(driveOfferCreation.carpoolId)).getOrNull() ?: throw NotFoundError(ErrorDP("Carpool with id ${driveOfferCreation.carpoolId} not found."))
+                        )
+                        car.image?.let { driveOffer.car.image = imagesRepository.copy(it) }
+
+                        driveOffersRepository.saveAndFlush(driveOffer)
                         driveRequestsRepository.delete(driveRequest)
                     }
-                    is PublicDriveOfferCreationDP -> { throw ForbiddenError(ErrorDP("PublicDriveOffer creation is not allowed for CarpoolDriveRequest.")) }
+                    is PublicDriveOfferCreationDP -> { throw ForbiddenError(ErrorDP("PublicDriveOffer creation is not allowed for CarpoolDriveRequests.")) }
                 }
             }
             is PublicDriveRequest -> {
                 when (driveOfferCreation)
                 {
-                    is CarpoolDriveOfferCreationDP -> { throw ForbiddenError(ErrorDP("CarpoolDriveOffer creation is not allowed for PublicDriveRequest.")) }
+                    is CarpoolDriveOfferCreationDP -> { throw ForbiddenError(ErrorDP("CarpoolDriveOffer creation is not allowed for PublicDriveRequests.")) }
                     is PublicDriveOfferCreationDP -> {
                         val car:Car = try{ user.getCarByIndex(driveOfferCreation.carIndex) } catch(error:NotAvailableError){ throw NotFoundError(ErrorDP(error.message!!)) }
-                        val driveOffer:PublicDriveOffer = PublicDriveOffer(
+                        driveOffer = PublicDriveOffer(
                             user,
                             car,
                             Seats(driveOfferCreation.freeSeats.toUInt()),
-                            geographyService.createRoute(
-                                geographyService.createPosition(driveOfferCreation.route.start.toCoordinate()),
-                                geographyService.createPosition(driveOfferCreation.route.destination.toCoordinate())
-                            ),
+                            geographyService.createRoute(geographyService.createPosition(driveOfferCreation.route.start.toCoordinate()), geographyService.createPosition(driveOfferCreation.route.destination.toCoordinate())),
                             driveOfferCreation.plannedDepartureTime?.let { ZonedDateTime.parse(it) }
                         )
                         car.image?.let { driveOffer.car.image = imagesRepository.copy(it) }
 
-                        driveRequest.addDriveOffer(driveOffer)
                         driveOffersRepository.saveAndFlush(driveOffer)
+                        driveRequest.addDriveOffer(driveOffer)
                         driveRequestsRepository.saveAndFlush(driveRequest)
-
-                        return ResponseEntity.status(201).body(IdDP(driveOffer.id.toString()))
                     }
                 }
             }
             else -> { throw InternalServerError(ErrorDP("DriveRequest is neither a CarpoolDriveRequest nor a PublicDriveRequest.")) }
         }
+
+        return ResponseEntity.status(201).body(IdDP(driveOffer.id.toString()))
     }
 
     @Operation(description = "This endpoint is only allowed to use on a PublicRequestRequest. Reject a specific drive offer for a specific drive request. Neither the drive request nor the drive offer is deleted so other users can still see them.")
@@ -196,7 +254,7 @@ private class DriveRequestsCommunicator(
 
         when(driveRequest)
         {
-            is CarpoolDriveRequest -> { TODO() }
+            is CarpoolDriveRequest -> { throw ForbiddenError(ErrorDP("DriveOffers for CarpoolDriveRequests are automatically accepted.")) }
             is PublicDriveRequest ->
             {
                 try { driveRequest.rejectDriveOffer(UUIDType.fromString(driveOfferId)) }
@@ -220,7 +278,7 @@ private class DriveRequestsCommunicator(
         if(driveRequest.requestingUser.id != UUIDType.fromString(userToken.id)) throw ForbiddenError(ErrorDP("UserToken id does not match the requesting user id of the drive request."))
 
         when(driveRequest) {
-            is CarpoolDriveRequest -> { TODO() }
+            is CarpoolDriveRequest -> { throw ForbiddenError(ErrorDP("DriveOffers for CarpoolDriveRequests are automatically accepted.")) }
             is PublicDriveRequest -> {
                 try { driveRequest.acceptDriveOffer(UUIDType.fromString(driveOfferId)) }
                 catch (entityNotFoundError: EntityNotFoundError) { throw NotFoundError(ErrorDP(entityNotFoundError.message!!)) }

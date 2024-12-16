@@ -36,11 +36,6 @@ class User(id: UUID, firstName: FirstName, lastName: LastName, birthday: ZonedDa
     private var _animals: MutableList<Animal> = mutableListOf()
     val animals: List<Animal> get() = _animals
 
-    fun refillAnimals(animals: List<Animal>) {
-        _animals.clear()
-        _animals.addAll(animals)
-    }
-
     @field:Enumerated(EnumType.STRING)
     var drivingStyle: DrivingStyle? = null
 
@@ -48,7 +43,9 @@ class User(id: UUID, firstName: FirstName, lastName: LastName, birthday: ZonedDa
     private var _cars: MutableList<Car> = mutableListOf()
     val cars: List<Car> get() = _cars
 
-    @field:OneToMany(mappedBy = "requestingUser", fetch = FetchType.LAZY, cascade = [CascadeType.ALL])
+    @field:ElementCollection
+    private var _favoriteAddresses: MutableList<Address> = mutableListOf()
+    val favoriteAddresses: List<Address> get() = _favoriteAddresses
 
     @field:ManyToMany(fetch = FetchType.LAZY)
     private var _favoriteUsers: MutableList<User> = mutableListOf()
@@ -58,16 +55,17 @@ class User(id: UUID, firstName: FirstName, lastName: LastName, birthday: ZonedDa
     private var _blockedUsers: MutableList<User> = mutableListOf()
     val blockedUsers: List<User> get() = _blockedUsers
 
+    @field:OneToMany(mappedBy = "requestingUser", fetch = FetchType.LAZY) //TODO: jetzt nicht mehr cascading
     private var _driveRequests: MutableList<DriveRequest> = mutableListOf()
     val driveRequests: List<DriveRequest> get() = _driveRequests
 
     @field:OneToMany(mappedBy = "driver", fetch = FetchType.LAZY, cascade = [CascadeType.ALL])
     var driveOffersAsDriver: MutableList<DriveOffer> = mutableListOf()
 
-    @field:OneToMany(fetch = FetchType.LAZY, cascade = [CascadeType.ALL])
+    @field:OneToMany(fetch = FetchType.LAZY)
     var driveOffersAsPassenger: MutableList<DriveOffer> = mutableListOf()
 
-    @field:OneToMany(fetch = FetchType.LAZY, cascade = [CascadeType.ALL])
+    @field:OneToMany(fetch = FetchType.LAZY)
     var driveOffersAsRequestingUser: MutableList<PublicDriveOffer> = mutableListOf()
 
     @field:ManyToMany(mappedBy = "_users", fetch = FetchType.LAZY)
@@ -78,7 +76,7 @@ class User(id: UUID, firstName: FirstName, lastName: LastName, birthday: ZonedDa
     private var _drivesAsDriver: MutableList<Drive> = mutableListOf()
     val drivesAsDriver: List<Drive> get() = _drivesAsDriver
 
-    @field:ManyToMany(mappedBy = "_passengers", fetch = FetchType.LAZY, cascade = [CascadeType.ALL])
+    @field:ManyToMany(mappedBy = "_passengers", fetch = FetchType.LAZY)
     private var _drivesAsPassenger: MutableList<Drive> = mutableListOf()
     val drivesAsPassenger: List<Drive> get() = _drivesAsPassenger
 
@@ -111,6 +109,24 @@ class User(id: UUID, firstName: FirstName, lastName: LastName, birthday: ZonedDa
         return cars.getOrNull(index) ?: throw NotAvailableError("The car with index $index does not exist.")
     }
 
+    fun refillAnimals(animals: List<Animal>) {
+        _animals.clear()
+        _animals.addAll(animals)
+    }
+
+    fun addFavoriteAddress(address: Address) = _favoriteAddresses.add(address)
+
+    @Throws(NotAvailableError::class)
+    fun removeFavoriteAddressByIndex(index: UInt) {
+        if (index.toInt() >= _favoriteAddresses.size) throw NotAvailableError("Index out of bounds")
+        _favoriteAddresses.removeAt(index.toInt())
+    }
+
+    fun addRating(rating: Rating) = _ratings.add(rating)
+
+    fun getAverageStars(): Double? {
+        return if (ratings.isEmpty()) null else ratings.map { it.stars.value.toDouble() }.sum() / ratings.size
+    }
 
     fun addFavoriteUser(user: User) = _favoriteUsers.add(user)
 
@@ -128,6 +144,17 @@ class User(id: UUID, firstName: FirstName, lastName: LastName, birthday: ZonedDa
         _blockedUsers.remove(user)
     }
 
+    fun leftDriveOfferAsRequestingUser(driveOffer: DriveOffer) {
+        if(driveOffer !in driveOffersAsRequestingUser)  throw NotAvailableError("The user is not a passenger of the drive offer.")
+        driveOffersAsPassenger.remove(driveOffer)
+    }
+
+    fun leftDriveOfferAsPassenger(driveOffer: DriveOffer) {
+        if(driveOffer !in driveOffersAsPassenger) throw NotAvailableError("The user is not a requesting user of the drive offer.")
+        driveOffersAsRequestingUser.remove(driveOffer)
+    }
+
+    fun removeRatingOfUser(user: User) = _ratings.removeIf { it.author == user }
 
     override fun equals(other: Any?): Boolean {
         if (this === other) return true

@@ -39,7 +39,7 @@ class GoogleMapsPlatformGeographyService(
         return ObjectMapper()
             .readTree(responseBody)
             .path("routes")
-            .get(0)
+            .get(0) ?: throw RouteComputationError("Route could not be computed.")
     }
 
     override fun createCompleteRouteBasedOnUserStops(start: Position, stops: List<UserStop>, destination: Position): CompleteRoute {
@@ -175,4 +175,6 @@ class GoogleMapsPlatformGeographyService(
         val latitude: Double,
         val longitude: Double
     )
+
+    class RouteComputationError(message: String): RuntimeException(message)
 }

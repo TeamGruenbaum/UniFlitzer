@@ -42,7 +42,7 @@ sealed class DetailedDriveOfferDP(
                         driveOffer.freeSeats.value.toInt(),
                         RouteDP.fromRoute(driveOffer.route),
                         driveOffer.passengers.map { UserStopDP.fromUserStop(it) },
-                        driveOffer.plannedDeparture.toString(),
+                        driveOffer.plannedDeparture?.toString(),
                         driveOffer.requestingUsers.map { UserStopDP.fromUserStop(it) }
                     )
                 is CarpoolDriveOffer -> TODO()

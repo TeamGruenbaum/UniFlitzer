@@ -17,6 +17,7 @@ import jakarta.validation.constraints.Pattern
 @JsonTypeInfo(use = JsonTypeInfo.Id.SIMPLE_NAME, include = JsonTypeInfo.As.PROPERTY, property = "type")
 sealed class DetailedDriveRequestDP(
     @field:UUID val id: String,
+    val containsFavoriteRequestingUser: Boolean,
     @field:Valid val requestingUser: PartialUserDP,
     @field:Valid val route: RouteDP,
     @field:Pattern(regexp = DateTimeFormat) @field:Schema(example = DateTimeFormatExample) val plannedDeparture: String?

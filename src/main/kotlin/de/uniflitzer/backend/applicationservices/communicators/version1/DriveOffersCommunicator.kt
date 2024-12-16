@@ -49,20 +49,47 @@ private class DriveOffersCommunicator(
     @Operation(description = "Get all drive offers.")
     @CommonApiResponses @OkApiResponse
     @GetMapping("")
-    fun getDriveOffers(@RequestParam @Min(1) pageNumber: Int, @RequestParam @Min(1) @Max(50) perPage: Int, @RequestParam latitude:Double, @RequestParam longitude: Double, @RequestParam sortingDirection: SortingDirection = SortingDirection.Ascending, userToken: UserToken): ResponseEntity<PageDP<PartialDriveOfferDP>> {
+    fun getDriveOffers(
+        @RequestParam @Min(1) pageNumber: Int,
+        @RequestParam @Min(1) @Max(50) perPage: Int,
+        @RequestParam startLatitude:Double,
+        @RequestParam startLongitude: Double,
+        @RequestParam destinationLatitude:Double,
+        @RequestParam destinationLongitude: Double,
+        @RequestParam allowedAnimals: List<AnimalDP>? = null,
+        @RequestParam isSmoking: Boolean? = null,
+        @RequestParam allowedDrivingStyles: List<DrivingStyleDP>? = null,
+        @RequestParam allowedGenders: List<GenderDP>? = null,
+        @RequestParam sortingDirection: SortingDirection = SortingDirection.Ascending,
+        userToken: UserToken
+    ): ResponseEntity<PageDP<PartialDriveOfferDP>> {
         val actingUser: User = usersRepository.findById(UUIDType.fromString(userToken.id)).getOrNull() ?: throw ForbiddenError(ErrorDP("User with id ${userToken.id} does not exist in resource server."))
 
-        val destinationCoordinate: Coordinate = Coordinate(latitude, longitude)
-        val searchedDriveOffers: List<DriveOffer> = driveOffersRepository.findAll(
-            Sort.by(
-                when (sortingDirection) {
-                    SortingDirection.Ascending -> Sort.Direction.ASC
-                    SortingDirection.Descending -> Sort.Direction.DESC
-                },
-                DriveOffer::plannedDeparture.name
+        val allowedAnimals: List<Animal>? = allowedAnimals?.map { it.toAnimal() }
+        val allowedDrivingStyles: List<DrivingStyle>? = allowedDrivingStyles?.map { it.toDrivingStyle() }
+        val allowedGenders: List<Gender>? = allowedGenders?.map { it.toGender() }
+
+        val startCoordinate: Coordinate = Coordinate(startLatitude, startLongitude)
+        val destinationCoordinate: Coordinate = Coordinate(destinationLatitude, destinationLongitude)
+        val tolerance: Meters = Meters(1000.0)
+        val searchedDriveOffers: List<DriveOffer> =
+            driveOffersRepository.findAll(
+                allowedAnimals,
+                isSmoking,
+                allowedDrivingStyles,
+                allowedGenders,
+                actingUser.blockedUsers,
+                Sort.by(
+                    when (sortingDirection) {
+                        SortingDirection.Ascending -> Sort.Direction.ASC
+                        SortingDirection.Descending -> Sort.Direction.DESC
+                    },
+                    DriveOffer::plannedDeparture.name
+                )
             )
-        )
-        .filter {(it.route.destination.coordinate distanceTo destinationCoordinate).value <= 1000.0 }
+            //TODO: CarpoolDriveOffers
+            .filter { it.route.isCoordinateOnRoute(startCoordinate, tolerance) && it.route.isCoordinateOnRoute(destinationCoordinate, tolerance) }
+            .filter { it.route.areCoordinatesInCorrectDirection(startCoordinate, destinationCoordinate) }
 
         return ResponseEntity.ok(
             PartialDriveOfferPageDP.fromList(
@@ -136,6 +163,20 @@ private class DriveOffersCommunicator(
         driveOffersRepository.save(newDriveOffer)
 
         return ResponseEntity.status(HttpStatus.CREATED).body(IdDP(newDriveOffer.id.toString()))
+    }
+
+    @Operation(description = "Delete a drive offer.")
+    @CommonApiResponses @CreatedApiResponse
+    @DeleteMapping("{id}/")
+    fun deleteDriveOffer(@PathVariable @UUID id: String, @RequestBody @Valid userToken: UserToken): ResponseEntity<IdDP> {
+        if(!usersRepository.existsById(UUIDType.fromString(userToken.id))) throw ForbiddenError(ErrorDP("User with id ${userToken.id} does not exist in resource server."))
+        val driveOfferInEditing: DriveOffer = driveOffersRepository.findById(UUIDType.fromString(id)).getOrNull() ?: throw NotFoundError(ErrorDP("The drive offer with the id $id could not be found."))
+        if (driveOfferInEditing.driver.id.toString() != userToken.id) throw ForbiddenError(ErrorDP("The user with the id $id is not the driver of the drive offer with the id $id."))
+
+        driveOffersRepository.delete(driveOfferInEditing)
+        driveOffersRepository.flush()
+
+        return ResponseEntity.noContent().build()
     }
 
     @Operation(description = "Update a specific drive offer. Only the planned departure time can be updated.")

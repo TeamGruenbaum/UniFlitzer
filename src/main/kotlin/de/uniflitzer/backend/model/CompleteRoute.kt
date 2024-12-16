@@ -7,23 +7,23 @@ import java.util.*
 @Embeddable
 class CompleteRoute(start: Position, destination: Position, userStops: List<ConfirmableUserStop>, polyline: GeoJsonLineString) {
     @AttributeOverrides(
-        AttributeOverride(name = "coordinate.latitude", column = Column(name = "start_latitude")),
-        AttributeOverride(name = "coordinate.longitude", column = Column(name = "start_longitude")),
-        AttributeOverride(name = "nearestAddress.street", column = Column(name = "start_street")),
-        AttributeOverride(name = "nearestAddress.houseNumber", column = Column(name = "start_houseNumber")),
-        AttributeOverride(name = "nearestAddress.postalCode", column = Column(name = "start_postalCode")),
-        AttributeOverride(name = "nearestAddress.city", column = Column(name = "start_city"))
+        AttributeOverride(name = "coordinate.latitude", column = Column(name = "completeroute_start_coordinate_latitude")),
+        AttributeOverride(name = "coordinate.longitude", column = Column(name = "completeroute_start_coordinate_longitude")),
+        AttributeOverride(name = "nearestAddress.street", column = Column(name = "completeroute_start_nearestAddress_street")),
+        AttributeOverride(name = "nearestAddress.houseNumber", column = Column(name = "completeroute_start_nearestAddress_houseNumber")),
+        AttributeOverride(name = "nearestAddress.postalCode", column = Column(name = "completeroute_start_nearestAddress_postalCode")),
+        AttributeOverride(name = "nearestAddress.city", column = Column(name = "completeroute_start_nearestAddress_city"))
     )
     final var start: Position = start
         private set
 
     @AttributeOverrides(
-        AttributeOverride(name = "coordinate.latitude", column = Column(name = "destination_latitude")),
-        AttributeOverride(name = "coordinate.longitude", column = Column(name = "destination_longitude")),
-        AttributeOverride(name = "nearestAddress.street", column = Column(name = "destination_street")),
-        AttributeOverride(name = "nearestAddress.houseNumber", column = Column(name = "destination_houseNumber")),
-        AttributeOverride(name = "nearestAddress.postalCode", column = Column(name = "destination_postalCode")),
-        AttributeOverride(name = "nearestAddress.city", column = Column(name = "destination_city"))
+        AttributeOverride(name = "coordinate.latitude", column = Column(name = "completeroute_destination_coordinate_latitude")),
+        AttributeOverride(name = "coordinate.longitude", column = Column(name = "completeroute_destination_coordinate_longitude")),
+        AttributeOverride(name = "nearestAddress.street", column = Column(name = "completeroute_destination_nearestAddress_street")),
+        AttributeOverride(name = "nearestAddress.houseNumber", column = Column(name = "completeroute_destination_nearestAddress_houseNumber")),
+        AttributeOverride(name = "nearestAddress.postalCode", column = Column(name = "completeroute_destination_nearestAddress_postalCode")),
+        AttributeOverride(name = "nearestAddress.city", column = Column(name = "completeroute_destination_nearestAddress_city"))
     )
     final var destination: Position = destination
         private set
@@ -45,7 +45,14 @@ class CompleteRoute(start: Position, destination: Position, userStops: List<Conf
     @Throws(NotAvailableError::class)
     fun confirmUserStop(userId: UUID)
     {
-        if(userStops.none { it.user.id == userId }) throw NotAvailableError("No user stop for this user available.")
+        if(userStops.none { it.user.id == userId }) throw NotAvailableError("No user stop for user with id $userId available.")
         userStops.first { it.user.id == userId }.confirm()
+    }
+
+    @Throws(NotAvailableError::class)
+    fun cancelUserStop(userId: UUID)
+    {
+        if(userStops.none { it.user.id == userId }) throw NotAvailableError("No user stop for user with id $userId available.")
+        _userStops.remove(userStops.first { it.user.id == userId })
     }
 }
