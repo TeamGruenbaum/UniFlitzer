@@ -27,7 +27,6 @@ services:
     image: mkodockx/docker-clamav:alpine
     ports:
       - "3310:3310/tcp"
-    restart: always
 
 volumes:
   database-data:
