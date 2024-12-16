@@ -24,4 +24,28 @@ class Rating(author: User, role: Role, content: Content, stars: Stars, created: 
 
     final var created: ZonedDateTime = created
         private set
+
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (other !is Rating) return false
+
+        if (author != other.author) return false
+        if (role != other.role) return false
+        if (content != other.content) return false
+        if (stars != other.stars) return false
+        if (created != other.created) return false
+
+        return true
+    }
+
+    override fun hashCode(): Int {
+        var result = author.hashCode()
+        result = 31 * result + role.hashCode()
+        result = 31 * result + content.hashCode()
+        result = 31 * result + stars.hashCode()
+        result = 31 * result + created.hashCode()
+        return result
+    }
+
+
 }

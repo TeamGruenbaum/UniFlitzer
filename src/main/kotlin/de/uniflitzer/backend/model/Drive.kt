@@ -27,5 +27,18 @@ class Drive(driver: User, car: Car, route: CompleteRoute, passenger: List<User>,
     @field:ElementCollection
     private var _messages: MutableList<Message> = mutableListOf()
     val messages: List<Message> get() = _messages
+
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (other !is Drive) return false
+
+        if (id != other.id) return false
+
+        return true
+    }
+
+    override fun hashCode(): Int {
+        return id.hashCode()
+    }
 }
 

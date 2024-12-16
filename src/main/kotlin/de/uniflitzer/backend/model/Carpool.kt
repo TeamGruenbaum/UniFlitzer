@@ -40,4 +40,17 @@ class Carpool(name: Name, users: MutableList<User>){
         this.name = name
         this._users = users
     }
+
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (other !is Carpool) return false
+
+        if (id != other.id) return false
+
+        return true
+    }
+
+    override fun hashCode(): Int {
+        return id.hashCode()
+    }
 }

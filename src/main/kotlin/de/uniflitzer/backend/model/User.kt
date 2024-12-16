@@ -128,4 +128,17 @@ class User(id: UUID, firstName: FirstName, lastName: LastName, birthday: ZonedDa
         _blockedUsers.remove(user)
     }
 
+
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (other !is User) return false
+
+        if (id != other.id) return false
+
+        return true
+    }
+
+    override fun hashCode(): Int {
+        return id.hashCode()
+    }
 }

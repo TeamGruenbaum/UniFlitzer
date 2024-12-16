@@ -12,4 +12,17 @@ class Image(fileEnding: String){
     val fileNameFullQuality: String = UUID.randomUUID().toString() + fileEnding
 
     val fileNamePreviewQuality: String = UUID.randomUUID().toString() + fileEnding
+
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (other !is Image) return false
+
+        if (id != other.id) return false
+
+        return true
+    }
+
+    override fun hashCode(): Int {
+        return id.hashCode()
+    }
 }
