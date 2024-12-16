@@ -166,6 +166,20 @@ private class DriveRequestsCommunicator(
         return ResponseEntity.ok(detailedDriveRequestDP)
     }
 
+    @Operation(description = "Delete a specific drive request.")
+    @CommonApiResponses @NoContentApiResponse @NotFoundApiResponse
+    @DeleteMapping("{id}")
+    fun deleteDriveRequest(@PathVariable @UUID id:String, userToken: UserToken): ResponseEntity<Void>
+    {
+        if(!usersRepository.existsById(UUIDType.fromString(userToken.id))) throw ForbiddenError(ErrorDP("User with id ${userToken.id} does not exist in resource server."))
+
+        val driveRequest: DriveRequest = driveRequestsRepository.findById(UUIDType.fromString(id)).getOrNull() ?: throw NotFoundError(ErrorDP("DriveRequest with id $id not found."))
+        if(driveRequest.requestingUser.id != UUIDType.fromString(userToken.id)) throw ForbiddenError(ErrorDP("UserToken id does not match the requesting user id of the drive request."))
+
+        driveRequestsRepository.delete(driveRequest)
+        return ResponseEntity.noContent().build()
+    }
+
     @Operation(description = "Create a new drive offer for a specific drive request. The drive request is either deleted if it's a CarpoolDriveRequest or its drive offers list is updated if it's a PublicDriveRequest.")
     @CommonApiResponses @CreatedApiResponse @NotFoundApiResponse
     @PostMapping("{id}/drive-offers")
