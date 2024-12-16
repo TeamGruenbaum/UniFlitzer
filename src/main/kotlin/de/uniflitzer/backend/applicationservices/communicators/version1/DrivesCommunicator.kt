@@ -8,9 +8,13 @@ import de.uniflitzer.backend.applicationservices.communicators.version1.document
 import de.uniflitzer.backend.applicationservices.communicators.version1.documentationinformationadder.apiresponses.OkApiResponse
 import de.uniflitzer.backend.applicationservices.communicators.version1.errors.ForbiddenError
 import de.uniflitzer.backend.applicationservices.communicators.version1.errors.NotFoundError
+import de.uniflitzer.backend.applicationservices.communicators.version1.errors.StompError
 import de.uniflitzer.backend.applicationservices.communicators.version1.valuechecker.UUID
 import de.uniflitzer.backend.applicationservices.geography.GoogleMapsPlatformGeographyService
-import de.uniflitzer.backend.model.*
+import de.uniflitzer.backend.model.Car
+import de.uniflitzer.backend.model.Coordinate
+import de.uniflitzer.backend.model.Drive
+import de.uniflitzer.backend.model.User
 import de.uniflitzer.backend.repositories.DrivesRepository
 import de.uniflitzer.backend.repositories.ImagesRepository
 import de.uniflitzer.backend.repositories.UsersRepository
@@ -25,6 +29,9 @@ import jakarta.validation.Valid
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.http.MediaType
 import org.springframework.http.ResponseEntity
+import org.springframework.messaging.handler.annotation.DestinationVariable
+import org.springframework.messaging.simp.SimpMessagingTemplate
+import org.springframework.messaging.simp.annotation.SubscribeMapping
 import org.springframework.validation.annotation.Validated
 import org.springframework.web.bind.annotation.*
 import java.time.ZonedDateTime
@@ -36,8 +43,13 @@ import java.util.UUID as UUIDType
 @Validated
 @SecurityRequirement(name = "Token Authentication")
 @Tag(name = "Drives")
-private class DrivesCommunicator(@field:Autowired private val usersRepository: UsersRepository, @field:Autowired private val drivesRepository: DrivesRepository, @field:Autowired private val geographyService: GoogleMapsPlatformGeographyService, @field:Autowired private val imagesRepository: ImagesRepository)
-{
+private class DrivesCommunicator(
+    @field:Autowired private val usersRepository: UsersRepository,
+    @field:Autowired private val drivesRepository: DrivesRepository,
+    @field:Autowired private val geographyService: GoogleMapsPlatformGeographyService,
+    @field:Autowired private val imagesRepository: ImagesRepository,
+    @field:Autowired private val messagingTemplate: SimpMessagingTemplate,
+) {
     @Operation(description = "Get details of a specific drive.")
     @CommonApiResponses @OkApiResponse @NotFoundApiResponse
     @GetMapping("{id}")
@@ -129,4 +141,29 @@ private class DrivesCommunicator(@field:Autowired private val usersRepository: U
         drivesRepository.save(drive)
         return ResponseEntity.noContent().build()
     }
+
+    @Operation(description = "Update the current position of a specific user")
+    @CommonApiResponses @NoContentApiResponse
+    @PatchMapping("/{id}/current-driver-position")
+    fun updateCurrentPositionOfUser(@PathVariable @UUID id: String, @RequestBody coordinate: CoordinateDP, userToken: UserToken): ResponseEntity<Void> {
+        if (userToken.id != id) throw ForbiddenError(ErrorDP("Users can only update their own current position."))
+        val currentDrive: Drive = drivesRepository.findById(UUIDType.fromString(id)).getOrNull() ?: throw NotFoundError(ErrorDP("Drive with id $id not found."))
+        if(UUIDType.fromString(userToken.id) != currentDrive.driver.id) throw ForbiddenError(ErrorDP("Only the driver can update the current driver position."))
+
+        currentDrive.currentPosition = Coordinate(coordinate.latitude, coordinate.longitude)
+        messagingTemplate.convertAndSend("v1/drives/${currentDrive.id}/current-driver-position", CoordinateDP.fromCoordinate(currentDrive.currentPosition!!))
+
+        return ResponseEntity.noContent().build<Void>()
+    }
+
+    @SubscribeMapping("/v1/drives/{id}/current-driver-position")
+    fun subscribeToCurrentDriverPosition(userToken: UserToken, @DestinationVariable @UUID id: String): CoordinateDP? {
+        throw Exception("This method should not be called.")
+        val currentDrive: Drive = drivesRepository.findById(UUIDType.fromString(id)).getOrNull() ?: throw StompError(ErrorsDP(listOf("Drive with id $id not found.")))
+        val actingUser: User = usersRepository.findById(UUIDType.fromString(userToken.id)).getOrNull() ?: throw StompError(ErrorsDP(listOf("User with id ${userToken.id} does not exist in resource server.")))
+        if(actingUser in currentDrive.passengers || actingUser == currentDrive.driver) throw StompError(ErrorsDP(listOf("User is not part of this drive with id ${userToken.id}")))
+
+        return currentDrive.currentPosition?.let { CoordinateDP.fromCoordinate(it) }
+    }
 }
+
