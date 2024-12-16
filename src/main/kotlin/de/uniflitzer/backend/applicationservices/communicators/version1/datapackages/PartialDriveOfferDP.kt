@@ -22,6 +22,7 @@ import jakarta.validation.constraints.Pattern
 )
 @JsonTypeInfo(use = JsonTypeInfo.Id.SIMPLE_NAME, include = JsonTypeInfo.As.PROPERTY, property = "type")
 sealed class PartialDriveOfferDP(
+    val containsFavoriteDrive: Boolean,
     @field:UUID val id: String,
     @field:Valid val driver: PartialUserDP,
     @field:Min(1) @field:Max(8) val freeSeats: Int,
@@ -30,10 +31,11 @@ sealed class PartialDriveOfferDP(
     @field:Pattern(regexp = DateTimeFormat) @field:Schema(example = DateTimeFormatExample) val plannedDepartureTime: String?
 ) {
     companion object {
-        fun fromDriveOffer(driveOffer: DriveOffer): PartialDriveOfferDP {
+        fun fromDriveOffer(driveOffer: DriveOffer, containsFavoriteDriver: Boolean): PartialDriveOfferDP {
             return when (driveOffer) {
                 is PublicDriveOffer ->
                     PartialPublicDriveOfferDP(
+                        containsFavoriteDriver,
                         driveOffer.id.toString(),
                         PartialUserDP.fromUser(driveOffer.driver),
                         driveOffer.freeSeats.value.toInt(),
