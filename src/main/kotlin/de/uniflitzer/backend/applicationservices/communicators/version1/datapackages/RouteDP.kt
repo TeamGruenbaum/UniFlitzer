@@ -5,13 +5,13 @@ import jakarta.validation.Valid
 
 data class RouteDP private constructor(
     @field:Valid val start: PositionDP,
-    @field:Valid val destination: PositionDP
+    @field:Valid val destination: PositionDP,
 ) {
     companion object {
         fun fromRoute(route: Route): RouteDP {
             return RouteDP(
                 PositionDP.fromPosition(route.start),
-                PositionDP.fromPosition(route.destination)
+                PositionDP.fromPosition(route.destination),
             )
         }
     }

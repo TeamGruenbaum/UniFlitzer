@@ -57,7 +57,7 @@ private class DriveRequestsCommunicator(
             is PublicDriveRequestCreationDP -> {
                 PublicDriveRequest(
                     user,
-                    Route(
+                    geographyService.createRoute(
                         geographyService.createPosition(driveRequestCreation.route.start.toCoordinate()),
                         geographyService.createPosition(driveRequestCreation.route.destination.toCoordinate())
                     ),
@@ -164,7 +164,7 @@ private class DriveRequestsCommunicator(
                             user,
                             car,
                             Seats(driveOfferCreation.freeSeats.toUInt()),
-                            Route(
+                            geographyService.createRoute(
                                 geographyService.createPosition(driveOfferCreation.route.start.toCoordinate()),
                                 geographyService.createPosition(driveOfferCreation.route.destination.toCoordinate())
                             ),

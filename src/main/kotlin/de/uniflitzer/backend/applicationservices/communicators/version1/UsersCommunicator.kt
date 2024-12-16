@@ -8,6 +8,7 @@ import de.uniflitzer.backend.applicationservices.communicators.version1.errors.F
 import de.uniflitzer.backend.applicationservices.communicators.version1.errors.InternalServerError
 import de.uniflitzer.backend.applicationservices.communicators.version1.errors.NotFoundError
 import de.uniflitzer.backend.applicationservices.communicators.version1.valuechecker.UUID
+import de.uniflitzer.backend.applicationservices.geography.GeographyService
 import de.uniflitzer.backend.model.*
 import de.uniflitzer.backend.model.errors.NotAvailableError
 import de.uniflitzer.backend.repositories.DriveRequestsRepository

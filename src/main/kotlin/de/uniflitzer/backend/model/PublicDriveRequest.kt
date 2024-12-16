@@ -29,6 +29,6 @@ class PublicDriveRequest(requestingUser: User, route: Route, plannedDeparture: Z
     fun acceptDriveOffer(driveOfferId: UUID)
     {
         val driveOffer: PublicDriveOffer = this.driveOffers.find { it.id == driveOfferId } ?: throw EntityNotFoundError("DriveOffer with id $driveOfferId not found.")
-        driveOffer.addPassenger(UserStop(this.requestingUser, this.route.start))
+        driveOffer.addPassenger(UserStop(this.requestingUser, this.route.start, this.route.destination))
     }
 }

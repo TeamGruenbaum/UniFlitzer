@@ -5,12 +5,15 @@ import jakarta.persistence.FetchType
 import jakarta.persistence.ManyToOne
 
 @Embeddable
-class ConfirmableUserStop(user: User, position: Position, waitingConfirmed: Boolean){
+class ConfirmableUserStop(user: User, start: Position, destination: Position, waitingConfirmed: Boolean){
     @field:ManyToOne(fetch = FetchType.LAZY)
     final var user: User = user
         private set
 
-    final var position: Position = position
+    final var start: Position = start
+        private set
+
+    final var destination: Position = destination
         private set
 
     final var waitingConfirmed: Boolean = waitingConfirmed
@@ -18,7 +21,8 @@ class ConfirmableUserStop(user: User, position: Position, waitingConfirmed: Bool
 
     init {
         this.user = user
-        this.position = position
+        this.start = start
+        this.destination = destination
         this.waitingConfirmed = waitingConfirmed
     }
 
