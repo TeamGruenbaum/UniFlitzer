@@ -36,11 +36,6 @@ class User(id: UUID, firstName: FirstName, lastName: LastName, birthday: ZonedDa
     private var _animals: MutableList<Animal> = mutableListOf()
     val animals: List<Animal> get() = _animals
 
-    fun refillAnimals(animals: List<Animal>) {
-        _animals.clear()
-        _animals.addAll(animals)
-    }
-
     @field:Enumerated(EnumType.STRING)
     var drivingStyle: DrivingStyle? = null
 
@@ -48,7 +43,9 @@ class User(id: UUID, firstName: FirstName, lastName: LastName, birthday: ZonedDa
     private var _cars: MutableList<Car> = mutableListOf()
     val cars: List<Car> get() = _cars
 
-    @field:OneToMany(mappedBy = "requestingUser", fetch = FetchType.LAZY, cascade = [CascadeType.ALL])
+    @field:ElementCollection
+    private var _favoriteAddresses: MutableList<Address> = mutableListOf()
+    val favoriteAddresses: List<Address> get() = _favoriteAddresses
 
     @field:ManyToMany(fetch = FetchType.LAZY)
     private var _favoriteUsers: MutableList<User> = mutableListOf()
@@ -58,6 +55,7 @@ class User(id: UUID, firstName: FirstName, lastName: LastName, birthday: ZonedDa
     private var _blockedUsers: MutableList<User> = mutableListOf()
     val blockedUsers: List<User> get() = _blockedUsers
 
+    @field:OneToMany(mappedBy = "requestingUser", fetch = FetchType.LAZY)
     private var _driveRequests: MutableList<DriveRequest> = mutableListOf()
     val driveRequests: List<DriveRequest> get() = _driveRequests
 
@@ -111,6 +109,18 @@ class User(id: UUID, firstName: FirstName, lastName: LastName, birthday: ZonedDa
         return cars.getOrNull(index) ?: throw NotAvailableError("The car with index $index does not exist.")
     }
 
+    fun refillAnimals(animals: List<Animal>) {
+        _animals.clear()
+        _animals.addAll(animals)
+    }
+
+    fun addFavoriteAddress(address: Address) = _favoriteAddresses.add(address)
+
+    @Throws(NotAvailableError::class)
+    fun removeFavoriteAddressByIndex(index: UInt) {
+        if (index.toInt() >= _favoriteAddresses.size) throw NotAvailableError("Index out of bounds")
+        _favoriteAddresses.removeAt(index.toInt())
+    }
 
     fun addFavoriteUser(user: User) = _favoriteUsers.add(user)
 

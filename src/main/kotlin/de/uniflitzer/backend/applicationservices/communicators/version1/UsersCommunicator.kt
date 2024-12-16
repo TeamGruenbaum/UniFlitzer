@@ -29,11 +29,10 @@ import org.keycloak.admin.client.Keycloak
 import org.keycloak.admin.client.resource.UserResource
 import org.keycloak.representations.idm.UserRepresentation
 import org.springframework.beans.factory.annotation.Autowired
-import org.springframework.boot.web.servlet.error.DefaultErrorAttributes
 import org.springframework.core.env.Environment
 import org.springframework.data.domain.Page
-import org.springframework.data.domain.Sort
 import org.springframework.data.domain.PageRequest
+import org.springframework.data.domain.Sort
 import org.springframework.http.HttpStatus
 import org.springframework.http.MediaType
 import org.springframework.http.ResponseEntity
@@ -298,6 +297,35 @@ private class UsersCommunicator(
         return ResponseEntity.noContent().build<Void>()
     }
 
+    @Operation(description = "Create a favorite address for a specific user.")
+    @CommonApiResponses @CreatedApiResponse
+    @PostMapping("{id}/favorite-addresses")
+    fun addFavoriteAddressForUser(@PathVariable @UUID id: String, @RequestBody @Valid address: AddressDP, userToken: UserToken): ResponseEntity<Void> {
+        if (userToken.id != id) throw ForbiddenError(ErrorDP("Users can only add favorite addresses to their own account."))
+        val actingUser: User = usersRepository.findById(UUIDType.fromString(id)).getOrNull() ?: throw ForbiddenError(ErrorDP("User with id $id does not exist in resource server."))
+
+        actingUser.addFavoriteAddress(address.toAddress())
+        usersRepository.save(actingUser)
+
+        return ResponseEntity.status(HttpStatus.CREATED).build<Void>()
+    }
+
+    @Operation(description = "Delete a favorite address of a specific user.")
+    @CommonApiResponses @NoContentApiResponse @NotFoundApiResponse
+    @DeleteMapping("{userId}/favorite-addresses/{addressIndex}")
+    fun deleteFavoriteAddressOfUser(@PathVariable @UUID userId: String, @PathVariable @Min(0) addressIndex: Int, userToken: UserToken): ResponseEntity<Void> {
+        if (userToken.id != userId) throw ForbiddenError(ErrorDP("Users can only delete favorite addresses from their own account."))
+        val actingUser: User = usersRepository.findById(UUIDType.fromString(userId)).getOrNull() ?: throw ForbiddenError(ErrorDP("User with id $userId does not exist in resource server."))
+
+        try {
+            actingUser.removeFavoriteAddressByIndex(addressIndex.toUInt())
+        } catch (_: NotAvailableError) {
+            throw NotFoundError(ErrorDP("Favorite address with index $addressIndex not found."))
+        }
+        usersRepository.save(actingUser)
+
+        return ResponseEntity.noContent().build<Void>()
+    }
 
     @Operation(description = "Add favorite user to a specific user")
     @CommonApiResponses @NoContentApiResponse @NotFoundApiResponse

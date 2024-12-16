@@ -23,4 +23,5 @@ data class DetailedUserDP(
     @field:Valid @field:Size(min = 0, max = 10) val animals: List<AnimalDP>,
     val drivingStyle: DrivingStyleDP?,
     @field:Valid @field:Size(min = 0, max = 5) val cars: List<CarDP>,
+    @field:Valid @field:Size(min = 0) val favoriteAddresses: List<AddressDP>,
 )
