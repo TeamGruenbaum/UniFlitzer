@@ -13,6 +13,16 @@ import org.springframework.data.repository.query.Param
 import java.util.*
 
 interface DriveOffersRepository: JpaRepository<DriveOffer, UUID> {
+    @Query(
+        """
+            SELECT driveOffer
+            FROM DriveOffer driveOffer
+            WHERE driveOffer.plannedDeparture
+                BETWEEN :#{T(java.time.ZonedDateTime).now()}
+                AND :#{T(java.time.ZonedDateTime).now().plusHours(#hours)}
+        """
+    )
+    fun findAllWithPlannedDepartureWithinTime(@Param("hours") hours: UInt): List<DriveOffer>
 
     @Query(
         """
