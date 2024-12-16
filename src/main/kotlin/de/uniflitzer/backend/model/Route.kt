@@ -1,5 +1,7 @@
 package de.uniflitzer.backend.model
 
+import android_maps_utils_3_10_0.LatLng
+import android_maps_utils_3_10_0.PolyUtil
 import jakarta.persistence.AttributeOverride
 import jakarta.persistence.AttributeOverrides
 import jakarta.persistence.Column
@@ -36,5 +38,33 @@ class Route(start: Position, destination: Position, polyline: GeoJsonLineString)
         this.start = start
         this.destination = destination
         this.polyline = polyline
+    }
+
+    fun isCoordinateOnRoute(coordinate: Coordinate, tolerance: Meters): Boolean {
+        return PolyUtil.isLocationOnPath(
+            LatLng(coordinate.latitude, coordinate.longitude),
+            polyline.coordinates.map { LatLng(it.latitude, it.longitude) },
+            true,
+            tolerance.value
+        )
+    }
+
+    fun areCoordinatesInCorrectDirection(start: Coordinate, destination: Coordinate): Boolean {
+        fun calculateClosestCoordinate(coordinate: Coordinate): UInt? {
+            return polyline.coordinates
+                .filterIndexed { index, _ -> index % 2 == 0 }
+                .parallelStream()
+                .map{ (it distanceTo coordinate).value }
+                .toList()
+                .withIndex()
+                .minByOrNull{ it.value }
+                ?.index
+                ?.toUInt()
+        }
+
+        val indexOfStartOnRoute: UInt = calculateClosestCoordinate(start) ?: return false
+        val indexOfDestinationOnRoute: UInt = calculateClosestCoordinate(destination) ?: return false
+
+        return indexOfStartOnRoute < indexOfDestinationOnRoute
     }
 }

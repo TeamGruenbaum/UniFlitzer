@@ -124,7 +124,7 @@ private class DriveOffersCommunicator(
                     actingUser,
                     selectedCarForDriverOffer,
                     Seats(driveOfferCreation.freeSeats.toUInt()),
-                    Route(
+                    geographyService.createRoute(
                         geographyService.createPosition(driveOfferCreation.route.start.toCoordinate()),
                         geographyService.createPosition(driveOfferCreation.route.destination.toCoordinate())
                     ),
@@ -155,7 +155,7 @@ private class DriveOffersCommunicator(
     @Operation(description = "Request the ride for a specific drive offer.")
     @CommonApiResponses @NoContentApiResponse @NotFoundApiResponse
     @PostMapping("{id}/requests")
-    fun requestSeat(@PathVariable @UUID id: String, @RequestBody @Valid coordinate: CoordinateDP, userToken: UserToken):ResponseEntity<Void> {
+    fun requestSeat(@PathVariable @UUID id: String, @RequestBody @Valid userStopCreation: UserStopCreationDP, userToken: UserToken):ResponseEntity<Void> {
         val actingUser: User = usersRepository.findById(UUIDType.fromString(userToken.id)).getOrNull() ?: throw ForbiddenError(ErrorDP("User with id ${userToken.id} does not exist in resource server."))
         val driveOfferInEditing: DriveOffer = driveOffersRepository.findById(UUIDType.fromString(id)).getOrNull() ?: throw NotFoundError(ErrorDP("The drive offer with the id $id could not be found."))
         if(driveOfferInEditing.driver.id == actingUser.id) throw ForbiddenError(ErrorDP("The requesting user cannot be the driver of the same drive offer."))
@@ -164,7 +164,12 @@ private class DriveOffersCommunicator(
         when (driveOfferInEditing) {
             is PublicDriveOffer -> {
                 try {
-                    driveOfferInEditing.addRequestFromUser(actingUser, geographyService.createPosition(coordinate.toCoordinate()))
+                    driveOfferInEditing.addRequestFromUser(
+                        actingUser,
+                        geographyService.createPosition(userStopCreation.start.toCoordinate()),
+                        geographyService.createPosition(userStopCreation.destination.toCoordinate())
+
+                    )
                 } catch (_: NotAvailableError) {
                     throw ForbiddenError(ErrorDP("No free seats left in the drive offer with the id $id."))
                 } catch (_: RepeatedActionError) {

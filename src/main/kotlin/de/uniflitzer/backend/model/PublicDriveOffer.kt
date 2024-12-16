@@ -16,11 +16,11 @@ class PublicDriveOffer(driver: User, car: Car, freeSeats: Seats, route: Route, p
     val requestingUsers: List<UserStop> get() = _requestingUsers
 
     @Throws(NotAvailableError::class, RepeatedActionError::class)
-    fun addRequestFromUser(user: User, position: Position) {
+    fun addRequestFromUser(user: User, start: Position, destination: Position) {
         if (passengers.size.toUInt() >= freeSeats.value) throw NotAvailableError("No free seats left")
         if(requestingUsers.any { it.user.id == user.id }) throw RepeatedActionError("User already requested a seat")
 
-        _passengers.add(UserStop(user, position))
+        _passengers.add(UserStop(user, start, destination))
     }
 
     @Throws(MissingActionError::class, NotAvailableError::class)
