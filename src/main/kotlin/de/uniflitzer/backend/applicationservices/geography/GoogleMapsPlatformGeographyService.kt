@@ -80,10 +80,10 @@ class GoogleMapsPlatformGeographyService(
             .entries
             .let {
                 Address(
-                    street = it.find { entry -> entry.key.contains("route") }?.value ?: return@let null,
-                    houseNumber = it.find { entry -> entry.key.contains("street_number") }?.value ?: return@let null,
-                    postalCode = it.find { entry -> entry.key.contains("postal_code") }?.value ?: return@let null,
-                    city = it.find { entry -> entry.key.contains("locality") }?.value ?: return@let null
+                    street = it.find { entry -> "route" in entry.key }?.value ?: return@let null,
+                    houseNumber = it.find { entry -> "street_number" in entry.key}?.value ?: return@let null,
+                    postalCode = it.find { entry -> "postal_code" in entry.key }?.value ?: return@let null,
+                    city = it.find { entry -> "locality" in entry.key }?.value ?: return@let null
                 )
             }
 
