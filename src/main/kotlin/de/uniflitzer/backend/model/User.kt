@@ -55,7 +55,7 @@ class User(id: UUID, firstName: FirstName, lastName: LastName, birthday: ZonedDa
     private var _blockedUsers: MutableList<User> = mutableListOf()
     val blockedUsers: List<User> get() = _blockedUsers
 
-    @field:OneToMany(mappedBy = "requestingUser", fetch = FetchType.LAZY)
+    @field:OneToMany(mappedBy = "requestingUser", fetch = FetchType.LAZY) //TODO: jetzt nicht mehr cascading
     private var _driveRequests: MutableList<DriveRequest> = mutableListOf()
     val driveRequests: List<DriveRequest> get() = _driveRequests
 
@@ -120,6 +120,12 @@ class User(id: UUID, firstName: FirstName, lastName: LastName, birthday: ZonedDa
     fun removeFavoriteAddressByIndex(index: UInt) {
         if (index.toInt() >= _favoriteAddresses.size) throw NotAvailableError("Index out of bounds")
         _favoriteAddresses.removeAt(index.toInt())
+    }
+
+    fun addRating(rating: Rating) = _ratings.add(rating)
+
+    fun getAverageStars(): Double? {
+        return if (ratings.isEmpty()) null else ratings.map { it.stars.value.toDouble() }.sum() / ratings.size
     }
 
     fun addFavoriteUser(user: User) = _favoriteUsers.add(user)
