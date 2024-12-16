@@ -138,6 +138,20 @@ private class DriveOffersCommunicator(
         return ResponseEntity.status(HttpStatus.CREATED).body(IdDP(newDriveOffer.id.toString()))
     }
 
+    @Operation(description = "Delete a drive offer.")
+    @CommonApiResponses @CreatedApiResponse
+    @DeleteMapping("{id}/")
+    fun deleteDriveOffer(@PathVariable @UUID id: String, @RequestBody @Valid userToken: UserToken): ResponseEntity<IdDP> {
+        if(!usersRepository.existsById(UUIDType.fromString(userToken.id))) throw ForbiddenError(ErrorDP("User with id ${userToken.id} does not exist in resource server."))
+        val driveOfferInEditing: DriveOffer = driveOffersRepository.findById(UUIDType.fromString(id)).getOrNull() ?: throw NotFoundError(ErrorDP("The drive offer with the id $id could not be found."))
+        if (driveOfferInEditing.driver.id.toString() != userToken.id) throw ForbiddenError(ErrorDP("The user with the id $id is not the driver of the drive offer with the id $id."))
+
+        driveOffersRepository.delete(driveOfferInEditing)
+        driveOffersRepository.flush()
+
+        return ResponseEntity.noContent().build()
+    }
+
     @Operation(description = "Update a specific drive offer. Only the planned departure time can be updated.")
     @CommonApiResponses @NoContentApiResponse @NotFoundApiResponse
     @PatchMapping("{id}")
