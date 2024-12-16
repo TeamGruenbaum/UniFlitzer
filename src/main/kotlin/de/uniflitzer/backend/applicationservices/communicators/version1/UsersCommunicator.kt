@@ -17,7 +17,7 @@ import de.uniflitzer.backend.repositories.ImagesRepository
 import de.uniflitzer.backend.repositories.UsersRepository
 import de.uniflitzer.backend.repositories.errors.*
 import io.swagger.v3.oas.annotations.Operation
-import io.swagger.v3.oas.annotations.media.Content
+import io.swagger.v3.oas.annotations.media.Content as MediaContent
 import io.swagger.v3.oas.annotations.responses.ApiResponse
 import io.swagger.v3.oas.annotations.responses.ApiResponses
 import io.swagger.v3.oas.annotations.security.SecurityRequirement
@@ -81,6 +81,7 @@ private class UsersCommunicator(
                 DrivingStyleDP.fromDrivingStyle(searchedUser.drivingStyle),
                 searchedUser.cars.map { CarDP.fromCar(it) },
                 searchedUser.favoriteAddresses.map { AddressDP.fromAddress(it) },
+                searchedUser.ratings.map { RatingDP.fromRating(it) }
             )
         )
     }
@@ -211,7 +212,7 @@ private class UsersCommunicator(
         value = [
             ApiResponse(
                 responseCode = "200",
-                content =  [Content(mediaType = MediaType.IMAGE_JPEG_VALUE)]
+                content =  [MediaContent(mediaType = MediaType.IMAGE_JPEG_VALUE)]
             )
         ]
     )
@@ -276,7 +277,7 @@ private class UsersCommunicator(
         value = [
             ApiResponse(
                 responseCode = "200",
-                content =  [Content(mediaType = MediaType.IMAGE_JPEG_VALUE)]
+                content =  [MediaContent(mediaType = MediaType.IMAGE_JPEG_VALUE)]
             )
         ]
     )
@@ -489,6 +490,47 @@ private class UsersCommunicator(
         return ResponseEntity.ok(
             DrivePageDP(page.totalPages, page.content.map { DriveDP.fromDrive(it) })
         )
+    }
+
+    @Operation(description = "Create a rating for a specific user.")
+    @CommonApiResponses @CreatedApiResponse @NotFoundApiResponse
+    @PostMapping("{id}/ratings")
+    fun createRatingForUser(@PathVariable @UUID id: String, @RequestBody @Valid ratingCreation: RatingCreationDP, userToken: UserToken): ResponseEntity<Void>
+    {
+        if(userToken.id == id) throw ForbiddenError(ErrorDP("The user cannot create a rating for himself."))
+        val author: User = usersRepository.findById(UUIDType.fromString(userToken.id)).getOrNull() ?: throw ForbiddenError(ErrorDP("User with id ${userToken.id} does not exist in resource server."))
+        val ratedUser: User = usersRepository.findById(UUIDType.fromString(id)).getOrNull() ?: throw NotFoundError(ErrorDP("User with id $id does not exist in resource server."))
+
+        when(ratingCreation.role) {
+            RoleDP.Driver -> {
+                if(ratedUser.drivesAsDriver
+                    .filter { (it.arrival?.isAfter(ZonedDateTime.now().minusDays(3)) ?: false) && (it.arrival?.isBefore(ZonedDateTime.now()) ?: false) }
+                    .none { it.passengers.contains(author) })
+                    throw BadRequestError(ErrorsDP(listOf("User with id ${ratedUser.id} was no driver of user wit id ${author.id}.")))
+
+                if(ratedUser.ratings.any { it.author == author && it.role == Role.Driver && it.created.isAfter(ZonedDateTime.now().minusDays(3)) })
+                    throw BadRequestError(ErrorsDP(listOf("User with id ${author.id} already rated user with id ${ratedUser.id} as driver in the last three days.")))
+            }
+            RoleDP.Passenger -> {
+                if(ratedUser.drivesAsPassenger
+                    .filter { (it.arrival?.isAfter(ZonedDateTime.now().minusDays(3)) ?: false) && (it.arrival?.isBefore(ZonedDateTime.now()) ?: false) }
+                    .none { it.driver == author })
+                    throw BadRequestError(ErrorsDP(listOf("User with id ${ratedUser.id} was no passenger of user wit id ${author.id}.")))
+
+                if(ratedUser.ratings.any { it.author == author && it.role == Role.Passenger && it.created.isAfter(ZonedDateTime.now().minusDays(3)) })
+                    throw BadRequestError(ErrorsDP(listOf("User with id ${author.id} already rated user with id ${ratedUser.id} as passenger in the last three days.")))
+            }
+        }
+
+        ratedUser.addRating(Rating(
+            author,
+            ratingCreation.role.toRole(),
+            Content(ratingCreation.content),
+            Stars(ratingCreation.stars.toUInt()),
+            ZonedDateTime.now()
+        ))
+        usersRepository.save(ratedUser)
+        return ResponseEntity.status(HttpStatus.CREATED).build()
     }
 }
 
