@@ -22,7 +22,7 @@ class PartialCarpoolDriveOfferDP (
                 carpoolDriveOffer.freeSeats.value.toInt(),
                 RouteDP.fromRoute(carpoolDriveOffer.route),
                 carpoolDriveOffer.passengers.size,
-                carpoolDriveOffer.plannedDeparture.toString(),
+                carpoolDriveOffer.plannedDeparture?.toString(),
                 carpoolDriveOffer.carpool.id.toString()
             )
     }

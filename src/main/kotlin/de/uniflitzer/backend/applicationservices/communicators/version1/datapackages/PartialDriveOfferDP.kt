@@ -41,7 +41,7 @@ sealed class PartialDriveOfferDP(
                         driveOffer.freeSeats.value.toInt(),
                         RouteDP.fromRoute(driveOffer.route),
                         driveOffer.passengers.size,
-                        driveOffer.plannedDeparture.toString(),
+                        driveOffer.plannedDeparture?.toString(),
                         driveOffer.requestingUsers.map { it.user.id.toString() }
                     )
                 is CarpoolDriveOffer -> TODO()

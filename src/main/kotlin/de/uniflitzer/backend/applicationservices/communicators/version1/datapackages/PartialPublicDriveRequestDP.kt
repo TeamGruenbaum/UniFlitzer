@@ -16,7 +16,7 @@ class PartialPublicDriveRequestDP(
                 publicDriveRequest.id.toString(),
                 PartialUserDP.fromUser(publicDriveRequest.requestingUser),
                 RouteDP.fromRoute(publicDriveRequest.route),
-                publicDriveRequest.plannedDeparture.toString(),
+                publicDriveRequest.plannedDeparture?.toString(),
                 publicDriveRequest.driveOffers.size
             )
         }

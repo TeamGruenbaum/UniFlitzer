@@ -16,7 +16,7 @@ class PartialCarpoolDriveRequestDP(
                 carpoolDriveRequest.id.toString(),
                 PartialUserDP.fromUser(carpoolDriveRequest.requestingUser),
                 RouteDP.fromRoute(carpoolDriveRequest.route),
-                carpoolDriveRequest.plannedDeparture.toString(),
+                carpoolDriveRequest.plannedDeparture?.toString(),
                 carpoolDriveRequest.carpool.id.toString()
             )
         }

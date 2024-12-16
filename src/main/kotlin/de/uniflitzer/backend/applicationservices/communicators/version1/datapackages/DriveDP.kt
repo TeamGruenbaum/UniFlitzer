@@ -27,8 +27,8 @@ data class DriveDP(
                 drive.passengers.map { PartialUserDP.fromUser(it) },
                 CompleteRouteDP.fromCompleteRoute(drive.route),
                 drive.plannedDeparture.toString(),
-                drive.actualDeparture.toString(),
-                drive.arrival.toString()
+                drive.actualDeparture?.toString(),
+                drive.arrival?.toString(),
             )
         }
     }
