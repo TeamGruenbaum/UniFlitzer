@@ -438,19 +438,28 @@ private class UsersCommunicator(
         val user: User = usersRepository.findById(UUIDType.fromString(userToken.id)).getOrNull() ?: throw ForbiddenError(ErrorDP("User with id ${userToken.id} does not exist in resource server."))
         if(user.id != UUIDType.fromString(id)) throw ForbiddenError(ErrorDP("The user can only get his own drive requests."))
 
-        val sort: Sort = if (sortingDirection == SortingDirection.Ascending) Sort.by("id").ascending() else Sort.by("id").descending()
-        val page: Page<DriveRequest> = driveRequestsRepository.findDriveRequests(PageRequest.of(pageNumber - 1, perPage, sort), user.id)
+        val driveRequests: List<DriveRequest> = driveRequestsRepository.findAll(
+            Sort.by(
+                when(sortingDirection) {
+                    SortingDirection.Ascending -> Sort.Direction.ASC
+                    SortingDirection.Descending -> Sort.Direction.DESC
+                },
+                DriveRequest::plannedDeparture.name
+            ),
+            user.id
+        )
 
         return ResponseEntity.ok(
-            PartialDriveRequestPageDP(
-                page.totalPages,
-                page.content.map {
+            PartialDriveRequestPageDP.fromList(
+                driveRequests.map {
                     when (it) {
-                        is CarpoolDriveRequest -> PartialCarpoolDriveRequestDP.fromCarpoolDriveRequest(it)
-                        is PublicDriveRequest -> PartialPublicDriveRequestDP.fromPublicDriveRequest(it)
+                        is CarpoolDriveRequest -> PartialCarpoolDriveRequestDP.fromCarpoolDriveRequest(it, false)
+                        is PublicDriveRequest -> PartialPublicDriveRequestDP.fromPublicDriveRequest(it, false)
                         else -> throw Exception()
                     }
-                }
+                },
+                pageNumber.toUInt(),
+                perPage.toUInt()
             )
         )
     }
