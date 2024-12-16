@@ -24,9 +24,6 @@ class Drive(driver: User, car: Car, route: CompleteRoute, passenger: List<User>,
     var actualDeparture: ZonedDateTime? = null
     var arrival: ZonedDateTime? = null
 
-    @field:ElementCollection
-    private var _messages: MutableList<Message> = mutableListOf()
-    val messages: List<Message> get() = _messages
 
     override fun equals(other: Any?): Boolean {
         if (this === other) return true

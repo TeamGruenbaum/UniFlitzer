@@ -28,10 +28,6 @@ class Carpool(name: Name, users: MutableList<User>){
     private var _drives: MutableList<Drive> = mutableListOf()
     val drives: List<Drive> get() = _drives
 
-    @field:ElementCollection
-    private var _messages: MutableList<Message> = mutableListOf()
-    val messages: List<Message> get() = _messages
-
     @field:ManyToMany(fetch = FetchType.LAZY)
     private var _sentInvites: MutableList<User> = mutableListOf()
     val sentInvites: List<User> get () = _sentInvites
@@ -39,6 +35,19 @@ class Carpool(name: Name, users: MutableList<User>){
     init {
         this.name = name
         this._users = users
+    }
+
+    fun addCarpoolInvite(user: User) {
+        _sentInvites.add(user)
+    }
+
+    fun acceptCarpoolInvite(user: User) {
+        _users.add(user)
+        _sentInvites.remove(user)
+    }
+
+    fun removeCarpoolInvite(user: User) {
+        _sentInvites.remove(user)
     }
 
     override fun equals(other: Any?): Boolean {
