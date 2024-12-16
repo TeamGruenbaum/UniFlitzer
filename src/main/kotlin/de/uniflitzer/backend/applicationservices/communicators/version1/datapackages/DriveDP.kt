@@ -16,7 +16,8 @@ data class DriveDP(
     @field:Valid val route: CompleteRouteDP,
     @field:Pattern(regexp = DateTimeFormat) @field:Schema(example = DateTimeFormatExample) val plannedDeparture: String,
     @field:Pattern(regexp = DateTimeFormat) @field:Schema(example = DateTimeFormatExample) val actualDeparture: String?,
-    @field:Pattern(regexp = DateTimeFormat) @field:Schema(example = DateTimeFormatExample) val arrival: String?
+    @field:Pattern(regexp = DateTimeFormat) @field:Schema(example = DateTimeFormatExample) val arrival: String?,
+    val isCancelled: Boolean
 ) {
     companion object {
         fun fromDrive(drive: Drive): DriveDP {
@@ -29,6 +30,7 @@ data class DriveDP(
                 drive.plannedDeparture.toString(),
                 drive.actualDeparture?.toString(),
                 drive.arrival?.toString(),
+                drive.isCancelled
             )
         }
     }

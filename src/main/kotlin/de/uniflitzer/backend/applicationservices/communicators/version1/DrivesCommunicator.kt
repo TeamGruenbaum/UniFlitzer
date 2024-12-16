@@ -70,7 +70,8 @@ private class DrivesCommunicator(
                 CompleteRouteDP.fromCompleteRoute(drive.route),
                 drive.plannedDeparture.toString(),
                 drive.actualDeparture?.toString(),
-                drive.arrival?.toString()
+                drive.arrival?.toString(),
+                drive.isCancelled
             )
         )
     }
@@ -112,6 +113,7 @@ private class DrivesCommunicator(
 
         val drive: Drive = drivesRepository.findById(java.util.UUID.fromString(id)).getOrNull() ?: throw NotFoundError(ErrorDP("Drive with id $id not found."))
         if(drive.driver.id != user.id) throw ForbiddenError(ErrorDP("UserToken id does not match the driver id."))
+        if(drive.isCancelled) throw ForbiddenError(ErrorDP("Drive with id $id is cancelled."))
 
         driveUpdateRequest.actualDeparture?.let {
             if(drive.actualDeparture != null) throw Exception()
@@ -136,8 +138,24 @@ private class DrivesCommunicator(
 
         val drive: Drive = drivesRepository.findById(UUIDType.fromString(driveId)).getOrNull() ?: throw NotFoundError(ErrorDP("Drive with id $driveId not found."))
         if(drive.passengers.none { it.id == user.id }) throw ForbiddenError(ErrorDP("User is not a passenger of this drive."))
+        if(drive.isCancelled) throw ForbiddenError(ErrorDP("Drive with id $driveId is cancelled."))
         drive.route.confirmUserStop(user.id)
 
+        drivesRepository.save(drive)
+        return ResponseEntity.noContent().build()
+    }
+
+    @Operation(description = "Cancel a specific drive.")
+    @CommonApiResponses @NoContentApiResponse @NotFoundApiResponse
+    @PostMapping("{id}/cancellation")
+    fun cancelDrive(@PathVariable @UUID id:String, userToken: UserToken): ResponseEntity<DriveDP>
+    {
+        val user: User = usersRepository.findById(UUIDType.fromString(userToken.id)).getOrNull() ?: throw ForbiddenError(ErrorDP("User with id ${userToken.id} does not exist in resource server."))
+        val drive: Drive = drivesRepository.findById(UUIDType.fromString(id)).getOrNull() ?: throw NotFoundError(ErrorDP("Drive with id $id not found."))
+        if(drive.driver.id != user.id) throw ForbiddenError(ErrorDP("User with id ${user.id} is not the driver of drive with id $id."))
+        if(drive.isCancelled) throw ForbiddenError(ErrorDP("Drive with id $id is already cancelled."))
+
+        drive.isCancelled = true
         drivesRepository.save(drive)
         return ResponseEntity.noContent().build()
     }
@@ -158,7 +176,6 @@ private class DrivesCommunicator(
 
     @SubscribeMapping("/v1/drives/{id}/current-driver-position")
     fun subscribeToCurrentDriverPosition(userToken: UserToken, @DestinationVariable @UUID id: String): CoordinateDP? {
-        throw Exception("This method should not be called.")
         val currentDrive: Drive = drivesRepository.findById(UUIDType.fromString(id)).getOrNull() ?: throw StompError(ErrorsDP(listOf("Drive with id $id not found.")))
         val actingUser: User = usersRepository.findById(UUIDType.fromString(userToken.id)).getOrNull() ?: throw StompError(ErrorsDP(listOf("User with id ${userToken.id} does not exist in resource server.")))
         if(actingUser in currentDrive.passengers || actingUser == currentDrive.driver) throw StompError(ErrorsDP(listOf("User is not part of this drive with id ${userToken.id}")))
@@ -166,4 +183,3 @@ private class DrivesCommunicator(
         return currentDrive.currentPosition?.let { CoordinateDP.fromCoordinate(it) }
     }
 }
-

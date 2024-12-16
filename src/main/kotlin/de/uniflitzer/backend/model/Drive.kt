@@ -23,8 +23,8 @@ class Drive(driver: User, car: Car, route: CompleteRoute, passenger: List<User>,
     var plannedDeparture: ZonedDateTime = plannedDeparture
     var actualDeparture: ZonedDateTime? = null
     var arrival: ZonedDateTime? = null
-
     var currentPosition: Coordinate? = null
+    var isCancelled: Boolean = false
 
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
