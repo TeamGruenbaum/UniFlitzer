@@ -11,6 +11,7 @@ import de.uniflitzer.backend.applicationservices.communicators.version1.errors.F
 import de.uniflitzer.backend.applicationservices.communicators.version1.errors.InternalServerError
 import de.uniflitzer.backend.applicationservices.communicators.version1.errors.NotFoundError
 import de.uniflitzer.backend.applicationservices.communicators.version1.errors.StompError
+import de.uniflitzer.backend.applicationservices.communicators.version1.errors.UnprocessableContentError
 import jakarta.servlet.http.HttpServletRequest
 import jakarta.validation.ConstraintViolationException
 import org.slf4j.LoggerFactory
@@ -97,6 +98,11 @@ private class ErrorsCommunicator(
     @ExceptionHandler(HttpRequestMethodNotSupportedException::class)
     fun handleMethodNotSupportedErrors(error: HttpRequestMethodNotSupportedException): ResponseEntity<ErrorDP> {
         return ResponseEntity.status(HttpStatus.METHOD_NOT_ALLOWED).contentType(MediaType.APPLICATION_JSON).body(ErrorDP("Method not supported on this endpoint."))
+    }
+
+    @ExceptionHandler(UnprocessableContentError::class)
+    fun handleMethodNotSupportedErrors(error: UnprocessableContentError): ResponseEntity<ErrorDP> {
+        return ResponseEntity.status(HttpStatus.UNPROCESSABLE_ENTITY).contentType(MediaType.APPLICATION_JSON).body(error.errorDP)
     }
 
     @ExceptionHandler(

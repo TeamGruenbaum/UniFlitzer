@@ -44,7 +44,17 @@ sealed class PartialDriveOfferDP(
                         driveOffer.plannedDeparture?.toString(),
                         driveOffer.requestingUsers.map { it.user.id.toString() }
                     )
-                is CarpoolDriveOffer -> TODO()
+                is CarpoolDriveOffer ->
+                    PartialCarpoolDriveOfferDP(
+                        containsFavoriteDriver,
+                        driveOffer.id.toString(),
+                        PartialUserDP.fromUser(driveOffer.driver),
+                        driveOffer.freeSeats.value.toInt(),
+                        RouteDP.fromRoute(driveOffer.route),
+                        driveOffer.passengers.size,
+                        driveOffer.plannedDeparture?.toString(),
+                        driveOffer.carpool.id.toString()
+                    )
                 else -> throw IllegalArgumentException("Unknown DriveOffer type")
             }
         }
