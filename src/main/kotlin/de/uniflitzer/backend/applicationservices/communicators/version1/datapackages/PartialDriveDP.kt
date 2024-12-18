@@ -6,13 +6,14 @@ import de.uniflitzer.backend.applicationservices.communicators.version1.valueche
 import de.uniflitzer.backend.model.Drive
 import io.swagger.v3.oas.annotations.media.Schema
 import jakarta.validation.Valid
+import jakarta.validation.constraints.Max
+import jakarta.validation.constraints.Min
 import jakarta.validation.constraints.Pattern
 
-data class DriveDP(
+data class PartialDriveDP(
     @field:UUID val id: String,
     @field:Valid val driver: PartialUserDP,
-    @field:Valid val car: CarDP,
-    @field:Valid val passengers: List<PartialUserDP>,
+    @field:Min(1) @field:Max(8) val passengersCount: Int,
     @field:Valid val route: CompleteRouteDP,
     @field:Pattern(regexp = DateTimeFormat) @field:Schema(example = DateTimeFormatExample) val plannedDeparture: String,
     @field:Pattern(regexp = DateTimeFormat) @field:Schema(example = DateTimeFormatExample) val actualDeparture: String?,
@@ -20,12 +21,11 @@ data class DriveDP(
     val isCancelled: Boolean
 ) {
     companion object {
-        fun fromDrive(drive: Drive): DriveDP {
-            return DriveDP(
+        fun fromDrive(drive: Drive): PartialDriveDP {
+            return PartialDriveDP(
                 drive.id.toString(),
                 PartialUserDP.fromUser(drive.driver),
-                CarDP.fromCar(drive.car),
-                drive.passengers.map { PartialUserDP.fromUser(it) },
+                drive.passengers.size,
                 CompleteRouteDP.fromCompleteRoute(drive.route),
                 drive.plannedDeparture.toString(),
                 drive.actualDeparture?.toString(),

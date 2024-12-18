@@ -53,27 +53,14 @@ private class DrivesCommunicator(
     @Operation(description = "Get details of a specific drive.")
     @CommonApiResponses @OkApiResponse @NotFoundApiResponse
     @GetMapping("{id}")
-    fun getDrive(@PathVariable @UUID id:String, userToken: UserToken): ResponseEntity<DriveDP>
+    fun getDrive(@PathVariable @UUID id:String, userToken: UserToken): ResponseEntity<DetailedDriveDP>
     {
         val user: User = usersRepository.findById(java.util.UUID.fromString(userToken.id)).getOrNull() ?: throw ForbiddenError(ErrorDP("User with id ${userToken.id} does not exist in resource server."))
 
         val drive: Drive = drivesRepository.findById(java.util.UUID.fromString(id)).getOrNull() ?: throw NotFoundError(ErrorDP("Drive with id $id not found."))
         if(drive.driver.id != user.id && drive.passengers.none { it.id == user.id }) throw ForbiddenError(ErrorDP("UserToken id does neither match the driver id nor any of the passenger ids."))
 
-        return ResponseEntity.ok(
-            DriveDP
-            (
-                drive.id.toString(),
-                PartialUserDP.fromUser(drive.driver),
-                CarDP.fromCar(drive.car),
-                drive.passengers.map { PartialUserDP.fromUser(it) },
-                CompleteRouteDP.fromCompleteRoute(drive.route),
-                drive.plannedDeparture.toString(),
-                drive.actualDeparture?.toString(),
-                drive.arrival?.toString(),
-                drive.isCancelled
-            )
-        )
+        return ResponseEntity.ok(DetailedDriveDP.fromDrive(drive))
     }
 
     @Operation(description = "Get the image of the car of a specific drive.")
@@ -166,7 +153,7 @@ private class DrivesCommunicator(
     @Operation(description = "Cancel a specific drive.")
     @CommonApiResponses @NoContentApiResponse @NotFoundApiResponse
     @PostMapping("{id}/cancellation")
-    fun cancelDrive(@PathVariable @UUID id:String, userToken: UserToken): ResponseEntity<DriveDP>
+    fun cancelDrive(@PathVariable @UUID id:String, userToken: UserToken): ResponseEntity<Void>
     {
         val user: User = usersRepository.findById(UUIDType.fromString(userToken.id)).getOrNull() ?: throw ForbiddenError(ErrorDP("User with id ${userToken.id} does not exist in resource server."))
         val drive: Drive = drivesRepository.findById(UUIDType.fromString(id)).getOrNull() ?: throw NotFoundError(ErrorDP("Drive with id $id not found."))

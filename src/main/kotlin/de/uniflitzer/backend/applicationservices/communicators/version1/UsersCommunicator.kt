@@ -11,10 +11,7 @@ import de.uniflitzer.backend.applicationservices.communicators.version1.valueche
 import de.uniflitzer.backend.applicationservices.geography.GeographyService
 import de.uniflitzer.backend.model.*
 import de.uniflitzer.backend.model.errors.NotAvailableError
-import de.uniflitzer.backend.repositories.DriveRequestsRepository
-import de.uniflitzer.backend.repositories.DrivesRepository
-import de.uniflitzer.backend.repositories.ImagesRepository
-import de.uniflitzer.backend.repositories.UsersRepository
+import de.uniflitzer.backend.repositories.*
 import de.uniflitzer.backend.repositories.errors.*
 import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.annotations.media.Content as MediaContent
@@ -54,6 +51,7 @@ private class UsersCommunicator(
     @field:Autowired private val usersRepository: UsersRepository,
     @field:Autowired private val drivesRepository: DrivesRepository,
     @field:Autowired private val driveRequestsRepository: DriveRequestsRepository,
+    @field:Autowired private val carpoolsRepository: CarpoolsRepository,
     @field:Autowired private val keycloak: Keycloak,
     @field:Autowired private val environment: Environment,
     @field:Autowired private val imagesRepository: ImagesRepository,
@@ -480,15 +478,30 @@ private class UsersCommunicator(
     @Operation(description = "Get all drives of a specific user.")
     @CommonApiResponses @OkApiResponse
     @GetMapping("{id}/drives")
-    fun getDrivesOfUser(@PathVariable @UUID id: String, @RequestParam @Min(1) pageNumber: Int, @RequestParam @Min(1) @Max(50) perPage: Int, @RequestParam sortingDirection: SortingDirectionDP = SortingDirectionDP.Ascending, userToken: UserToken): ResponseEntity<PageDP<DriveDP>> {
+    fun getDrivesOfUser(@PathVariable @UUID id: String, @RequestParam @Min(1) pageNumber: Int, @RequestParam @Min(1) @Max(50) perPage: Int, @RequestParam sortingDirection: SortingDirectionDP = SortingDirectionDP.Ascending, userToken: UserToken): ResponseEntity<PageDP<PartialDriveDP>> {
         val user: User = usersRepository.findById(UUIDType.fromString(userToken.id)).getOrNull() ?: throw ForbiddenError(ErrorDP("User with id ${userToken.id} does not exist in resource server."))
         if(user.id != UUIDType.fromString(id)) throw ForbiddenError(ErrorDP("The user can only get his own drives."))
 
-        val sort: Sort = if (sortingDirection == SortingDirectionDP.Ascending) Sort.by("id").ascending() else Sort.by("id").descending()
+        val sort: Sort = if (sortingDirection == SortingDirectionDP.Ascending) Sort.by("plannedDeparture").ascending() else Sort.by("plannedDeparture").descending()
         val page: Page<Drive> = drivesRepository.findDrives(PageRequest.of(pageNumber - 1, perPage, sort), user.id)
 
         return ResponseEntity.ok(
-            DrivePageDP(page.totalPages, page.content.map { DriveDP.fromDrive(it) })
+            PartialDrivePageDP(page.totalPages, page.content.map { PartialDriveDP.fromDrive(it) })
+        )
+    }
+
+    @Operation(description = "Get all carpools of a specific user.")
+    @CommonApiResponses @OkApiResponse
+    @GetMapping("{id}/carpools")
+    fun getCarpoolsOfUser(@PathVariable @UUID id: String, @RequestParam @Min(1) pageNumber: Int, @RequestParam @Min(1) @Max(50) perPage: Int, @RequestParam sortingDirection: SortingDirectionDP = SortingDirectionDP.Ascending, userToken: UserToken): ResponseEntity<PageDP<PartialCarpoolDP>> {
+        val user: User = usersRepository.findById(UUIDType.fromString(userToken.id)).getOrNull() ?: throw ForbiddenError(ErrorDP("User with id ${userToken.id} does not exist in resource server."))
+        if(user.id != UUIDType.fromString(id)) throw ForbiddenError(ErrorDP("The user can only get his own carpools."))
+
+        val sort: Sort = if (sortingDirection == SortingDirectionDP.Ascending) Sort.by("name").ascending() else Sort.by("name").descending()
+        val page: Page<Carpool> = carpoolsRepository.findCarpools(PageRequest.of(pageNumber - 1, perPage, sort), user.id)
+
+        return ResponseEntity.ok(
+            PartialCarpoolPageDP(page.totalPages, page.content.map { PartialCarpoolDP.fromCarpool(it) })
         )
     }
 
