@@ -4,13 +4,16 @@ import de.uniflitzer.backend.applicationservices.authentication.UserToken
 import de.uniflitzer.backend.applicationservices.communicators.version1.datapackages.*
 import de.uniflitzer.backend.applicationservices.communicators.version1.documentationinformationadder.apiresponses.*
 import de.uniflitzer.backend.applicationservices.communicators.version1.errors.ForbiddenError
+import de.uniflitzer.backend.applicationservices.communicators.version1.errors.InternalServerError
 import de.uniflitzer.backend.applicationservices.communicators.version1.errors.NotFoundError
+import de.uniflitzer.backend.applicationservices.communicators.version1.errors.UnprocessableContentError
 import de.uniflitzer.backend.applicationservices.communicators.version1.valuechecker.UUID
 import de.uniflitzer.backend.applicationservices.geography.GeographyService
 import de.uniflitzer.backend.model.*
 import de.uniflitzer.backend.model.errors.MissingActionError
 import de.uniflitzer.backend.model.errors.NotAvailableError
 import de.uniflitzer.backend.model.errors.RepeatedActionError
+import de.uniflitzer.backend.repositories.CarpoolsRepository
 import de.uniflitzer.backend.repositories.DriveOffersRepository
 import de.uniflitzer.backend.repositories.ImagesRepository
 import de.uniflitzer.backend.repositories.UsersRepository
@@ -44,7 +47,8 @@ private class DriveOffersCommunicator(
     @field:Autowired private val driveOffersRepository: DriveOffersRepository,
     @field:Autowired private val usersRepository: UsersRepository,
     @field:Autowired private val geographyService: GeographyService,
-    @field:Autowired private val imagesRepository: ImagesRepository
+    @field:Autowired private val imagesRepository: ImagesRepository,
+    @field:Autowired private val carpoolsRepository: CarpoolsRepository,
 ) {
     @Operation(description = "Get all drive offers.")
     @CommonApiResponses @OkApiResponse
@@ -79,6 +83,7 @@ private class DriveOffersCommunicator(
                 allowedDrivingStyles,
                 allowedGenders,
                 actingUser.blockedUsers,
+                actingUser.carpools,
                 Sort.by(
                     when (sortingDirection) {
                         SortingDirection.Ascending -> Sort.Direction.ASC
@@ -87,7 +92,6 @@ private class DriveOffersCommunicator(
                     DriveOffer::plannedDeparture.name
                 )
             )
-            //TODO: CarpoolDriveOffers
             .filter { it.route.isCoordinateOnRoute(startCoordinate, tolerance) && it.route.isCoordinateOnRoute(destinationCoordinate, tolerance) }
             .filter { it.route.areCoordinatesInCorrectDirection(startCoordinate, destinationCoordinate) }
 
@@ -146,7 +150,7 @@ private class DriveOffersCommunicator(
         val selectedCarForDriverOffer: Car = actingUser.cars.getOrNull(driveOfferCreation.carIndex) ?: throw NotFoundError(ErrorDP("The car with the index ${driveOfferCreation.carIndex} could not be found."))
 
         val newDriveOffer: DriveOffer = when (driveOfferCreation) {
-            is PublicDriveOfferCreationDP ->
+            is PublicDriveOfferCreationDP -> {
                 PublicDriveOffer(
                     actingUser,
                     selectedCarForDriverOffer,
@@ -155,9 +159,24 @@ private class DriveOffersCommunicator(
                         geographyService.createPosition(driveOfferCreation.route.start.toCoordinate()),
                         geographyService.createPosition(driveOfferCreation.route.destination.toCoordinate())
                     ),
-                    driveOfferCreation.plannedDepartureTime?.let { ZonedDateTime.parse(it) }
+                    driveOfferCreation.plannedDeparture?.let { ZonedDateTime.parse(it) }
                 )
-            is CarpoolDriveOfferCreationDP -> TODO()
+            }
+            is CarpoolDriveOfferCreationDP -> {
+                val targetedCarpool: Carpool = carpoolsRepository.findById(UUIDType.fromString(driveOfferCreation.carpoolId)).getOrNull() ?: throw NotFoundError(ErrorDP("The carpool with the id ${driveOfferCreation.carpoolId} could not be found."))
+
+                CarpoolDriveOffer(
+                    actingUser,
+                    selectedCarForDriverOffer,
+                    Seats(driveOfferCreation.freeSeats.toUInt()),
+                    geographyService.createRoute(
+                        geographyService.createPosition(driveOfferCreation.route.start.toCoordinate()),
+                        geographyService.createPosition(driveOfferCreation.route.destination.toCoordinate())
+                    ),
+                    driveOfferCreation.plannedDeparture?.let { ZonedDateTime.parse(it) },
+                    targetedCarpool
+                )
+            }
         }
         selectedCarForDriverOffer.image?.let { actingUserCarImage -> newDriveOffer.car.image = imagesRepository.copy(actingUserCarImage) }
         driveOffersRepository.save(newDriveOffer)
@@ -187,7 +206,7 @@ private class DriveOffersCommunicator(
         val driveOfferInEditing: DriveOffer = driveOffersRepository.findById(UUIDType.fromString(id)).getOrNull() ?: throw NotFoundError(ErrorDP("The drive offer with the id $id could not be found."))
         if (driveOfferInEditing.driver.id.toString() != userToken.id) throw ForbiddenError(ErrorDP("The user with the id $id is not the driver of the drive offer with the id $id."))
 
-        driveOfferInEditing.plannedDeparture = ZonedDateTime.parse(driveOfferUpdate.plannedDepartureTime)
+        driveOfferInEditing.plannedDeparture = ZonedDateTime.parse(driveOfferUpdate.plannedDeparture)
         driveOffersRepository.save(driveOfferInEditing)
 
         return ResponseEntity.noContent().build()
@@ -200,10 +219,11 @@ private class DriveOffersCommunicator(
         val actingUser: User = usersRepository.findById(UUIDType.fromString(userToken.id)).getOrNull() ?: throw ForbiddenError(ErrorDP("User with id ${userToken.id} does not exist in resource server."))
         val driveOfferInEditing: DriveOffer = driveOffersRepository.findById(UUIDType.fromString(id)).getOrNull() ?: throw NotFoundError(ErrorDP("The drive offer with the id $id could not be found."))
         if(driveOfferInEditing.driver.id == actingUser.id) throw ForbiddenError(ErrorDP("The requesting user cannot be the driver of the same drive offer."))
-        if(actingUser in driveOfferInEditing.driver.blockedUsers) throw ForbiddenError(ErrorDP("The requesting user ${actingUser.id} is blocked by the driver and cannot request a seat in this drive offer."))
 
         when (driveOfferInEditing) {
             is PublicDriveOffer -> {
+                if(actingUser in driveOfferInEditing.driver.blockedUsers) throw ForbiddenError(ErrorDP("The requesting user ${actingUser.id} is blocked by the driver and cannot request a seat in this drive offer."))
+
                 try {
                     driveOfferInEditing.addRequestFromUser(
                         actingUser,
@@ -216,9 +236,16 @@ private class DriveOffersCommunicator(
                 } catch (_: RepeatedActionError) {
                     throw ForbiddenError(ErrorDP("The user with the id ${actingUser.id} has already requested a seat in the drive offer with the id $id."))
                 }
-
             }
-            is CarpoolDriveOffer -> TODO()
+            is CarpoolDriveOffer -> {
+                driveOfferInEditing.addPassenger(
+                    UserStop(
+                        actingUser,
+                        geographyService.createPosition(userStopCreation.start.toCoordinate()),
+                        geographyService.createPosition(userStopCreation.destination.toCoordinate())
+                    )
+                )
+            }
         }
         driveOffersRepository.save(driveOfferInEditing)
 
@@ -226,7 +253,7 @@ private class DriveOffersCommunicator(
     }
 
     @Operation(description = "Accept a requesting user for a specific drive offer.")
-    @CommonApiResponses @NoContentApiResponse @NotFoundApiResponse
+    @CommonApiResponses @UnprocessableContentApiResponse @NoContentApiResponse @NotFoundApiResponse
     @PostMapping("{driveOfferId}/requesting-users/{requestingUserId}/acceptances")
     fun acceptRequestingUser(@PathVariable @UUID driveOfferId: String, @PathVariable @UUID requestingUserId: String, userToken: UserToken):ResponseEntity<Void> {
         val actingUser: User = usersRepository.findById(UUIDType.fromString(userToken.id)).getOrNull() ?: throw ForbiddenError(ErrorDP("User with id ${userToken.id} does not exist in resource server."))
@@ -244,7 +271,7 @@ private class DriveOffersCommunicator(
                     throw ForbiddenError(ErrorDP("No free seats left in the drive offer with the id $driveOfferId."))
                 }
             }
-            is CarpoolDriveOffer -> TODO()
+            is CarpoolDriveOffer -> throw UnprocessableContentError(ErrorDP("The drive offer with the ID $driveOfferId is a carpool drive offer, so requests are automatically accepted."))
         }
         driveOffersRepository.save(driveOfferInEditing)
 
@@ -252,7 +279,7 @@ private class DriveOffersCommunicator(
     }
 
     @Operation(description = "Reject a requesting user for a specific drive offer")
-    @CommonApiResponses @NoContentApiResponse @NotFoundApiResponse
+    @CommonApiResponses @UnprocessableContentApiResponse @NoContentApiResponse @NotFoundApiResponse
     @PostMapping("{driveOfferId}/requesting-users/{requestingUserId}/rejections")
     fun rejectRequestingUser(@PathVariable @UUID driveOfferId: String, @PathVariable @UUID requestingUserId: String, userToken: UserToken):ResponseEntity<Void> {
         val actingUser: User = usersRepository.findById(UUIDType.fromString(userToken.id)).getOrNull() ?: throw ForbiddenError(ErrorDP("User with id ${userToken.id} does not exist in resource server."))
@@ -268,7 +295,7 @@ private class DriveOffersCommunicator(
                     throw NotFoundError(ErrorDP("The requesting user with the id $requestingUserId could not be found in the drive offer with the id $driveOfferId."))
                 }
             }
-            is CarpoolDriveOffer -> TODO()
+            is CarpoolDriveOffer -> throw UnprocessableContentError(ErrorDP("The drive offer with the ID $driveOfferId is a carpool drive offer, so requests are automatically accepted."))
         }
         driveOffersRepository.save(driveOfferInEditing)
 

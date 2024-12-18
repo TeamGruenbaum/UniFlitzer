@@ -2,7 +2,7 @@ package de.uniflitzer.backend.applicationservices.communicators.version1.datapac
 
 import jakarta.validation.Valid
 
-class DetailedCarpoolDriveOfferDP private constructor(
+class DetailedCarpoolDriveOfferDP constructor(
     containsFavoriteDriver: Boolean,
     id: String,
     driver: PartialUserDP,
@@ -10,6 +10,6 @@ class DetailedCarpoolDriveOfferDP private constructor(
     freeSeats: Int,
     route: RouteDP,
     passengers: List<UserStopDP>,
-    plannedDepartureTime: String?,
+    plannedDeparture: String?,
     @field:Valid val carpool: PartialCarpoolDP,
-): DetailedDriveOfferDP(containsFavoriteDriver, id, driver, car, freeSeats, route, passengers, plannedDepartureTime)
+): DetailedDriveOfferDP(containsFavoriteDriver, id, driver, car, freeSeats, route, passengers, plannedDeparture)

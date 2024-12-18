@@ -1,6 +1,8 @@
 package de.uniflitzer.backend.model
 
+import de.uniflitzer.backend.model.errors.MissingActionError
 import de.uniflitzer.backend.model.errors.NotAvailableError
+import de.uniflitzer.backend.model.errors.RepeatedActionError
 import jakarta.persistence.*
 import java.util.UUID
 import java.time.ZonedDateTime
@@ -24,7 +26,7 @@ class DriveOffer(driver: User, car: Car, freeSeats: Seats, route: Route, planned
     var route: Route = route
 
     @field:ElementCollection
-    protected var _passengers: MutableList<UserStop> = mutableListOf()
+    private var _passengers: MutableList<UserStop> = mutableListOf()
     val passengers: List<UserStop> get() = _passengers
 
     var plannedDeparture: ZonedDateTime? = plannedDeparture
@@ -38,6 +40,10 @@ class DriveOffer(driver: User, car: Car, freeSeats: Seats, route: Route, planned
     }
 
     fun addPassenger(userStop: UserStop) {
+        if (userStop.user in _passengers.map { it.user }) throw RepeatedActionError("User is already a passenger of this drive offer")
+        if (userStop.user == driver) throw MissingActionError("Driver cannot be a passenger of a drive offer")
+        if (freeSeats.value == _passengers.count().toUInt()) throw NotAvailableError("No more seats available for this drive offer")
+
         _passengers.add(userStop)
     }
 

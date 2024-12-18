@@ -6,6 +6,6 @@ class CarpoolDriveOfferCreationDP private constructor(
     carIndex: Int,
     freeSeats: Int,
     route: RouteCreationDP,
-    plannedDepartureTime: String?,
+    plannedDeparture: String?,
     @field:UUID val carpoolId: String
-) : DriveOfferCreationDP(carIndex, freeSeats, route, plannedDepartureTime)
+) : DriveOfferCreationDP(carIndex, freeSeats, route, plannedDeparture)

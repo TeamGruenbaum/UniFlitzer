@@ -28,7 +28,7 @@ sealed class DetailedDriveOfferDP(
     @field:Min(1) @field:Max(8) val freeSeats: Int,
     @field:Valid val route: RouteDP,
     @field:Valid val passengers: List<UserStopDP>,
-    @field:Pattern(regexp = DateTimeFormat) @field:Schema(example = DateTimeFormatExample) open val plannedDepartureTime: String?
+    @field:Pattern(regexp = DateTimeFormat) @field:Schema(example = DateTimeFormatExample) open val plannedDeparture: String?
 ) {
     companion object {
         fun fromDriveOffer(driveOffer: DriveOffer, containsFavoriteDriver: Boolean): DetailedDriveOfferDP {
@@ -45,7 +45,18 @@ sealed class DetailedDriveOfferDP(
                         driveOffer.plannedDeparture?.toString(),
                         driveOffer.requestingUsers.map { UserStopDP.fromUserStop(it) }
                     )
-                is CarpoolDriveOffer -> TODO()
+                is CarpoolDriveOffer ->
+                    DetailedCarpoolDriveOfferDP(
+                        containsFavoriteDriver,
+                        driveOffer.id.toString(),
+                        PartialUserDP.fromUser(driveOffer.driver),
+                        CarDP.fromCar(driveOffer.car),
+                        driveOffer.freeSeats.value.toInt(),
+                        RouteDP.fromRoute(driveOffer.route),
+                        driveOffer.passengers.map { UserStopDP.fromUserStop(it) },
+                        driveOffer.plannedDeparture?.toString(),
+                        PartialCarpoolDP.fromCarpool(driveOffer.carpool)
+                    )
                 else -> throw IllegalArgumentException("Unknown DriveOffer type")
             }
         }

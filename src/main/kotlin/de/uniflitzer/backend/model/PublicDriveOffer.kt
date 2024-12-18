@@ -20,14 +20,13 @@ class PublicDriveOffer(driver: User, car: Car, freeSeats: Seats, route: Route, p
         if (passengers.size.toUInt() >= freeSeats.value) throw NotAvailableError("No free seats left")
         if(requestingUsers.any { it.user.id == user.id }) throw RepeatedActionError("User already requested a seat")
 
-        _passengers.add(UserStop(user, start, destination))
+        super.addPassenger(UserStop(user, start, destination))
     }
 
     @Throws(MissingActionError::class, NotAvailableError::class)
     fun acceptRequestFromUser(userId: UUID) {
         val userStop = requestingUsers.find { it.user.id == userId } ?: throw MissingActionError("User did not request a seat")
-        if (passengers.size.toUInt() >= freeSeats.value) throw NotAvailableError("No free seats left")
-        _passengers.add(userStop)
+        super.addPassenger(userStop)
         _requestingUsers.remove(userStop)
     }
 

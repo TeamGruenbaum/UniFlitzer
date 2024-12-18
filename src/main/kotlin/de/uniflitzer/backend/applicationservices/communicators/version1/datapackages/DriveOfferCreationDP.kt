@@ -20,5 +20,5 @@ sealed class DriveOfferCreationDP(
     @field:Min(0) val carIndex: Int,
     @field:Min(1) @field:Max(8) val freeSeats: Int,
     @field:Valid val route: RouteCreationDP,
-    @field:Pattern(regexp = DateTimeFormat) @field:Schema(example = DateTimeFormatExample) val plannedDepartureTime: String?,
+    @field:Pattern(regexp = DateTimeFormat) @field:Schema(example = DateTimeFormatExample) val plannedDeparture: String?,
 )
