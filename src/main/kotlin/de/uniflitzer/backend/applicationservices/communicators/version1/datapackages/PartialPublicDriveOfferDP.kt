@@ -10,9 +10,9 @@ class PartialPublicDriveOfferDP constructor(
     freeSeats: Int,
     route: RouteDP,
     passengersCount: Int,
-    plannedDepartureTime: String?,
+    plannedDeparture: String?,
     @field:Size(min = 0) val requestingUserIds: List<String>?
-): PartialDriveOfferDP(containsFavoriteDriver, id, driver, freeSeats, route, passengersCount, plannedDepartureTime) {
+): PartialDriveOfferDP(containsFavoriteDriver, id, driver, freeSeats, route, passengersCount, plannedDeparture) {
     companion object {
         fun fromPublicDriveOffer(publicDriveOffer: PublicDriveOffer, containsFavoriteDriver: Boolean): PartialPublicDriveOfferDP {
             return PartialPublicDriveOfferDP(

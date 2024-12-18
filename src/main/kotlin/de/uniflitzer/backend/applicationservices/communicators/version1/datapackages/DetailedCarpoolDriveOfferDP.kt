@@ -10,6 +10,6 @@ class DetailedCarpoolDriveOfferDP constructor(
     freeSeats: Int,
     route: RouteDP,
     passengers: List<UserStopDP>,
-    plannedDepartureTime: String?,
+    plannedDeparture: String?,
     @field:Valid val carpool: PartialCarpoolDP,
-): DetailedDriveOfferDP(containsFavoriteDriver, id, driver, car, freeSeats, route, passengers, plannedDepartureTime)
+): DetailedDriveOfferDP(containsFavoriteDriver, id, driver, car, freeSeats, route, passengers, plannedDeparture)

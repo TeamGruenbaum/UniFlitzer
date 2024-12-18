@@ -3,9 +3,7 @@ package de.uniflitzer.backend.applicationservices.communicators.version1
 import de.uniflitzer.backend.applicationservices.authentication.UserToken
 import de.uniflitzer.backend.applicationservices.communicators.version1.datapackages.*
 import de.uniflitzer.backend.applicationservices.communicators.version1.documentationinformationadder.apiresponses.*
-import de.uniflitzer.backend.applicationservices.communicators.version1.errors.ForbiddenError
-import de.uniflitzer.backend.applicationservices.communicators.version1.errors.InternalServerError
-import de.uniflitzer.backend.applicationservices.communicators.version1.errors.NotFoundError
+import de.uniflitzer.backend.applicationservices.communicators.version1.errors.*
 import de.uniflitzer.backend.applicationservices.communicators.version1.valuechecker.UUID
 import de.uniflitzer.backend.applicationservices.geography.GeographyService
 import de.uniflitzer.backend.model.*
@@ -181,7 +179,7 @@ private class DriveRequestsCommunicator(
     }
 
     @Operation(description = "Create a new drive offer for a specific drive request. The drive request is either deleted if it's a CarpoolDriveRequest or its drive offers list is updated if it's a PublicDriveRequest.")
-    @CommonApiResponses @CreatedApiResponse @NotFoundApiResponse
+    @CommonApiResponses @UnprocessableContentApiResponse @CreatedApiResponse @NotFoundApiResponse
     @PostMapping("{id}/drive-offers")
     fun createDriveOfferForDriveRequest(@PathVariable @UUID id:String, @RequestBody @Valid driveOfferCreation: DriveOfferCreationDP, userToken: UserToken): ResponseEntity<IdDP>
     {
@@ -204,7 +202,7 @@ private class DriveRequestsCommunicator(
                             car,
                             Seats(driveOfferCreation.freeSeats.toUInt()),
                             geographyService.createRoute(geographyService.createPosition(driveOfferCreation.route.start.toCoordinate()), geographyService.createPosition(driveOfferCreation.route.destination.toCoordinate())),
-                            driveOfferCreation.plannedDepartureTime?.let { ZonedDateTime.parse(it) },
+                            driveOfferCreation.plannedDeparture?.let { ZonedDateTime.parse(it) },
                             carpoolsRepository.findById(UUIDType.fromString(driveOfferCreation.carpoolId)).getOrNull() ?: throw NotFoundError(ErrorDP("Carpool with id ${driveOfferCreation.carpoolId} not found."))
                         )
                         car.image?.let { driveOffer.car.image = imagesRepository.copy(it) }
@@ -212,13 +210,13 @@ private class DriveRequestsCommunicator(
                         driveOffersRepository.saveAndFlush(driveOffer)
                         driveRequestsRepository.delete(driveRequest)
                     }
-                    is PublicDriveOfferCreationDP -> { throw ForbiddenError(ErrorDP("PublicDriveOffer creation is not allowed for CarpoolDriveRequests.")) }
+                    is PublicDriveOfferCreationDP -> { throw UnprocessableContentError(ErrorDP("PublicDriveOffer creation is not allowed for CarpoolDriveRequests.")) }
                 }
             }
             is PublicDriveRequest -> {
                 when (driveOfferCreation)
                 {
-                    is CarpoolDriveOfferCreationDP -> { throw ForbiddenError(ErrorDP("CarpoolDriveOffer creation is not allowed for PublicDriveRequests.")) }
+                    is CarpoolDriveOfferCreationDP -> { throw UnprocessableContentError(ErrorDP("CarpoolDriveOffer creation is not allowed for PublicDriveRequests.")) }
                     is PublicDriveOfferCreationDP -> {
                         val car:Car = try{ user.getCarByIndex(driveOfferCreation.carIndex) } catch(error:NotAvailableError){ throw NotFoundError(ErrorDP(error.message!!)) }
                         driveOffer = PublicDriveOffer(
@@ -226,7 +224,7 @@ private class DriveRequestsCommunicator(
                             car,
                             Seats(driveOfferCreation.freeSeats.toUInt()),
                             geographyService.createRoute(geographyService.createPosition(driveOfferCreation.route.start.toCoordinate()), geographyService.createPosition(driveOfferCreation.route.destination.toCoordinate())),
-                            driveOfferCreation.plannedDepartureTime?.let { ZonedDateTime.parse(it) }
+                            driveOfferCreation.plannedDeparture?.let { ZonedDateTime.parse(it) }
                         )
                         car.image?.let { driveOffer.car.image = imagesRepository.copy(it) }
 
@@ -243,7 +241,7 @@ private class DriveRequestsCommunicator(
     }
 
     @Operation(description = "This endpoint is only allowed to use on a PublicRequestRequest. Reject a specific drive offer for a specific drive request. Neither the drive request nor the drive offer is deleted so other users can still see them.")
-    @CommonApiResponses @NoContentApiResponse @NotFoundApiResponse
+    @CommonApiResponses @UnprocessableContentApiResponse @NoContentApiResponse @NotFoundApiResponse
     @PostMapping("{driveRequestId}/drive-offers/{driveOfferId}/rejections")
     fun rejectDriveOffer(@PathVariable @UUID driveRequestId:String, @PathVariable @UUID driveOfferId:String, userToken: UserToken): ResponseEntity<Void>
     {
@@ -254,7 +252,7 @@ private class DriveRequestsCommunicator(
 
         when(driveRequest)
         {
-            is CarpoolDriveRequest -> { throw ForbiddenError(ErrorDP("DriveOffers for CarpoolDriveRequests are automatically accepted.")) }
+            is CarpoolDriveRequest -> { throw UnprocessableContentError(ErrorDP("DriveOffers for CarpoolDriveRequests are automatically accepted.")) }
             is PublicDriveRequest ->
             {
                 try { driveRequest.rejectDriveOffer(UUIDType.fromString(driveOfferId)) }
@@ -268,7 +266,7 @@ private class DriveRequestsCommunicator(
     }
 
     @Operation(description = "This endpoint is only allowed to use on a PublicRequestRequest. Accept a specific drive offer for a specific drive request. The requesting user of the drive request is automatically accepted as a passenger and the drive request is deleted.")
-    @CommonApiResponses @NoContentApiResponse @NotFoundApiResponse
+    @CommonApiResponses @UnprocessableContentApiResponse @NoContentApiResponse @NotFoundApiResponse
     @PostMapping("{driveRequestId}/drive-offers/{driveOfferId}/acceptances")
     fun acceptDriveOffer(@PathVariable @UUID driveRequestId:String, @PathVariable @UUID driveOfferId:String, userToken: UserToken): ResponseEntity<Void>
     {
@@ -278,7 +276,7 @@ private class DriveRequestsCommunicator(
         if(driveRequest.requestingUser.id != UUIDType.fromString(userToken.id)) throw ForbiddenError(ErrorDP("UserToken id does not match the requesting user id of the drive request."))
 
         when(driveRequest) {
-            is CarpoolDriveRequest -> { throw ForbiddenError(ErrorDP("DriveOffers for CarpoolDriveRequests are automatically accepted.")) }
+            is CarpoolDriveRequest -> { throw UnprocessableContentError(ErrorDP("DriveOffers for CarpoolDriveRequests are automatically accepted.")) }
             is PublicDriveRequest -> {
                 try { driveRequest.acceptDriveOffer(UUIDType.fromString(driveOfferId)) }
                 catch (entityNotFoundError: EntityNotFoundError) { throw NotFoundError(ErrorDP(entityNotFoundError.message!!)) }

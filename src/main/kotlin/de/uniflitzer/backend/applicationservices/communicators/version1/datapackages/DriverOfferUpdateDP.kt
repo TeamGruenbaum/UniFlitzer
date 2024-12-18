@@ -6,5 +6,5 @@ import io.swagger.v3.oas.annotations.media.Schema
 import jakarta.validation.constraints.Pattern
 
 data class DriverOfferUpdateDP private constructor(
-    @field:Pattern(regexp = DateTimeFormat) @field:Schema(example = DateTimeFormatExample) val plannedDepartureTime: String,
+    @field:Pattern(regexp = DateTimeFormat) @field:Schema(example = DateTimeFormatExample) val plannedDeparture: String,
 )

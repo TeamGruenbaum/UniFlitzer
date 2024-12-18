@@ -4,5 +4,5 @@ class PublicDriveOfferCreationDP private constructor(
     carIndex: Int,
     freeSeats: Int,
     route: RouteCreationDP,
-    plannedDepartureTime: String?,
-) : DriveOfferCreationDP(carIndex, freeSeats, route, plannedDepartureTime)
+    plannedDeparture: String?,
+) : DriveOfferCreationDP(carIndex, freeSeats, route, plannedDeparture)

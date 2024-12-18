@@ -28,7 +28,7 @@ sealed class PartialDriveOfferDP(
     @field:Min(1) @field:Max(8) val freeSeats: Int,
     @field:Valid val route: RouteDP,
     @field:Min(1) @field:Max(8) val passengersCount: Int,
-    @field:Pattern(regexp = DateTimeFormat) @field:Schema(example = DateTimeFormatExample) val plannedDepartureTime: String?
+    @field:Pattern(regexp = DateTimeFormat) @field:Schema(example = DateTimeFormatExample) val plannedDeparture: String?
 ) {
     companion object {
         fun fromDriveOffer(driveOffer: DriveOffer, containsFavoriteDriver: Boolean): PartialDriveOfferDP {

@@ -4,6 +4,7 @@ import de.uniflitzer.backend.applicationservices.authentication.UserToken
 import de.uniflitzer.backend.applicationservices.communicators.version1.datapackages.*
 import de.uniflitzer.backend.applicationservices.communicators.version1.documentationinformationadder.apiresponses.*
 import de.uniflitzer.backend.applicationservices.communicators.version1.errors.ForbiddenError
+import de.uniflitzer.backend.applicationservices.communicators.version1.errors.InternalServerError
 import de.uniflitzer.backend.applicationservices.communicators.version1.errors.NotFoundError
 import de.uniflitzer.backend.applicationservices.communicators.version1.errors.UnprocessableContentError
 import de.uniflitzer.backend.applicationservices.communicators.version1.valuechecker.UUID
@@ -158,7 +159,7 @@ private class DriveOffersCommunicator(
                         geographyService.createPosition(driveOfferCreation.route.start.toCoordinate()),
                         geographyService.createPosition(driveOfferCreation.route.destination.toCoordinate())
                     ),
-                    driveOfferCreation.plannedDepartureTime?.let { ZonedDateTime.parse(it) }
+                    driveOfferCreation.plannedDeparture?.let { ZonedDateTime.parse(it) }
                 )
             }
             is CarpoolDriveOfferCreationDP -> {
@@ -172,7 +173,7 @@ private class DriveOffersCommunicator(
                         geographyService.createPosition(driveOfferCreation.route.start.toCoordinate()),
                         geographyService.createPosition(driveOfferCreation.route.destination.toCoordinate())
                     ),
-                    driveOfferCreation.plannedDepartureTime?.let { ZonedDateTime.parse(it) },
+                    driveOfferCreation.plannedDeparture?.let { ZonedDateTime.parse(it) },
                     targetedCarpool
                 )
             }
@@ -205,7 +206,7 @@ private class DriveOffersCommunicator(
         val driveOfferInEditing: DriveOffer = driveOffersRepository.findById(UUIDType.fromString(id)).getOrNull() ?: throw NotFoundError(ErrorDP("The drive offer with the id $id could not be found."))
         if (driveOfferInEditing.driver.id.toString() != userToken.id) throw ForbiddenError(ErrorDP("The user with the id $id is not the driver of the drive offer with the id $id."))
 
-        driveOfferInEditing.plannedDeparture = ZonedDateTime.parse(driveOfferUpdate.plannedDepartureTime)
+        driveOfferInEditing.plannedDeparture = ZonedDateTime.parse(driveOfferUpdate.plannedDeparture)
         driveOffersRepository.save(driveOfferInEditing)
 
         return ResponseEntity.noContent().build()
@@ -252,7 +253,7 @@ private class DriveOffersCommunicator(
     }
 
     @Operation(description = "Accept a requesting user for a specific drive offer.")
-    @CommonApiResponses @NoContentApiResponse @NotFoundApiResponse
+    @CommonApiResponses @UnprocessableContentApiResponse @NoContentApiResponse @NotFoundApiResponse
     @PostMapping("{driveOfferId}/requesting-users/{requestingUserId}/acceptances")
     fun acceptRequestingUser(@PathVariable @UUID driveOfferId: String, @PathVariable @UUID requestingUserId: String, userToken: UserToken):ResponseEntity<Void> {
         val actingUser: User = usersRepository.findById(UUIDType.fromString(userToken.id)).getOrNull() ?: throw ForbiddenError(ErrorDP("User with id ${userToken.id} does not exist in resource server."))
@@ -278,7 +279,7 @@ private class DriveOffersCommunicator(
     }
 
     @Operation(description = "Reject a requesting user for a specific drive offer")
-    @CommonApiResponses @NoContentApiResponse @NotFoundApiResponse
+    @CommonApiResponses @UnprocessableContentApiResponse @NoContentApiResponse @NotFoundApiResponse
     @PostMapping("{driveOfferId}/requesting-users/{requestingUserId}/rejections")
     fun rejectRequestingUser(@PathVariable @UUID driveOfferId: String, @PathVariable @UUID requestingUserId: String, userToken: UserToken):ResponseEntity<Void> {
         val actingUser: User = usersRepository.findById(UUIDType.fromString(userToken.id)).getOrNull() ?: throw ForbiddenError(ErrorDP("User with id ${userToken.id} does not exist in resource server."))
