@@ -449,7 +449,7 @@ private class UsersCommunicator(
         val user: User = usersRepository.findById(UUIDType.fromString(userToken.id)).getOrNull() ?: throw ForbiddenError(ErrorDP("User with id ${userToken.id} does not exist in resource server."))
         if(user.id != UUIDType.fromString(id)) throw ForbiddenError(ErrorDP("The user can only get his own drive requests."))
 
-        val driveRequests: List<DriveRequest> = driveRequestsRepository.findAll(
+        val driveRequests: List<DriveRequest> = driveRequestsRepository.findAllDriveRequests(
             Sort.by(
                 when(sortingDirection) {
                     SortingDirectionDP.Ascending -> Sort.Direction.ASC

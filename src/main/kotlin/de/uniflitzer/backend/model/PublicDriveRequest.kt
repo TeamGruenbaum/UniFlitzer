@@ -1,6 +1,6 @@
 package de.uniflitzer.backend.model
 
-import de.uniflitzer.backend.model.errors.EntityNotFoundError
+import de.uniflitzer.backend.model.errors.NotAvailableError
 import jakarta.persistence.CascadeType
 import jakarta.persistence.Entity
 import jakarta.persistence.OneToMany
@@ -18,17 +18,17 @@ class PublicDriveRequest(requestingUser: User, route: Route, plannedDeparture: Z
         this._driveOffers.add(driveOffer)
     }
 
-    @Throws(EntityNotFoundError::class)
+    @Throws(NotAvailableError::class)
     fun rejectDriveOffer(driveOfferId: UUID)
     {
-        val driveOffer: PublicDriveOffer = this.driveOffers.find { it.id == driveOfferId } ?: throw EntityNotFoundError("DriveOffer with id $driveOfferId not found.")
+        val driveOffer: PublicDriveOffer = this.driveOffers.find { it.id == driveOfferId } ?: throw NotAvailableError("DriveOffer with id $driveOfferId not found.")
         this._driveOffers.remove(driveOffer)
     }
 
-    @Throws(EntityNotFoundError::class)
+    @Throws(NotAvailableError::class)
     fun acceptDriveOffer(driveOfferId: UUID)
     {
-        val driveOffer: PublicDriveOffer = this.driveOffers.find { it.id == driveOfferId } ?: throw EntityNotFoundError("DriveOffer with id $driveOfferId not found.")
+        val driveOffer: PublicDriveOffer = this.driveOffers.find { it.id == driveOfferId } ?: throw NotAvailableError("DriveOffer with id $driveOfferId not found.")
         driveOffer.addPassenger(UserStop(this.requestingUser, this.route.start, this.route.destination))
     }
 }

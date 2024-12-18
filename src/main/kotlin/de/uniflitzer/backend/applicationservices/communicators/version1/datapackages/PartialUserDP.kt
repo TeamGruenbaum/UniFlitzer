@@ -10,7 +10,6 @@ data class PartialUserDP(
     @field:UUID val id: String,
     @field:Size(min=1, max=100) val firstName: String,
     @field:Size(min=1, max=100) val lastName: String,
-    val isFavorite: Boolean,
     @field:Min(0) @field:Max(5) val averageStars: Double?,
     @field:Min(0) val numberOfRatings: Int
 ) {
@@ -20,7 +19,6 @@ data class PartialUserDP(
                 user.id.toString(),
                 user.firstName.value,
                 user.lastName.value,
-                false,
                 user.getAverageStars(),
                 user.ratings.size
             )

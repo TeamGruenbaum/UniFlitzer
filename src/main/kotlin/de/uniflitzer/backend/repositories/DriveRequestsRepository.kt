@@ -10,5 +10,5 @@ import java.util.*
 interface DriveRequestsRepository: JpaRepository<DriveRequest, UUID>
 {
     @Query("""SELECT driveRequest FROM DriveRequest driveRequest WHERE (:requestingUserId IS NULL OR driveRequest.requestingUser.id = :requestingUserId)""")
-    fun findAll(sort: Sort, @Param("requestingUserId") requestingUserId: UUID? = null): List<DriveRequest>
+    fun findAllDriveRequests(sort: Sort, @Param("requestingUserId") requestingUserId: UUID? = null): List<DriveRequest>
 }

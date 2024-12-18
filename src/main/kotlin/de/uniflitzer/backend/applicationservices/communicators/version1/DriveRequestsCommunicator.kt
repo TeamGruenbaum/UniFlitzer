@@ -7,7 +7,6 @@ import de.uniflitzer.backend.applicationservices.communicators.version1.errors.*
 import de.uniflitzer.backend.applicationservices.communicators.version1.valuechecker.UUID
 import de.uniflitzer.backend.applicationservices.geography.GeographyService
 import de.uniflitzer.backend.model.*
-import de.uniflitzer.backend.model.errors.EntityNotFoundError
 import de.uniflitzer.backend.model.errors.NotAvailableError
 import de.uniflitzer.backend.repositories.*
 import io.swagger.v3.oas.annotations.Operation
@@ -51,7 +50,10 @@ private class DriveRequestsCommunicator(
             is CarpoolDriveRequestCreationDP -> {
                 CarpoolDriveRequest(
                     user,
-                    geographyService.createRoute(geographyService.createPosition(driveRequestCreation.route.start.toCoordinate()), geographyService.createPosition(driveRequestCreation.route.destination.toCoordinate())),
+                    geographyService.createRoute(
+                        geographyService.createPosition(driveRequestCreation.route.start.toCoordinate()),
+                        geographyService.createPosition(driveRequestCreation.route.destination.toCoordinate())
+                    ),
                     driveRequestCreation.plannedDeparture?.let { ZonedDateTime.parse(it) },
                     carpoolsRepository.findById(UUIDType.fromString(driveRequestCreation.carpoolId)).getOrNull() ?: throw NotFoundError(ErrorDP("Carpool with id ${driveRequestCreation.carpoolId} not found."))
                 )
@@ -59,7 +61,10 @@ private class DriveRequestsCommunicator(
             is PublicDriveRequestCreationDP -> {
                 PublicDriveRequest(
                     user,
-                    geographyService.createRoute(geographyService.createPosition(driveRequestCreation.route.start.toCoordinate()), geographyService.createPosition(driveRequestCreation.route.destination.toCoordinate())),
+                    geographyService.createRoute(
+                        geographyService.createPosition(driveRequestCreation.route.start.toCoordinate()),
+                        geographyService.createPosition(driveRequestCreation.route.destination.toCoordinate())
+                    ),
                     driveRequestCreation.plannedDeparture?.let { ZonedDateTime.parse(it) }
                 )
             }
@@ -82,7 +87,7 @@ private class DriveRequestsCommunicator(
     {
         val user: User = usersRepository.findById(UUIDType.fromString(userToken.id)).getOrNull() ?: throw ForbiddenError(ErrorDP("User with id ${userToken.id} does not exist in resource server."))
 
-        var driveRequests:List<DriveRequest> = driveRequestsRepository.findAll(
+        var driveRequests:List<DriveRequest> = driveRequestsRepository.findAllDriveRequests(
             Sort.by(
                 when(sortingDirection) {
                     SortingDirectionDP.Ascending -> Sort.Direction.ASC
@@ -94,7 +99,7 @@ private class DriveRequestsCommunicator(
 
         if(role != null)
         {
-            if(currentLatitude == null || currentLongitude == null) throw ForbiddenError(ErrorDP("Current latitude and longitude must be provided when filtering by role."))
+            if(currentLatitude == null || currentLongitude == null) throw BadRequestError(ErrorsDP(listOf("Current latitude and longitude must be provided when filtering by role.")))
 
             val currentCoordinate: Coordinate = Coordinate(currentLatitude, currentLongitude)
             driveRequests = driveRequests.filter {
@@ -104,7 +109,7 @@ private class DriveRequestsCommunicator(
                 }
             }
         }
-        else if(currentLatitude != null || currentLongitude != null) throw ForbiddenError(ErrorDP("Role must be provided when filtering by current latitude and longitude."))
+        else if(currentLatitude != null || currentLongitude != null) throw BadRequestError(ErrorsDP(listOf("Role must be provided when filtering by current latitude and longitude.")))
 
         driveRequests = driveRequests
             .filter {
@@ -256,7 +261,7 @@ private class DriveRequestsCommunicator(
             is PublicDriveRequest ->
             {
                 try { driveRequest.rejectDriveOffer(UUIDType.fromString(driveOfferId)) }
-                catch (entityNotFoundError: EntityNotFoundError) { throw NotFoundError(ErrorDP(entityNotFoundError.message!!)) }
+                catch (notAvailableError: NotAvailableError) { throw NotFoundError(ErrorDP(notAvailableError.message!!)) }
                 driveRequestsRepository.save(driveRequest)
             }
             else -> { throw InternalServerError(ErrorDP("DriveRequest is neither a CarpoolDriveRequest nor a PublicDriveRequest.")) }
@@ -279,7 +284,7 @@ private class DriveRequestsCommunicator(
             is CarpoolDriveRequest -> { throw UnprocessableContentError(ErrorDP("DriveOffers for CarpoolDriveRequests are automatically accepted.")) }
             is PublicDriveRequest -> {
                 try { driveRequest.acceptDriveOffer(UUIDType.fromString(driveOfferId)) }
-                catch (entityNotFoundError: EntityNotFoundError) { throw NotFoundError(ErrorDP(entityNotFoundError.message!!)) }
+                catch (notAvailableError: NotAvailableError) { throw NotFoundError(ErrorDP(notAvailableError.message!!)) }
                 driveRequestsRepository.saveAndFlush(driveRequest)
                 driveRequestsRepository.delete(driveRequest)
             }
