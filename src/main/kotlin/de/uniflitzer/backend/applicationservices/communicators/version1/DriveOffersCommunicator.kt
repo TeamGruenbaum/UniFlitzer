@@ -64,7 +64,7 @@ private class DriveOffersCommunicator(
         @RequestParam isSmoking: Boolean? = null,
         @RequestParam allowedDrivingStyles: List<DrivingStyleDP>? = null,
         @RequestParam allowedGenders: List<GenderDP>? = null,
-        @RequestParam sortingDirection: SortingDirection = SortingDirection.Ascending,
+        @RequestParam sortingDirection: SortingDirectionDP = SortingDirectionDP.Ascending,
         userToken: UserToken
     ): ResponseEntity<PageDP<PartialDriveOfferDP>> {
         val actingUser: User = usersRepository.findById(UUIDType.fromString(userToken.id)).getOrNull() ?: throw ForbiddenError(ErrorDP("User with id ${userToken.id} does not exist in resource server."))
@@ -86,8 +86,8 @@ private class DriveOffersCommunicator(
                 actingUser.carpools,
                 Sort.by(
                     when (sortingDirection) {
-                        SortingDirection.Ascending -> Sort.Direction.ASC
-                        SortingDirection.Descending -> Sort.Direction.DESC
+                        SortingDirectionDP.Ascending -> Sort.Direction.ASC
+                        SortingDirectionDP.Descending -> Sort.Direction.DESC
                     },
                     DriveOffer::plannedDeparture.name
                 )

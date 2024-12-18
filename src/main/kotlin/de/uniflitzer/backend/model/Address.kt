@@ -13,7 +13,7 @@ class Address(street: String, houseNumber: String, postalCode: String, city: Str
 
     final var houseNumber: String = houseNumber
         private set(value) {
-            require(value.count() in 1..5000)
+            require(value.count() in 1..5)
             field = value
         }
 

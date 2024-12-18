@@ -77,7 +77,7 @@ private class DriveRequestsCommunicator(
         @RequestParam role: RoleDP? = null,
         @RequestParam currentLatitude: Double? = null,
         @RequestParam currentLongitude: Double? = null,
-        @RequestParam sortingDirection: SortingDirection = SortingDirection.Ascending,
+        @RequestParam sortingDirection: SortingDirectionDP = SortingDirectionDP.Ascending,
         userToken: UserToken): ResponseEntity<PageDP<PartialDriveRequestDP>>
     {
         val user: User = usersRepository.findById(UUIDType.fromString(userToken.id)).getOrNull() ?: throw ForbiddenError(ErrorDP("User with id ${userToken.id} does not exist in resource server."))
@@ -85,8 +85,8 @@ private class DriveRequestsCommunicator(
         var driveRequests:List<DriveRequest> = driveRequestsRepository.findAll(
             Sort.by(
                 when(sortingDirection) {
-                    SortingDirection.Ascending -> Sort.Direction.ASC
-                    SortingDirection.Descending -> Sort.Direction.DESC
+                    SortingDirectionDP.Ascending -> Sort.Direction.ASC
+                    SortingDirectionDP.Descending -> Sort.Direction.DESC
                 },
                 DriveRequest::plannedDeparture.name
             )

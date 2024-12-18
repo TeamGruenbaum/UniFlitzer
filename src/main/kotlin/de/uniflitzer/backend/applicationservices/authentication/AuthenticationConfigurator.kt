@@ -60,7 +60,7 @@ class AuthenticationConfigurator(
     }
 
     @Bean
-    fun authenticationAdministrator(): Keycloak {
+    fun keycloakAdministrator(): Keycloak {
         return KeycloakBuilder.builder()
             .serverUrl(environment.getProperty("keycloak.url") ?: "http://localhost:8080")
             .realm(environment.getProperty("keycloak.administrator.realm.name") ?: "master")

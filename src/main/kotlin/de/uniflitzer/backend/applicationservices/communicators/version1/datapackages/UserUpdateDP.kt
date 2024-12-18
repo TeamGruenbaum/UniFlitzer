@@ -19,6 +19,6 @@ data class UserUpdateDP private constructor(
 
     val description: Optional<@Size(min = 1, max=300) String>?,
     val isSmoking: Optional<Boolean>?,
-    val animals: Optional<List<AnimalDP>>?,
+    @field:Valid val animals: Optional<@Size(min = 0, max = 10) List<AnimalDP>>?,
     val drivingStyle: Optional<DrivingStyleDP>?,
 )

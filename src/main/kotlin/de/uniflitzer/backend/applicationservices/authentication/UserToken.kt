@@ -9,6 +9,6 @@ class UserToken(private val jwt: Jwt, private val authenticated:Boolean) : JwtAu
         super.setAuthenticated(authenticated)
     }
 
-    val id: String = jwt.claims?.get("sub") as? String ?: throw IllegalArgumentException("ID (Claim \"sub\") not found in JWT")
+    val id: String = jwt.claims?.get("sub") as? String ?: throw IllegalStateException("ID (Claim \"sub\") not found in JWT")
 }
 

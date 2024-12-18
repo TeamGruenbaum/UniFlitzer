@@ -413,7 +413,7 @@ private class UsersCommunicator(
     @Operation(description = "Get all drive offers of a specific user.")
     @CommonApiResponses @OkApiResponse
     @GetMapping("{id}/drive-offers")
-    fun getDriveOffersOfUser(@PathVariable @UUID id: String, @RequestParam @Min(1) pageNumber: Int, @RequestParam @Min(1) @Max(50) perPage: Int, @RequestParam sortingDirection: SortingDirection = SortingDirection.Ascending, role: DriverOfferRoleDP? = null, userToken: UserToken): ResponseEntity<PageDP<PartialDriveOfferDP>> {
+    fun getDriveOffersOfUser(@PathVariable @UUID id: String, @RequestParam @Min(1) pageNumber: Int, @RequestParam @Min(1) @Max(50) perPage: Int, @RequestParam sortingDirection: SortingDirectionDP = SortingDirectionDP.Ascending, role: DriverOfferRoleDP? = null, userToken: UserToken): ResponseEntity<PageDP<PartialDriveOfferDP>> {
         val actingUser: User = usersRepository.findById(UUIDType.fromString(userToken.id)).getOrNull() ?: throw ForbiddenError(ErrorDP("User with id ${userToken.id} does not exist in resource server."))
         if(actingUser.id != UUIDType.fromString(id)) throw ForbiddenError(ErrorDP("The user can only get their own drive offers."))
 
@@ -430,8 +430,8 @@ private class UsersCommunicator(
             }
             .let {
                 when(sortingDirection) {
-                    SortingDirection.Ascending -> it.sortedBy(DriveOffer::plannedDeparture)
-                    SortingDirection.Descending -> it.sortedByDescending(DriveOffer::plannedDeparture)
+                    SortingDirectionDP.Ascending -> it.sortedBy(DriveOffer::plannedDeparture)
+                    SortingDirectionDP.Descending -> it.sortedByDescending(DriveOffer::plannedDeparture)
                 }
             }
 
@@ -447,15 +447,15 @@ private class UsersCommunicator(
     @Operation(description = "Get all drive requests of a specific user.")
     @CommonApiResponses @OkApiResponse
     @GetMapping("{id}/drive-requests")
-    fun getDriveRequestsOfUser(@PathVariable @UUID id: String, @RequestParam @Min(1) pageNumber: Int, @RequestParam @Min(1) @Max(50) perPage: Int, @RequestParam sortingDirection: SortingDirection = SortingDirection.Ascending, userToken: UserToken): ResponseEntity<PageDP<PartialDriveRequestDP>> {
+    fun getDriveRequestsOfUser(@PathVariable @UUID id: String, @RequestParam @Min(1) pageNumber: Int, @RequestParam @Min(1) @Max(50) perPage: Int, @RequestParam sortingDirection: SortingDirectionDP = SortingDirectionDP.Ascending, userToken: UserToken): ResponseEntity<PageDP<PartialDriveRequestDP>> {
         val user: User = usersRepository.findById(UUIDType.fromString(userToken.id)).getOrNull() ?: throw ForbiddenError(ErrorDP("User with id ${userToken.id} does not exist in resource server."))
         if(user.id != UUIDType.fromString(id)) throw ForbiddenError(ErrorDP("The user can only get his own drive requests."))
 
         val driveRequests: List<DriveRequest> = driveRequestsRepository.findAll(
             Sort.by(
                 when(sortingDirection) {
-                    SortingDirection.Ascending -> Sort.Direction.ASC
-                    SortingDirection.Descending -> Sort.Direction.DESC
+                    SortingDirectionDP.Ascending -> Sort.Direction.ASC
+                    SortingDirectionDP.Descending -> Sort.Direction.DESC
                 },
                 DriveRequest::plannedDeparture.name
             ),
@@ -480,11 +480,11 @@ private class UsersCommunicator(
     @Operation(description = "Get all drives of a specific user.")
     @CommonApiResponses @OkApiResponse
     @GetMapping("{id}/drives")
-    fun getDrivesOfUser(@PathVariable @UUID id: String, @RequestParam @Min(1) pageNumber: Int, @RequestParam @Min(1) @Max(50) perPage: Int, @RequestParam sortingDirection: SortingDirection = SortingDirection.Ascending, userToken: UserToken): ResponseEntity<PageDP<DriveDP>> {
+    fun getDrivesOfUser(@PathVariable @UUID id: String, @RequestParam @Min(1) pageNumber: Int, @RequestParam @Min(1) @Max(50) perPage: Int, @RequestParam sortingDirection: SortingDirectionDP = SortingDirectionDP.Ascending, userToken: UserToken): ResponseEntity<PageDP<DriveDP>> {
         val user: User = usersRepository.findById(UUIDType.fromString(userToken.id)).getOrNull() ?: throw ForbiddenError(ErrorDP("User with id ${userToken.id} does not exist in resource server."))
         if(user.id != UUIDType.fromString(id)) throw ForbiddenError(ErrorDP("The user can only get his own drives."))
 
-        val sort: Sort = if (sortingDirection == SortingDirection.Ascending) Sort.by("id").ascending() else Sort.by("id").descending()
+        val sort: Sort = if (sortingDirection == SortingDirectionDP.Ascending) Sort.by("id").ascending() else Sort.by("id").descending()
         val page: Page<Drive> = drivesRepository.findDrives(PageRequest.of(pageNumber - 1, perPage, sort), user.id)
 
         return ResponseEntity.ok(
