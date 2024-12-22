@@ -96,7 +96,7 @@ private class DrivesCommunicator(
     @Operation(description = "Update the actual departure or the arrival of a specific drive. If the actual departure was updated once, it must not be updated again. The same applies to the arrival.")
     @CommonApiResponses @NoContentApiResponse @NotFoundApiResponse
     @PatchMapping("{id}")
-    fun updateDrive(@PathVariable @UUID id:String, @RequestBody @Valid driveUpdateRequest: DriveUpdateDP, userToken: UserToken): ResponseEntity<Void>
+    fun updateDrive(@PathVariable @UUID id:String, @RequestBody @Valid driveUpdate: DriveUpdateDP, userToken: UserToken): ResponseEntity<Void>
     {
         val user: User = usersRepository.findById(java.util.UUID.fromString(userToken.id)).getOrNull() ?: throw ForbiddenError(ErrorDP("User with id ${userToken.id} does not exist in resource server."))
 
@@ -104,13 +104,13 @@ private class DrivesCommunicator(
         if(drive.driver.id != user.id) throw ForbiddenError(ErrorDP("UserToken id does not match the driver id."))
         if(drive.isCancelled) throw ForbiddenError(ErrorDP("Drive with id $id is cancelled."))
 
-        driveUpdateRequest.actualDeparture?.let {
-            if(drive.actualDeparture != null) throw Exception()
+        driveUpdate.actualDeparture?.let {
+            if(drive.actualDeparture != null) throw ForbiddenError("Actual departure of drive with id $id was already updated.")
             drive.actualDeparture = ZonedDateTime.parse(it)
         }
-        driveUpdateRequest.arrival?.let {
-            if(drive.arrival != null) throw Exception()
-            drive.arrival = ZonedDateTime.parse(it)
+        driveUpdate.actualArrival?.let {
+            if(drive.actualArrival != null) throw ForbiddenError("Actual arrival of drive with id $id was already updated.")
+            drive.actualArrival = ZonedDateTime.parse(it)
         }
 
         drivesRepository.save(drive)

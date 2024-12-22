@@ -521,7 +521,7 @@ private class UsersCommunicator(
         when(ratingCreation.role) {
             RoleDP.Driver -> {
                 if(ratedUser.drivesAsDriver
-                    .filter { (it.arrival?.isAfter(ZonedDateTime.now().minusDays(3)) ?: false) && (it.arrival?.isBefore(ZonedDateTime.now()) ?: false) }
+                    .filter { (it.actualArrival?.isAfter(ZonedDateTime.now().minusDays(3)) ?: false) && (it.actualArrival?.isBefore(ZonedDateTime.now()) ?: false) }
                     .none { it.passengers.contains(author) })
                     throw BadRequestError(listOf("User with id ${ratedUser.id} was no driver of user wit id ${author.id}."))
 
@@ -530,7 +530,7 @@ private class UsersCommunicator(
             }
             RoleDP.Passenger -> {
                 if(ratedUser.drivesAsPassenger
-                    .filter { (it.arrival?.isAfter(ZonedDateTime.now().minusDays(3)) ?: false) && (it.arrival?.isBefore(ZonedDateTime.now()) ?: false) }
+                    .filter { (it.actualArrival?.isAfter(ZonedDateTime.now().minusDays(3)) ?: false) && (it.actualArrival?.isBefore(ZonedDateTime.now()) ?: false) }
                     .none { it.driver == author })
                     throw BadRequestError(listOf("User with id ${ratedUser.id} was no passenger of user wit id ${author.id}."))
 

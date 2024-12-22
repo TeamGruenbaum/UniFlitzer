@@ -6,9 +6,10 @@ import jakarta.persistence.AttributeOverride
 import jakarta.persistence.AttributeOverrides
 import jakarta.persistence.Column
 import jakarta.persistence.Embeddable
+import java.time.Duration
 
 @Embeddable
-class Route(start: Position, destination: Position, polyline: GeoJsonLineString){
+class Route(start: Position, destination: Position, duration: Duration, polyline: GeoJsonLineString){
     @AttributeOverrides(
         AttributeOverride(name = "coordinate.latitude", column = Column(name = "route_coordinate_start_latitude")),
         AttributeOverride(name = "coordinate.longitude", column = Column(name = "route_coordinate_start_longitude")),
@@ -31,12 +32,16 @@ class Route(start: Position, destination: Position, polyline: GeoJsonLineString)
     final var destination: Position = destination
         private set
 
+    final var duration: Duration = duration
+        private set
+
     final var polyline: GeoJsonLineString = polyline
         private set
 
     init {
         this.start = start
         this.destination = destination
+        this.duration = duration
         this.polyline = polyline
     }
 

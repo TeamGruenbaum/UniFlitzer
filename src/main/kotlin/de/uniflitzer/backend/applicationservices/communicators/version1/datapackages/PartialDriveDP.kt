@@ -17,7 +17,8 @@ data class PartialDriveDP(
     @field:Valid val route: CompleteRouteDP,
     @field:Pattern(regexp = DateTimeFormat) @field:Schema(example = DateTimeFormatExample) val plannedDeparture: String,
     @field:Pattern(regexp = DateTimeFormat) @field:Schema(example = DateTimeFormatExample) val actualDeparture: String?,
-    @field:Pattern(regexp = DateTimeFormat) @field:Schema(example = DateTimeFormatExample) val arrival: String?,
+    @field:Pattern(regexp = DateTimeFormat) @field:Schema(example = DateTimeFormatExample) val plannedArrival: String,
+    @field:Pattern(regexp = DateTimeFormat) @field:Schema(example = DateTimeFormatExample) val actualArrival: String?,
     val isCancelled: Boolean
 ) {
     companion object {
@@ -29,7 +30,8 @@ data class PartialDriveDP(
                 CompleteRouteDP.fromCompleteRoute(drive.route),
                 drive.plannedDeparture.toString(),
                 drive.actualDeparture?.toString(),
-                drive.arrival?.toString(),
+                drive.plannedArrival.toString(),
+                drive.actualArrival?.toString(),
                 drive.isCancelled
             )
         }

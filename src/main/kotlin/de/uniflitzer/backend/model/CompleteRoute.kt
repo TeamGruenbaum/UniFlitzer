@@ -2,10 +2,11 @@ package de.uniflitzer.backend.model
 
 import de.uniflitzer.backend.model.errors.NotAvailableError
 import jakarta.persistence.*
+import java.time.Duration
 import java.util.*
 
 @Embeddable
-class CompleteRoute(start: Position, destination: Position, userStops: List<ConfirmableUserStop>, polyline: GeoJsonLineString) {
+class CompleteRoute(start: Position, destination: Position, userStops: List<ConfirmableUserStop>, duration: Duration, polyline: GeoJsonLineString) {
     @AttributeOverrides(
         AttributeOverride(name = "coordinate.latitude", column = Column(name = "completeroute_start_coordinate_latitude")),
         AttributeOverride(name = "coordinate.longitude", column = Column(name = "completeroute_start_coordinate_longitude")),
@@ -32,6 +33,9 @@ class CompleteRoute(start: Position, destination: Position, userStops: List<Conf
     private final var _userStops: MutableList<ConfirmableUserStop> = userStops.toMutableList()
     final val userStops: List<ConfirmableUserStop> get() = _userStops
 
+    final var duration: Duration = duration
+        private set
+
     final var polyline: GeoJsonLineString = polyline
         private set
 
@@ -39,6 +43,7 @@ class CompleteRoute(start: Position, destination: Position, userStops: List<Conf
         this.start = start
         this.destination = destination
         this._userStops = userStops.toMutableList()
+        this.duration = duration
         this.polyline = polyline
     }
     
