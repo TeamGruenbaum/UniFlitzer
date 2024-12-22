@@ -39,16 +39,18 @@ class DriveOffer(driver: User, car: Car, freeSeats: Seats, route: Route, planned
         this.plannedDeparture = plannedDeparture
     }
 
+    @Throws(MissingActionError::class, NotAvailableError::class, RepeatedActionError::class)
     fun addPassenger(userStop: UserStop) {
-        if (userStop.user in _passengers.map { it.user }) throw RepeatedActionError("User is already a passenger of this drive offer")
-        if (userStop.user == driver) throw MissingActionError("Driver cannot be a passenger of a drive offer")
-        if (freeSeats.value == _passengers.count().toUInt()) throw NotAvailableError("No more seats available for this drive offer")
+        if (userStop.user in _passengers.map { it.user }) throw RepeatedActionError("User with id ${userStop.user.id} is already a passenger of this drive offer with id $id.")
+        if (userStop.user == driver) throw MissingActionError("The Driver id ${userStop.user.id} of this drive offer with id $id cannot be a passenger at the same time.")
+        if (freeSeats.value == _passengers.count().toUInt()) throw NotAvailableError("No more seats available for this drive offer with id $id.")
 
         _passengers.add(userStop)
     }
 
+    @Throws(NotAvailableError::class)
     fun removePassenger(user: User) {
-        val searcherUserStop: UserStop = _passengers.find { it.user == user } ?: throw NotAvailableError("User is not a passenger of this drive offer")
+        val searcherUserStop: UserStop = _passengers.find { it.user == user } ?: throw NotAvailableError("User with id ${user.id} is not a passenger of this drive offer with id $id.")
         _passengers.remove(searcherUserStop)
     }
 
@@ -56,8 +58,8 @@ class DriveOffer(driver: User, car: Car, freeSeats: Seats, route: Route, planned
     private fun doAfterRemove() {
         _passengers.forEach {
             try {
-                it.user.leftDriveOfferAsRequestingUser(this)
-                it.user.leftDriveOfferAsPassenger(this)
+                it.user.leaveDriveOfferAsRequestingUser(this)
+                it.user.leaveDriveOfferAsPassenger(this)
             }
             catch (_: NotAvailableError) {}
         }

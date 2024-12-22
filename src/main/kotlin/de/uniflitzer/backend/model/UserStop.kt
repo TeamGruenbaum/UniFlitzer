@@ -5,7 +5,7 @@ import jakarta.persistence.*
 @Embeddable
 class UserStop(user: User, start: Position, destination: Position) {
     @field:ManyToOne
-    var user: User = user //final
+    var user: User = user
 
     @AttributeOverrides(
         AttributeOverride(name = "coordinate.latitude", column = Column(name = "userstop_start_coordinate_latitude")),
@@ -15,7 +15,7 @@ class UserStop(user: User, start: Position, destination: Position) {
         AttributeOverride(name = "nearestAddress.postalCode", column = Column(name = "userstop_start_nearestAddress_postalCode")),
         AttributeOverride(name = "nearestAddress.city", column = Column(name = "userstop_start_nearestAddress_city"))
     )
-    var start: Position = start //final
+    var start: Position = start
 
     @AttributeOverrides(
         AttributeOverride(name = "coordinate.latitude", column = Column(name = "userstop_destination_coordinate_latitude")),

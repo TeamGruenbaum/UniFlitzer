@@ -80,6 +80,8 @@ private class UsersCommunicator(
                 searchedUser.animals.map { AnimalDP.fromAnimal(it) },
                 DrivingStyleDP.fromDrivingStyle(searchedUser.drivingStyle),
                 searchedUser.cars.map { CarDP.fromCar(it) },
+                if(searchedUser.id == UUIDType.fromString(userToken.id)) searchedUser.favoriteUsers.map { PartialUserDP.fromUser(it) } else null,
+                if(searchedUser.id == UUIDType.fromString(userToken.id)) searchedUser.blockedUsers.map { PartialUserDP.fromUser(it) } else null,
                 searchedUser.favoriteAddresses.map { AddressDP.fromAddress(it) },
                 searchedUser.ratings.map { RatingDP.fromRating(it) }
             )
