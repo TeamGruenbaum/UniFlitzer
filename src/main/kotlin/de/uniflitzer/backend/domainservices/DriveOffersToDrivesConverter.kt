@@ -9,6 +9,7 @@ import de.uniflitzer.backend.repositories.ImagesRepository
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.scheduling.annotation.Scheduled
 import org.springframework.stereotype.Component
+import org.springframework.transaction.annotation.Transactional
 import java.util.concurrent.TimeUnit
 
 @Component
@@ -19,6 +20,7 @@ class DriveOffersToDrivesConverter(
     @field:Autowired private val imagesRepository: ImagesRepository
 ) {
     @Scheduled(fixedRate = 5, timeUnit = TimeUnit.MINUTES)
+    @Transactional(rollbackFor = [Throwable::class])
     fun execute() {
         driveOffersRepository.findAllWithPlannedDepartureWithinTime(5.toUInt())
             .forEach {

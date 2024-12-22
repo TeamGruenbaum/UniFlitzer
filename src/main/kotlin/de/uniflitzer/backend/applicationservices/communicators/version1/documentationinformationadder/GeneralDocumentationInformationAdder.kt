@@ -28,7 +28,6 @@ import io.swagger.v3.oas.annotations.security.OAuthScope
         authorizationCode = OAuthFlow(
             authorizationUrl = "\${swagger.url.keycloak}/realms/uniflitzer/protocol/openid-connect/auth",
             tokenUrl = "\${swagger.url.keycloak}/realms/uniflitzer/protocol/openid-connect/token",
-            refreshUrl = "\${swagger.url.keycloak}/realms/uniflitzer/clients-registrations/openid-connect"
         )
     )
 )

@@ -33,6 +33,7 @@ import org.springframework.data.domain.Sort
 import org.springframework.http.HttpStatus
 import org.springframework.http.MediaType
 import org.springframework.http.ResponseEntity
+import org.springframework.transaction.annotation.Transactional
 import org.springframework.validation.annotation.Validated
 import org.springframework.web.bind.annotation.*
 import org.springframework.web.multipart.MultipartFile
@@ -43,6 +44,7 @@ import java.util.UUID as UUIDType
 
 
 @SecurityRequirement(name = "Token Authentication")
+@Transactional(rollbackFor = [Throwable::class])
 @RestController
 @RequestMapping("v1/users")
 @Validated
@@ -52,7 +54,7 @@ private class UsersCommunicator(
     @field:Autowired private val drivesRepository: DrivesRepository,
     @field:Autowired private val driveRequestsRepository: DriveRequestsRepository,
     @field:Autowired private val carpoolsRepository: CarpoolsRepository,
-    @field:Autowired private val keycloak: Keycloak,
+    @field:Autowired private val authenticationAdministrator: Keycloak,
     @field:Autowired private val environment: Environment,
     @field:Autowired private val imagesRepository: ImagesRepository,
     @field:Autowired private val geographyService: GeographyService,

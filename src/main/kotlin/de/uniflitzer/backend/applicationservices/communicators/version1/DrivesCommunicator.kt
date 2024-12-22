@@ -32,6 +32,7 @@ import org.springframework.http.ResponseEntity
 import org.springframework.messaging.handler.annotation.DestinationVariable
 import org.springframework.messaging.simp.SimpMessagingTemplate
 import org.springframework.messaging.simp.annotation.SubscribeMapping
+import org.springframework.transaction.annotation.Transactional
 import org.springframework.validation.annotation.Validated
 import org.springframework.web.bind.annotation.*
 import java.time.ZonedDateTime
@@ -40,6 +41,7 @@ import java.util.UUID as UUIDType
 
 @RestController
 @RequestMapping("v1/drives")
+@Transactional(rollbackFor = [Throwable::class])
 @Validated
 @SecurityRequirement(name = "Token Authentication")
 @Tag(name = "Drives")

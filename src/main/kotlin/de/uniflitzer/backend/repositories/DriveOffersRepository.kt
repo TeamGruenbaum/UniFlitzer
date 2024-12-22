@@ -10,21 +10,13 @@ import de.uniflitzer.backend.model.User
 import org.springframework.data.domain.Sort
 import org.springframework.data.jpa.repository.JpaRepository
 import org.springframework.data.jpa.repository.Query
+import org.springframework.data.jpa.repository.support.SimpleJpaRepository
 import org.springframework.data.repository.query.Param
+import org.springframework.transaction.annotation.Transactional
 import java.util.*
 
 interface DriveOffersRepository: JpaRepository<DriveOffer, UUID> {
-    @Query(
-        """
-            SELECT driveOffer
-            FROM DriveOffer driveOffer
-            WHERE driveOffer.plannedDeparture
-                BETWEEN :#{T(java.time.ZonedDateTime).now()}
-                AND :#{T(java.time.ZonedDateTime).now().plusHours(#hours)}
-        """
-    )
-    fun findAllWithPlannedDepartureWithinTime(@Param("hours") hours: UInt): List<DriveOffer>
-
+    @Transactional(rollbackFor = [Throwable::class])
     @Query(
         """
         SELECT driveOffer

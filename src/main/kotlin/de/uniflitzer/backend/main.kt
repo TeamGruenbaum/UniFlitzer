@@ -6,5 +6,5 @@ import java.time.format.DateTimeFormatter
 
 fun main(args: Array<String>) {
     System.setProperty("timestamp", LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss")))
-    runApplication<BackendApplication>(*args)
+    runApplication<UniFlitzer>(*args)
 }

@@ -21,6 +21,7 @@ import org.keycloak.representations.idm.UserRepresentation
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.core.env.Environment
 import org.springframework.http.ResponseEntity
+import org.springframework.transaction.annotation.Transactional
 import org.springframework.validation.annotation.Validated
 import org.springframework.web.bind.annotation.*
 import kotlin.jvm.optionals.getOrNull
@@ -29,12 +30,13 @@ import java.util.UUID as UUIDType
 @RestController
 @RequestMapping("v1/carpools")
 @Validated
+@Transactional(rollbackFor = [Throwable::class])
 @SecurityRequirement(name = "Token Authentication")
 @Tag(name = "Carpools")
 private class CarpoolsCommunicator(
     @field:Autowired private val usersRepository: UsersRepository,
     @field:Autowired private val carpoolsRepository: CarpoolsRepository,
-    @field:Autowired private val keycloak: Keycloak,
+    @field:Autowired private val authenticationAdministrator: Keycloak,
     @field:Autowired private val environment: Environment
     )
 {
@@ -91,7 +93,7 @@ private class CarpoolsCommunicator(
         val carpool: Carpool = carpoolsRepository.findById(UUIDType.fromString(carpoolId)).getOrNull() ?: throw NotFoundError(ErrorDP("Carpool with id $carpoolId not found."))
         if(carpool.users.none { it.id == actingUser.id }) throw ForbiddenError(ErrorDP("User with id ${actingUser.id} is not part of carpool with id $carpoolId and cannot invite users to it."))
 
-        val users: List<UserRepresentation> = keycloak.realm(
+        val users: List<UserRepresentation> = authenticationAdministrator.realm(
             environment.getProperty("keycloak.realm.name") ?: throw InternalServerError(ErrorDP("Keycloak realm name not defined."))
         ).users().search(username)
         if (users.isEmpty()) throw NotFoundError(ErrorDP("User with id ${userToken.id} does not exist in identity server."))

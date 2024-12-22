@@ -7,5 +7,5 @@ import java.net.http.HttpClient
 @Configuration
 class WebContentFetchingConfigurator {
     @Bean
-    fun httpClient(): HttpClient = HttpClient.newHttpClient();
+    fun webContentFetcher(): HttpClient = HttpClient.newHttpClient();
 }
