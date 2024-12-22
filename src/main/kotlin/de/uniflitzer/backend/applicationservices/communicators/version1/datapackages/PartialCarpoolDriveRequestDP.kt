@@ -8,9 +8,9 @@ class PartialCarpoolDriveRequestDP(
     containsFavoriteRequestingUser: Boolean,
     requestingUser: PartialUserDP,
     route: RouteDP,
-    plannedDeparture: String?,
+    scheduleTime: ScheduleTimeDP?,
     @field:UUID val carpoolId: String
-): PartialDriveRequestDP(id, containsFavoriteRequestingUser, requestingUser, route, plannedDeparture) {
+): PartialDriveRequestDP(id, containsFavoriteRequestingUser, requestingUser, route, scheduleTime) {
     companion object {
         fun fromCarpoolDriveRequest(carpoolDriveRequest: CarpoolDriveRequest, containsFavoriteRequestingUser: Boolean): PartialCarpoolDriveRequestDP {
             return PartialCarpoolDriveRequestDP(
@@ -18,7 +18,7 @@ class PartialCarpoolDriveRequestDP(
                 containsFavoriteRequestingUser,
                 PartialUserDP.fromUser(carpoolDriveRequest.requestingUser),
                 RouteDP.fromRoute(carpoolDriveRequest.route),
-                carpoolDriveRequest.plannedDeparture?.toString(),
+                carpoolDriveRequest.scheduleTime?.let { ScheduleTimeDP.fromScheduleTime(it) },
                 carpoolDriveRequest.carpool.id.toString()
             )
         }

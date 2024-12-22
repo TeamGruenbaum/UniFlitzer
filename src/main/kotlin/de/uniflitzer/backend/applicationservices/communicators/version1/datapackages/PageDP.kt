@@ -1,11 +1,9 @@
 package de.uniflitzer.backend.applicationservices.communicators.version1.datapackages
 
-import de.uniflitzer.backend.model.Content
 import jakarta.validation.Valid
 import jakarta.validation.constraints.Max
 import jakarta.validation.constraints.Min
 import jakarta.validation.constraints.Size
-import jdk.jfr.ContentType
 import kotlin.math.ceil
 
 // In PageDP a list of objects with generic type are stored,
@@ -38,11 +36,20 @@ class PartialDriveRequestPageDP(maximumPage: Int, content: List<PartialDriveRequ
     }
 }
 
-class DrivePageDP(maximumPage: Int, content: List<DriveDP>): PageDP<DriveDP>(maximumPage, content) {
+class PartialDrivePageDP(maximumPage: Int, content: List<PartialDriveDP>): PageDP<PartialDriveDP>(maximumPage, content) {
     companion object {
-        fun fromList(allItems:List<DriveDP>, page: UInt, perPage:UInt): DrivePageDP {
+        fun fromList(allItems:List<PartialDriveDP>, page: UInt, perPage:UInt): PartialDrivePageDP {
             val (maximumPage, content) = generatePage(allItems, page, perPage)
-            return DrivePageDP(maximumPage, content)
+            return PartialDrivePageDP(maximumPage, content)
+        }
+    }
+}
+
+class PartialCarpoolPageDP(maximumPage: Int, content: List<PartialCarpoolDP>): PageDP<PartialCarpoolDP>(maximumPage, content) {
+    companion object {
+        fun fromList(allItems:List<PartialCarpoolDP>, page: UInt, perPage:UInt): PartialCarpoolPageDP {
+            val (maximumPage, content) = generatePage(allItems, page, perPage)
+            return PartialCarpoolPageDP(maximumPage, content)
         }
     }
 }

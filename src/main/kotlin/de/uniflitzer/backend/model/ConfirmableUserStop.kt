@@ -1,6 +1,9 @@
 package de.uniflitzer.backend.model
 
+import de.uniflitzer.backend.model.errors.NotAvailableError
+import de.uniflitzer.backend.model.errors.RepeatedActionError
 import jakarta.persistence.*
+import kotlin.jvm.Throws
 
 @Embeddable
 class ConfirmableUserStop(user: User, start: Position, destination: Position, waitingConfirmed: Boolean){
@@ -40,8 +43,10 @@ class ConfirmableUserStop(user: User, start: Position, destination: Position, wa
         this.waitingConfirmed = waitingConfirmed
     }
 
+    @Throws(RepeatedActionError::class)
     fun confirm()
     {
+        if(waitingConfirmed) throw RepeatedActionError("User already confirmed his stop.")
         this.waitingConfirmed = true
     }
 }

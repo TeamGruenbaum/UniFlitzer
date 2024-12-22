@@ -33,6 +33,7 @@ import org.springframework.messaging.support.MessageBuilder
 import org.springframework.scheduling.annotation.Scheduled
 import org.springframework.stereotype.Component
 import org.springframework.stereotype.Service
+import org.springframework.transaction.annotation.Transactional
 import org.springframework.web.HttpRequestMethodNotSupportedException
 import org.springframework.web.bind.MethodArgumentNotValidException
 import org.springframework.web.bind.MissingServletRequestParameterException
@@ -52,7 +53,7 @@ private class ErrorsCommunicator(
 
     @ExceptionHandler(ForbiddenError::class)
     fun handleForbiddenErrors(forbiddenError: ForbiddenError): ResponseEntity<ErrorDP> {
-        return ResponseEntity.status(HttpStatus.FORBIDDEN).contentType(MediaType.APPLICATION_JSON).body(forbiddenError.errorDP)
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).contentType(MediaType.APPLICATION_JSON).body(ErrorDP(forbiddenError.error))
     }
 
     @ExceptionHandler(
@@ -62,9 +63,9 @@ private class ErrorsCommunicator(
     fun handleNotFoundErrors(exception: Exception): ResponseEntity<ErrorDP> {
         return ResponseEntity.status(HttpStatus.NOT_FOUND).contentType(MediaType.APPLICATION_JSON).body(
             when(exception) {
-                is NotFoundError -> exception.errorDP
+                is NotFoundError -> ErrorDP(exception.error)
                 is NoResourceFoundException -> ErrorDP("Resource not found.")
-                else -> throw InternalServerError(ErrorDP("Unexpected error occurred."))
+                else -> throw InternalServerError("Unexpected error occurred.")
             }
         )
     }
@@ -76,21 +77,19 @@ private class ErrorsCommunicator(
         MethodArgumentTypeMismatchException::class,
         MissingServletRequestParameterException::class,
         HttpMessageNotReadableException::class,
-        IllegalArgumentException::class,
         MaxUploadSizeExceededException::class
     )
     fun handleBadRequestErrors(error: Exception): ResponseEntity<ErrorsDP> {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).contentType(MediaType.APPLICATION_JSON).body(
             when (error) {
-                is BadRequestError -> error.errorsDP
+                is BadRequestError -> ErrorsDP(error.errors)
                 is ConstraintViolationException -> ErrorsDP(error.toList())
                 is MethodArgumentNotValidException -> ErrorsDP(error.toList())
                 is MethodArgumentTypeMismatchException -> ErrorsDP(listOf("Value for parameter \"${error.name}\" has wrong type."))
                 is MissingServletRequestParameterException -> ErrorsDP(listOf("Value for parameter \"${error.parameterName}\" is missing."))
                 is HttpMessageNotReadableException -> ErrorsDP(listOf("Request body is missing or has wrong format."))
-                is IllegalArgumentException -> ErrorsDP(listOf("Some validation failed."))
                 is MaxUploadSizeExceededException -> ErrorsDP(listOf("File size exceeds the limit of 5MB."))
-                else -> throw InternalServerError(ErrorDP("Unexpected error occurred."))
+                else -> throw InternalServerError("Unexpected error occurred.")
             }
         )
     }
@@ -102,10 +101,11 @@ private class ErrorsCommunicator(
 
     @ExceptionHandler(UnprocessableContentError::class)
     fun handleMethodNotSupportedErrors(error: UnprocessableContentError): ResponseEntity<ErrorDP> {
-        return ResponseEntity.status(HttpStatus.UNPROCESSABLE_ENTITY).contentType(MediaType.APPLICATION_JSON).body(error.errorDP)
+        return ResponseEntity.status(HttpStatus.UNPROCESSABLE_ENTITY).contentType(MediaType.APPLICATION_JSON).body(ErrorDP(error.error))
     }
 
     @ExceptionHandler(
+        IllegalArgumentException::class,
         InternalServerError::class,
         Exception::class
     )
@@ -127,7 +127,7 @@ ${error.stackTraceToString()}
 
         return ResponseEntity<TraceableErrorDP>(
             when (error) {
-                is InternalServerError -> TraceableErrorDP(traceId.toString(), error.errorDP.message)
+                is InternalServerError -> TraceableErrorDP(traceId.toString(), error.error)
                 else -> TraceableErrorDP(traceId.toString(), "Unexpected error occurred.")
             },
             HttpStatus.INTERNAL_SERVER_ERROR
@@ -158,7 +158,7 @@ ${error.stackTraceToString()}
         closeSession(
             objectMapper.writeValueAsString(
                 when (error) {
-                    is StompError -> error.errorsDP
+                    is StompError -> ErrorsDP(error.errors)
                     is ConstraintViolationException -> ErrorsDP(error.toList())
                     is MethodArgumentNotValidException -> ErrorsDP(error.toList())
                     is MethodArgumentTypeMismatchException -> ErrorsDP(listOf("Value for parameter \"${error.name}\" has wrong type."))
@@ -188,4 +188,3 @@ ${error.stackTraceToString()}
     private fun MethodArgumentNotValidException.toList():List<String> =
         this.bindingResult.fieldErrors.stream().map{ "${it.field}: ${it.defaultMessage}" }.toList()
 }
-

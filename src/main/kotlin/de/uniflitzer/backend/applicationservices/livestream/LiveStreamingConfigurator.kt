@@ -15,7 +15,7 @@ class LiveStreamingConfigurator: WebSocketMessageBrokerConfigurer {
     }
 
     @Bean
-    fun createWebSocketContainer():ServletServerContainerFactoryBean {
+    fun configureOtherSettings():ServletServerContainerFactoryBean {
         var container = ServletServerContainerFactoryBean();
         container.setMaxSessionIdleTimeout(1000 * 180);
         return container;

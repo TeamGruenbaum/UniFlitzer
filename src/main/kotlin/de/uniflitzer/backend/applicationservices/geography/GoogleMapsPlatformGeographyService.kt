@@ -10,6 +10,7 @@ import java.net.URI
 import java.net.http.HttpClient
 import java.net.http.HttpRequest
 import java.net.http.HttpResponse
+import java.time.Duration
 
 @Service
 class GoogleMapsPlatformGeographyService(
@@ -20,7 +21,7 @@ class GoogleMapsPlatformGeographyService(
     {
         val responseBody: String = httpClient.send(
             HttpRequest.newBuilder()
-                .uri(URI.create("https://routes.googleapis.com/directions/v2:computeRoutes?key=${environment.getProperty("google.maps.platform.api-key")}&fields=routes.polyline,routes.optimized_intermediate_waypoint_index"))
+                .uri(URI.create("https://routes.googleapis.com/directions/v2:computeRoutes?key=${environment.getProperty("google.maps.platform.api-key") ?: throw IllegalStateException("google.maps.platform.api-key is not set")}&fields=routes.staticDuration,routes.polyline,routes.optimized_intermediate_waypoint_index"))
                 .header("Content-Type", "application/json")
                 .POST(HttpRequest.BodyPublishers.ofString(ObjectMapper().writeValueAsString(
                     ComputeRoutesRequest(
@@ -62,6 +63,7 @@ class GoogleMapsPlatformGeographyService(
                 start = start,
                 destination = destination,
                 userStops = stops.map { ConfirmableUserStop(it.user, it.start, it.destination, false) },
+                duration = Duration.parse("PT${it.path("staticDuration").asText().replace("s", "S")}"),
                 polyline = GeoJsonLineString(
                     it.path("polyline")
                         .path("geoJsonLinestring")
@@ -92,6 +94,7 @@ class GoogleMapsPlatformGeographyService(
                 start = start,
                 destination = destination,
                 userStops = stops.map { ConfirmableUserStop(it.user, it.start, it.destination, false) },
+                duration = Duration.parse("PT${it.path("staticDuration").asText().replace("s", "S")}"),
                 polyline = GeoJsonLineString(
                     it.path("polyline")
                         .path("geoJsonLinestring")
@@ -112,6 +115,7 @@ class GoogleMapsPlatformGeographyService(
             Route(
                 start = start,
                 destination = destination,
+                duration = Duration.parse("PT${it.path("staticDuration").asText().replace("s", "S")}"),
                 polyline = GeoJsonLineString(
                     it.path("polyline")
                         .path("geoJsonLinestring")
@@ -124,7 +128,7 @@ class GoogleMapsPlatformGeographyService(
     override fun createPosition(coordinate: Coordinate): Position {
         var responseBody: String = httpClient.send(
             HttpRequest.newBuilder()
-                .uri(URI.create("https://maps.googleapis.com/maps/api/geocode/json?latlng=${coordinate.latitude},${coordinate.longitude}&language=de&key=${environment.getProperty("google.maps.platform.api-key")}"))
+                .uri(URI.create("https://maps.googleapis.com/maps/api/geocode/json?latlng=${coordinate.latitude},${coordinate.longitude}&language=de&key=${environment.getProperty("google.maps.platform.api-key") ?: throw IllegalStateException("google.maps.platform.api-key is not set")}"))
                 .GET()
                 .build(),
             HttpResponse.BodyHandlers.ofString()

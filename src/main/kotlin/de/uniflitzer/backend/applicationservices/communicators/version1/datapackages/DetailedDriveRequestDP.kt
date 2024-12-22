@@ -20,5 +20,5 @@ sealed class DetailedDriveRequestDP(
     val containsFavoriteRequestingUser: Boolean,
     @field:Valid val requestingUser: PartialUserDP,
     @field:Valid val route: RouteDP,
-    @field:Pattern(regexp = DateTimeFormat) @field:Schema(example = DateTimeFormatExample) val plannedDeparture: String?
+    @field:Valid val scheduleTime: ScheduleTimeDP?
 )

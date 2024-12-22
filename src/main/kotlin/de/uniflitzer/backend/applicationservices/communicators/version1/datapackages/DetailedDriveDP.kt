@@ -8,7 +8,7 @@ import io.swagger.v3.oas.annotations.media.Schema
 import jakarta.validation.Valid
 import jakarta.validation.constraints.Pattern
 
-data class DriveDP(
+data class DetailedDriveDP(
     @field:UUID val id: String,
     @field:Valid val driver: PartialUserDP,
     @field:Valid val car: CarDP,
@@ -16,12 +16,13 @@ data class DriveDP(
     @field:Valid val route: CompleteRouteDP,
     @field:Pattern(regexp = DateTimeFormat) @field:Schema(example = DateTimeFormatExample) val plannedDeparture: String,
     @field:Pattern(regexp = DateTimeFormat) @field:Schema(example = DateTimeFormatExample) val actualDeparture: String?,
-    @field:Pattern(regexp = DateTimeFormat) @field:Schema(example = DateTimeFormatExample) val arrival: String?,
+    @field:Pattern(regexp = DateTimeFormat) @field:Schema(example = DateTimeFormatExample) val plannedArrival: String,
+    @field:Pattern(regexp = DateTimeFormat) @field:Schema(example = DateTimeFormatExample) val actualArrival: String?,
     val isCancelled: Boolean
 ) {
     companion object {
-        fun fromDrive(drive: Drive): DriveDP {
-            return DriveDP(
+        fun fromDrive(drive: Drive): DetailedDriveDP {
+            return DetailedDriveDP(
                 drive.id.toString(),
                 PartialUserDP.fromUser(drive.driver),
                 CarDP.fromCar(drive.car),
@@ -29,7 +30,8 @@ data class DriveDP(
                 CompleteRouteDP.fromCompleteRoute(drive.route),
                 drive.plannedDeparture.toString(),
                 drive.actualDeparture?.toString(),
-                drive.arrival?.toString(),
+                drive.plannedArrival.toString(),
+                drive.actualArrival?.toString(),
                 drive.isCancelled
             )
         }

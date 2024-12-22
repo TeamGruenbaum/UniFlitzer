@@ -1,7 +1,11 @@
 package de.uniflitzer.backend.model
 
+
+import de.uniflitzer.backend.model.errors.MissingActionError
+import de.uniflitzer.backend.model.errors.RepeatedActionError
 import jakarta.persistence.*
 import java.util.*
+import kotlin.jvm.Throws
 
 
 @Entity
@@ -37,17 +41,31 @@ class Carpool(name: Name, users: MutableList<User>){
         this._users = users
     }
 
-    fun addCarpoolInvite(user: User) {
+    @Throws(RepeatedActionError::class)
+    fun sendInvite(user: User) {
+        if(user in _users) throw RepeatedActionError("User with id ${user.id} is already a member of carpool with id ${this.id}.")
+        if(user in _sentInvites) throw RepeatedActionError("User with id ${user.id} has already been invited to carpool with id ${this.id}.")
         _sentInvites.add(user)
     }
 
-    fun acceptCarpoolInvite(user: User) {
+    @Throws(RepeatedActionError::class, MissingActionError::class)
+    fun acceptInvite(user: User) {
+        if(user in _users) throw RepeatedActionError("User with id ${user.id} is already a member of carpool with id ${this.id}.")
+        if(user !in _sentInvites) throw MissingActionError("User with id ${user.id} has not been invited to carpool with id ${this.id}.")
         _users.add(user)
         _sentInvites.remove(user)
     }
 
-    fun removeCarpoolInvite(user: User) {
+    @Throws(RepeatedActionError::class, MissingActionError::class)
+    fun rejectInvite(user: User) {
+        if(user in _users) throw RepeatedActionError("User with id ${user.id} is already a member of carpool with id ${this.id}.")
+        if(user !in _sentInvites) throw MissingActionError("User with id ${user.id} has not been invited to carpool with id ${this.id}.")
         _sentInvites.remove(user)
+    }
+
+    fun addDrive(drive: Drive) {
+        if(drive in _drives) throw RepeatedActionError("Drive with id ${drive.id} already exists in carpoo.")
+        _drives.add(drive)
     }
 
     override fun equals(other: Any?): Boolean {

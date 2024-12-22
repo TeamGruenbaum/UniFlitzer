@@ -7,5 +7,5 @@ import jakarta.validation.constraints.Pattern
 
 data class DriveUpdateDP private constructor(
     @field:Pattern(regexp = DateTimeFormat) @field:Schema(example = DateTimeFormatExample) val actualDeparture: String?,
-    @field:Pattern(regexp = DateTimeFormat) @field:Schema(example = DateTimeFormatExample) val arrival: String?
+    @field:Pattern(regexp = DateTimeFormat) @field:Schema(example = DateTimeFormatExample) val actualArrival: String?
 )

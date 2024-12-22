@@ -5,7 +5,7 @@ import java.time.ZonedDateTime
 import java.util.*
 
 @Entity
-class Drive(driver: User, car: Car, route: CompleteRoute, passenger: List<User>, plannedDeparture: ZonedDateTime) {
+class Drive(driver: User, car: Car, route: CompleteRoute, passenger: List<User>, plannedDeparture: ZonedDateTime, plannedArrival: ZonedDateTime) {
     @field:Id
     @field:GeneratedValue(strategy = GenerationType.UUID)
     lateinit var id: UUID
@@ -22,7 +22,8 @@ class Drive(driver: User, car: Car, route: CompleteRoute, passenger: List<User>,
     var route: CompleteRoute = route
     var plannedDeparture: ZonedDateTime = plannedDeparture
     var actualDeparture: ZonedDateTime? = null
-    var arrival: ZonedDateTime? = null
+    var plannedArrival: ZonedDateTime = plannedArrival
+    var actualArrival: ZonedDateTime? = null
     var currentPosition: Coordinate? = null
     var isCancelled: Boolean = false
 
@@ -39,4 +40,3 @@ class Drive(driver: User, car: Car, route: CompleteRoute, passenger: List<User>,
         return id.hashCode()
     }
 }
-

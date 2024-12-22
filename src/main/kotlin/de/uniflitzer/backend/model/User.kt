@@ -100,7 +100,7 @@ class User(id: UUID, firstName: FirstName, lastName: LastName, birthday: ZonedDa
 
     @Throws(NotAvailableError::class)
     fun removeCarAtIndex(index: UInt) {
-        if (index.toInt() >= _cars.size) throw NotAvailableError("Index out of bounds")
+        if (index.toInt() >= _cars.size) throw NotAvailableError("Index $index is out of bounds.")
         _cars.removeAt(index.toInt())
     }
 
@@ -118,7 +118,7 @@ class User(id: UUID, firstName: FirstName, lastName: LastName, birthday: ZonedDa
 
     @Throws(NotAvailableError::class)
     fun removeFavoriteAddressByIndex(index: UInt) {
-        if (index.toInt() >= _favoriteAddresses.size) throw NotAvailableError("Index out of bounds")
+        if (index.toInt() >= _favoriteAddresses.size) throw NotAvailableError("Car index $index is out of bounds of user with id $id.")
         _favoriteAddresses.removeAt(index.toInt())
     }
 
@@ -132,7 +132,7 @@ class User(id: UUID, firstName: FirstName, lastName: LastName, birthday: ZonedDa
 
     @Throws(NotAvailableError::class)
     fun removeFavoriteUser(user: User) {
-        if(user !in _favoriteUsers)throw NotAvailableError("The user is not a favorite user.")
+        if(user !in _favoriteUsers)throw NotAvailableError("The user with id ${user.id} is not a favorite user of user with id $id.")
         _favoriteUsers.remove(user)
     }
 
@@ -140,16 +140,16 @@ class User(id: UUID, firstName: FirstName, lastName: LastName, birthday: ZonedDa
 
     @Throws(NotAvailableError::class)
     fun removeBlockedUser(user: User) {
-        if(user !in _blockedUsers) throw NotAvailableError("The user is not a blocked user.")
+        if(user !in _blockedUsers) throw NotAvailableError("The user with id ${user.id} is not a blocked user of user with id $id.")
         _blockedUsers.remove(user)
     }
 
-    fun leftDriveOfferAsRequestingUser(driveOffer: DriveOffer) {
+    fun leaveDriveOfferAsRequestingUser(driveOffer: DriveOffer) {
         if(driveOffer !in driveOffersAsRequestingUser)  throw NotAvailableError("The user is not a passenger of the drive offer.")
         driveOffersAsPassenger.remove(driveOffer)
     }
 
-    fun leftDriveOfferAsPassenger(driveOffer: DriveOffer) {
+    fun leaveDriveOfferAsPassenger(driveOffer: DriveOffer) {
         if(driveOffer !in driveOffersAsPassenger) throw NotAvailableError("The user is not a requesting user of the drive offer.")
         driveOffersAsRequestingUser.remove(driveOffer)
     }

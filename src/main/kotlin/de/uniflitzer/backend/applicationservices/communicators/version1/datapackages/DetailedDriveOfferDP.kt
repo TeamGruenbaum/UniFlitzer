@@ -7,6 +7,7 @@ import de.uniflitzer.backend.applicationservices.communicators.version1.valueche
 import de.uniflitzer.backend.model.CarpoolDriveOffer
 import de.uniflitzer.backend.model.DriveOffer
 import de.uniflitzer.backend.model.PublicDriveOffer
+import de.uniflitzer.backend.model.ScheduleTime
 import io.swagger.v3.oas.annotations.media.Schema
 import jakarta.validation.Valid
 import jakarta.validation.constraints.Max
@@ -28,7 +29,7 @@ sealed class DetailedDriveOfferDP(
     @field:Min(1) @field:Max(8) val freeSeats: Int,
     @field:Valid val route: RouteDP,
     @field:Valid val passengers: List<UserStopDP>,
-    @field:Pattern(regexp = DateTimeFormat) @field:Schema(example = DateTimeFormatExample) open val plannedDeparture: String?
+    @field:Valid val scheduleTime: ScheduleTimeDP?
 ) {
     companion object {
         fun fromDriveOffer(driveOffer: DriveOffer, containsFavoriteDriver: Boolean): DetailedDriveOfferDP {
@@ -42,7 +43,7 @@ sealed class DetailedDriveOfferDP(
                         driveOffer.freeSeats.value.toInt(),
                         RouteDP.fromRoute(driveOffer.route),
                         driveOffer.passengers.map { UserStopDP.fromUserStop(it) },
-                        driveOffer.plannedDeparture?.toString(),
+                        driveOffer.scheduleTime?.let { ScheduleTimeDP.fromScheduleTime(it) },
                         driveOffer.requestingUsers.map { UserStopDP.fromUserStop(it) }
                     )
                 is CarpoolDriveOffer ->
@@ -54,7 +55,7 @@ sealed class DetailedDriveOfferDP(
                         driveOffer.freeSeats.value.toInt(),
                         RouteDP.fromRoute(driveOffer.route),
                         driveOffer.passengers.map { UserStopDP.fromUserStop(it) },
-                        driveOffer.plannedDeparture?.toString(),
+                        driveOffer.scheduleTime?.let { ScheduleTimeDP.fromScheduleTime(it) },
                         PartialCarpoolDP.fromCarpool(driveOffer.carpool)
                     )
                 else -> throw IllegalArgumentException("Unknown DriveOffer type")

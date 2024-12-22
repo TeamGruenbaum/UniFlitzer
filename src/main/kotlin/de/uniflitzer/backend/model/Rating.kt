@@ -46,6 +46,4 @@ class Rating(author: User, role: Role, content: Content, stars: Stars, created: 
         result = 31 * result + created.hashCode()
         return result
     }
-
-
 }
