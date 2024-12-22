@@ -29,6 +29,9 @@ class DriveOffer(driver: User, car: Car, freeSeats: Seats, route: Route, schedul
     private var _passengers: MutableList<UserStop> = mutableListOf()
     val passengers: List<UserStop> get() = _passengers
 
+    @AttributeOverrides(
+        AttributeOverride(name = "type", column = Column(name = "schedule_time_type"))
+    )
     var scheduleTime: ScheduleTime? = scheduleTime
 
     init {

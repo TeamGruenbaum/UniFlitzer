@@ -2,5 +2,5 @@ package de.uniflitzer.backend.applicationservices.communicators.version1.datapac
 
 class PublicDriveRequestCreationDP private constructor(
     route: RouteCreationDP,
-    plannedDeparture: String?
-) : DriveRequestCreationDP(route, plannedDeparture)
+    scheduleTime: ScheduleTimeDP?
+) : DriveRequestCreationDP(route, scheduleTime)

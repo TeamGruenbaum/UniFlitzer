@@ -459,7 +459,7 @@ private class UsersCommunicator(
                     SortingDirectionDP.Ascending -> Sort.Direction.ASC
                     SortingDirectionDP.Descending -> Sort.Direction.DESC
                 },
-                DriveRequest::plannedDeparture.name
+                ScheduleTime::time.name
             ),
             user.id
         )

@@ -56,8 +56,8 @@ private class DriveRequestsCommunicator(
                         geographyService.createPosition(driveRequestCreation.route.start.toCoordinate()),
                         geographyService.createPosition(driveRequestCreation.route.destination.toCoordinate())
                     ),
-                    driveRequestCreation.plannedDeparture?.let { ZonedDateTime.parse(it) },
                     carpoolsRepository.findById(UUIDType.fromString(driveRequestCreation.carpoolId)).getOrNull() ?: throw NotFoundError(ErrorDP("Carpool with id ${driveRequestCreation.carpoolId} not found."))
+                    driveRequestCreation.scheduleTime?.toScheduleTime(),
                 )
             }
             is PublicDriveRequestCreationDP -> {
@@ -67,7 +67,7 @@ private class DriveRequestsCommunicator(
                         geographyService.createPosition(driveRequestCreation.route.start.toCoordinate()),
                         geographyService.createPosition(driveRequestCreation.route.destination.toCoordinate())
                     ),
-                    driveRequestCreation.plannedDeparture?.let { ZonedDateTime.parse(it) }
+                    driveRequestCreation.scheduleTime?.toScheduleTime()
                 )
             }
         }
@@ -95,7 +95,7 @@ private class DriveRequestsCommunicator(
                     SortingDirectionDP.Ascending -> Sort.Direction.ASC
                     SortingDirectionDP.Descending -> Sort.Direction.DESC
                 },
-                DriveRequest::plannedDeparture.name
+                ScheduleTime::time.name
             )
         )
 
@@ -154,7 +154,7 @@ private class DriveRequestsCommunicator(
                 driveRequest.requestingUser in user.favoriteUsers,
                 PartialUserDP.fromUser(driveRequest.requestingUser),
                 RouteDP.fromRoute(driveRequest.route),
-                driveRequest.plannedDeparture?.toString(),
+                driveRequest.scheduleTime?.let { ScheduleTimeDP.fromScheduleTime(it) },
                 PartialCarpoolDP.fromCarpool(driveRequest.carpool)
             )
             is PublicDriveRequest -> DetailedPublicDriveRequestDP(
@@ -162,7 +162,7 @@ private class DriveRequestsCommunicator(
                 driveRequest.requestingUser in user.favoriteUsers,
                 PartialUserDP.fromUser(driveRequest.requestingUser),
                 RouteDP.fromRoute(driveRequest.route),
-                driveRequest.plannedDeparture?.toString(),
+                driveRequest.scheduleTime?.let { ScheduleTimeDP.fromScheduleTime(it) },
                 driveRequest.driveOffers.map { PartialPublicDriveOfferDP.fromPublicDriveOffer(it, it.driver in user.favoriteUsers) }
             )
             else -> { throw InternalServerError(ErrorDP("DriveRequest is neither a CarpoolDriveRequest nor a PublicDriveRequest.")) }
@@ -209,8 +209,8 @@ private class DriveRequestsCommunicator(
                             car,
                             Seats(driveOfferCreation.freeSeats.toUInt()),
                             geographyService.createRoute(geographyService.createPosition(driveOfferCreation.route.start.toCoordinate()), geographyService.createPosition(driveOfferCreation.route.destination.toCoordinate())),
-                            driveOfferCreation.plannedDeparture?.let { ZonedDateTime.parse(it) },
                             carpoolsRepository.findById(UUIDType.fromString(driveOfferCreation.carpoolId)).getOrNull() ?: throw NotFoundError(ErrorDP("Carpool with id ${driveOfferCreation.carpoolId} not found."))
+                            driveOfferCreation.scheduleTime?.toScheduleTime(),
                         )
                         car.image?.let { driveOffer.car.image = imagesRepository.copy(it) }
 
@@ -231,7 +231,7 @@ private class DriveRequestsCommunicator(
                             car,
                             Seats(driveOfferCreation.freeSeats.toUInt()),
                             geographyService.createRoute(geographyService.createPosition(driveOfferCreation.route.start.toCoordinate()), geographyService.createPosition(driveOfferCreation.route.destination.toCoordinate())),
-                            driveOfferCreation.plannedDeparture?.let { ZonedDateTime.parse(it) }
+                            driveOfferCreation.scheduleTime?.toScheduleTime()
                         )
                         car.image?.let { driveOffer.car.image = imagesRepository.copy(it) }
 

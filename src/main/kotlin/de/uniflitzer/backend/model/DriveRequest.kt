@@ -1,14 +1,13 @@
 package de.uniflitzer.backend.model
 
 import jakarta.persistence.*
-import java.time.ZonedDateTime
 import java.util.*
 
 @Entity
 @Inheritance(strategy = InheritanceType.SINGLE_TABLE)
 @DiscriminatorColumn(name = "discriminator_type")
 // Should be sealed, but Hibernate 6 does not support sealed classes
-class DriveRequest(requestingUser: User, route: Route, plannedDeparture: ZonedDateTime?) {
+class DriveRequest(requestingUser: User, route: Route, scheduleTime: ScheduleTime?) {
     @field:Id
     @field:GeneratedValue(strategy = GenerationType.UUID)
     lateinit var id: UUID
@@ -17,12 +16,16 @@ class DriveRequest(requestingUser: User, route: Route, plannedDeparture: ZonedDa
     var requestingUser: User = requestingUser
 
     var route: Route = route
-    var plannedDeparture: ZonedDateTime? = null
+
+    @AttributeOverrides(
+        AttributeOverride(name = "type", column = Column(name = "schedule_time_type"))
+    )
+    var scheduleTime: ScheduleTime? = scheduleTime
 
     init {
         this.requestingUser = requestingUser
         this.route = route
-        this.plannedDeparture = plannedDeparture
+        this.scheduleTime = scheduleTime
     }
 
     override fun equals(other: Any?): Boolean {

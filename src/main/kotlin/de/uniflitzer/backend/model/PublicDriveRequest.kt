@@ -4,11 +4,10 @@ import de.uniflitzer.backend.model.errors.NotAvailableError
 import jakarta.persistence.CascadeType
 import jakarta.persistence.Entity
 import jakarta.persistence.OneToMany
-import java.time.ZonedDateTime
 import java.util.UUID
 
 @Entity
-class PublicDriveRequest(requestingUser: User, route: Route, plannedDeparture: ZonedDateTime?) : DriveRequest(requestingUser, route, plannedDeparture) {
+class PublicDriveRequest(requestingUser: User, route: Route, scheduleTime: ScheduleTime?) : DriveRequest(requestingUser, route, scheduleTime) {
     @field:OneToMany(cascade = [CascadeType.PERSIST, CascadeType.MERGE])
     private var _driveOffers: MutableList<PublicDriveOffer> = mutableListOf()
     val driveOffers: List<PublicDriveOffer> get() = _driveOffers

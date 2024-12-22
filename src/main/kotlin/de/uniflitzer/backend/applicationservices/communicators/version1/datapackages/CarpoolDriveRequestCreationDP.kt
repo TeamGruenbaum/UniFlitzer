@@ -4,6 +4,6 @@ import de.uniflitzer.backend.applicationservices.communicators.version1.valueche
 
 class CarpoolDriveRequestCreationDP private constructor(
     route: RouteCreationDP,
-    plannedDeparture: String?,
+    scheduleTime: ScheduleTimeDP?,
     @field:UUID val carpoolId: String
-) : DriveRequestCreationDP(route, plannedDeparture)
+) : DriveRequestCreationDP(route, scheduleTime)
