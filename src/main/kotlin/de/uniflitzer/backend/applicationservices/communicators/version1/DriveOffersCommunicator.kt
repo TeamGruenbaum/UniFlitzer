@@ -135,7 +135,7 @@ private class DriveOffersCommunicator(
         val driveOffer: DriveOffer = driveOffersRepository.findById(UUIDType.fromString(id)).getOrNull() ?: throw NotFoundError("DriveOffer with id $id not found.")
 
         val car: Car = driveOffer.car
-        if (car.image == null) throw NotFoundError("Car has no image.")
+        if (car.image == null) throw NotFoundError("Car of drive offer with id $id has no image.")
         try {
             val image:ByteArray = imagesRepository.getById(car.image!!.id, if(quality == QualityDP.Preview) ImagesRepository.Quality.Preview else ImagesRepository.Quality.Full).getOrNull() ?: throw NotFoundError("Image not found.")
             return ResponseEntity.ok().contentType(MediaType.IMAGE_JPEG).body(image)

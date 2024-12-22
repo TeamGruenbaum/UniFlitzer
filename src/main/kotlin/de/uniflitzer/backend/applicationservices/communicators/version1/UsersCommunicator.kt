@@ -291,7 +291,7 @@ private class UsersCommunicator(
 
         val car: Car
         try { car = user.getCarByIndex(carIndex) } catch (error: NotAvailableError) { throw NotFoundError(error.message!!) }
-        if (car.image == null) throw NotFoundError("Car has no image.")
+        if (car.image == null) throw NotFoundError("Car with index $carIndex of user with id $userId has no image.")
 
         try {
             val image:ByteArray = imagesRepository.getById(car.image!!.id, if(quality == QualityDP.Preview) ImagesRepository.Quality.Preview else ImagesRepository.Quality.Full).getOrNull() ?: throw NotFoundError("Image not found.")

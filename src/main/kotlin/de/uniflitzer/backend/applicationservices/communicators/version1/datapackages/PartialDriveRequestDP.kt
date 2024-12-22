@@ -31,7 +31,7 @@ sealed class PartialDriveRequestDP(
             return when (driveRequest) {
                 is PublicDriveRequest -> PartialPublicDriveRequestDP.fromPublicDriveRequest(driveRequest, containsFavoriteRequestingUser)
                 is CarpoolDriveRequest -> PartialCarpoolDriveRequestDP.fromCarpoolDriveRequest(driveRequest, containsFavoriteRequestingUser)
-                else -> throw InternalServerError(ErrorDP("DriveRequest is neither a PublicDriveRequest nor a CarpoolDriveRequest."))
+                else -> throw InternalServerError("DriveRequest is neither a PublicDriveRequest nor a CarpoolDriveRequest.")
             }
         }
     }

@@ -1,6 +1,7 @@
 package de.uniflitzer.backend.model
 
 import de.uniflitzer.backend.model.errors.NotAvailableError
+import de.uniflitzer.backend.model.errors.RepeatedActionError
 import jakarta.persistence.*
 import java.time.Duration
 import java.util.*
@@ -47,7 +48,7 @@ class CompleteRoute(start: Position, destination: Position, userStops: List<Conf
         this.polyline = polyline
     }
     
-    @Throws(NotAvailableError::class)
+    @Throws(NotAvailableError::class, RepeatedActionError::class)
     fun confirmUserStop(userId: UUID)
     {
         if(userStops.none { it.user.id == userId }) throw NotAvailableError("No user stop for user with id $userId available.")
