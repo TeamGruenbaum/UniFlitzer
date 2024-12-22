@@ -91,7 +91,7 @@ private class DriveOffersCommunicator(
                         SortingDirectionDP.Ascending -> Sort.Direction.ASC
                         SortingDirectionDP.Descending -> Sort.Direction.DESC
                     },
-                    DriveOffer::plannedDeparture.name
+                    ScheduleTime::time.name
                 )
             )
             .filter { it.route.isCoordinateOnRoute(startCoordinate, tolerance) && it.route.isCoordinateOnRoute(destinationCoordinate, tolerance) }
@@ -161,7 +161,7 @@ private class DriveOffersCommunicator(
                         geographyService.createPosition(driveOfferCreation.route.start.toCoordinate()),
                         geographyService.createPosition(driveOfferCreation.route.destination.toCoordinate())
                     ),
-                    driveOfferCreation.plannedDeparture?.let { ZonedDateTime.parse(it) }
+                    driveOfferCreation.scheduleTime?.toScheduleTime()
                 )
             }
             is CarpoolDriveOfferCreationDP -> {
@@ -175,7 +175,7 @@ private class DriveOffersCommunicator(
                         geographyService.createPosition(driveOfferCreation.route.start.toCoordinate()),
                         geographyService.createPosition(driveOfferCreation.route.destination.toCoordinate())
                     ),
-                    driveOfferCreation.plannedDeparture?.let { ZonedDateTime.parse(it) },
+                    driveOfferCreation.scheduleTime?.toScheduleTime(),
                     targetedCarpool
                 )
             }
@@ -208,7 +208,7 @@ private class DriveOffersCommunicator(
         val driveOfferInEditing: DriveOffer = driveOffersRepository.findById(UUIDType.fromString(id)).getOrNull() ?: throw NotFoundError("The drive offer with the id $id could not be found.")
         if (driveOfferInEditing.driver.id.toString() != userToken.id) throw ForbiddenError("The user with the id $id is not the driver of the drive offer with the id $id.")
 
-        driveOfferInEditing.plannedDeparture = ZonedDateTime.parse(driveOfferUpdate.plannedDeparture)
+        driveOfferInEditing.scheduleTime = driveOfferUpdate.scheduleTime.toScheduleTime()
         driveOffersRepository.save(driveOfferInEditing)
 
         return ResponseEntity.noContent().build()

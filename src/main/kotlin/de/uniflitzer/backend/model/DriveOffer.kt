@@ -5,13 +5,13 @@ import de.uniflitzer.backend.model.errors.NotAvailableError
 import de.uniflitzer.backend.model.errors.RepeatedActionError
 import jakarta.persistence.*
 import java.util.UUID
-import java.time.ZonedDateTime
+import kotlin.jvm.Throws
 
 @Entity
 @Inheritance(strategy = InheritanceType.SINGLE_TABLE)
 @DiscriminatorColumn(name = "discriminator_type")
 // Should be sealed, but Hibernate 6 does not support sealed classes
-class DriveOffer(driver: User, car: Car, freeSeats: Seats, route: Route, plannedDeparture: ZonedDateTime?) {
+class DriveOffer(driver: User, car: Car, freeSeats: Seats, route: Route, scheduleTime: ScheduleTime?) {
     @field:Id
     @field:GeneratedValue(strategy = GenerationType.UUID)
     lateinit var id: UUID
@@ -29,14 +29,14 @@ class DriveOffer(driver: User, car: Car, freeSeats: Seats, route: Route, planned
     private var _passengers: MutableList<UserStop> = mutableListOf()
     val passengers: List<UserStop> get() = _passengers
 
-    var plannedDeparture: ZonedDateTime? = plannedDeparture
+    var scheduleTime: ScheduleTime? = scheduleTime
 
     init {
         this.driver = driver
         this.car = car
         this.freeSeats = freeSeats
         this.route = route
-        this.plannedDeparture = plannedDeparture
+        this.scheduleTime = scheduleTime
     }
 
     @Throws(MissingActionError::class, NotAvailableError::class, RepeatedActionError::class)

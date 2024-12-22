@@ -430,10 +430,10 @@ private class UsersCommunicator(
                     DriverOfferRoleDP.Requester -> actingUser.driveOffersAsRequestingUser
                 }
             }
-            .let {
+            .let { resultingDriveOffersOfUser ->
                 when(sortingDirection) {
-                    SortingDirectionDP.Ascending -> it.sortedBy(DriveOffer::plannedDeparture)
-                    SortingDirectionDP.Descending -> it.sortedByDescending(DriveOffer::plannedDeparture)
+                    SortingDirectionDP.Ascending -> resultingDriveOffersOfUser.sortedBy { it.scheduleTime?.time }
+                    SortingDirectionDP.Descending -> resultingDriveOffersOfUser.sortedByDescending { it.scheduleTime?.time }
                 }
             }
 

@@ -1,6 +1,7 @@
 package de.uniflitzer.backend.applicationservices.communicators.version1.datapackages
 
 import de.uniflitzer.backend.model.PublicDriveOffer
+import de.uniflitzer.backend.model.ScheduleTime
 import jakarta.validation.constraints.Size
 
 class PartialPublicDriveOfferDP constructor(
@@ -10,9 +11,9 @@ class PartialPublicDriveOfferDP constructor(
     freeSeats: Int,
     route: RouteDP,
     passengersCount: Int,
-    plannedDeparture: String?,
+    scheduleTime: ScheduleTimeDP?,
     @field:Size(min = 0) val requestingUserIds: List<String>?
-): PartialDriveOfferDP(containsFavoriteDriver, id, driver, freeSeats, route, passengersCount, plannedDeparture) {
+): PartialDriveOfferDP(containsFavoriteDriver, id, driver, freeSeats, route, passengersCount, scheduleTime) {
     companion object {
         fun fromPublicDriveOffer(publicDriveOffer: PublicDriveOffer, containsFavoriteDriver: Boolean): PartialPublicDriveOfferDP {
             return PartialPublicDriveOfferDP(
@@ -22,7 +23,7 @@ class PartialPublicDriveOfferDP constructor(
                 publicDriveOffer.freeSeats.value.toInt(),
                 RouteDP.fromRoute(publicDriveOffer.route),
                 publicDriveOffer.passengers.size,
-                publicDriveOffer.plannedDeparture?.toString(),
+                publicDriveOffer.scheduleTime?.let { ScheduleTimeDP.fromScheduleTime(it) },
                 publicDriveOffer.requestingUsers.map { it.user.id.toString() }
             )
         }

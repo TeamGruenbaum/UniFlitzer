@@ -10,7 +10,7 @@ import java.util.UUID
 import kotlin.jvm.Throws
 
 @Entity
-class PublicDriveOffer(driver: User, car: Car, freeSeats: Seats, route: Route, plannedDeparture: ZonedDateTime?) : DriveOffer(driver, car, freeSeats, route, plannedDeparture) {
+class PublicDriveOffer(driver: User, car: Car, freeSeats: Seats, route: Route, scheduleTime: ScheduleTime?) : DriveOffer(driver, car, freeSeats, route, scheduleTime) {
     @field:ElementCollection
     private var _requestingUsers: MutableList<UserStop> = mutableListOf()
     val requestingUsers: List<UserStop> get() = _requestingUsers

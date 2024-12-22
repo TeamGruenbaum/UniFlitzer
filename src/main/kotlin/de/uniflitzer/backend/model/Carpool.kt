@@ -1,5 +1,6 @@
 package de.uniflitzer.backend.model
 
+import de.uniflitzer.backend.model.errors.RepeatedActionError
 import jakarta.persistence.*
 import java.util.*
 
@@ -48,6 +49,11 @@ class Carpool(name: Name, users: MutableList<User>){
 
     fun removeCarpoolInvite(user: User) {
         _sentInvites.remove(user)
+    }
+
+    fun addDrive(drive: Drive) {
+        if(drive in _drives) throw RepeatedActionError("Drive with id ${drive.id} already exists in carpoo.")
+        _drives.add(drive)
     }
 
     override fun equals(other: Any?): Boolean {

@@ -10,6 +10,6 @@ class DetailedPublicDriveOfferDP constructor(
     freeSeats: Int,
     route: RouteDP,
     passengers: List<UserStopDP>,
-    plannedDeparture: String?,
+    scheduleTime: ScheduleTimeDP?,
     @field:Valid val requestingUsers: List<UserStopDP>?
-): DetailedDriveOfferDP(containsFavoriteDriver, id, driver, car, freeSeats, route, passengers, plannedDeparture)
+): DetailedDriveOfferDP(containsFavoriteDriver, id, driver, car, freeSeats, route, passengers, scheduleTime)
