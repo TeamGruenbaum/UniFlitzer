@@ -41,12 +41,10 @@ import java.time.ZonedDateTime
 import kotlin.jvm.optionals.getOrNull
 import java.util.UUID as UUIDType
 
-@RestController
-@RequestMapping("v1/drives")
-@Transactional(rollbackFor = [Throwable::class])
+@RestController @RequestMapping("v1/drives")
+@Tag(name = "Drives") @SecurityRequirement(name = "Token Authentication")
 @Validated
-@SecurityRequirement(name = "Token Authentication")
-@Tag(name = "Drives")
+@Transactional(rollbackFor = [Throwable::class])
 private class DrivesCommunicator(
     @field:Autowired private val usersRepository: UsersRepository,
     @field:Autowired private val drivesRepository: DrivesRepository,
@@ -56,12 +54,12 @@ private class DrivesCommunicator(
 ) {
     @Operation(description = "Get details of a specific drive.")
     @CommonApiResponses @OkApiResponse @NotFoundApiResponse
-    @GetMapping("{id}")
-    fun getDrive(@PathVariable @UUID id:String, userToken: UserToken): ResponseEntity<DetailedDriveDP>
+    @GetMapping("{driveId}")
+    fun getDrive(@PathVariable @UUID driveId:String, userToken: UserToken): ResponseEntity<DetailedDriveDP>
     {
         val user: User = usersRepository.findById(java.util.UUID.fromString(userToken.id)).getOrNull() ?: throw ForbiddenError("User with id ${userToken.id} does not exist in resource server.")
 
-        val drive: Drive = drivesRepository.findById(java.util.UUID.fromString(id)).getOrNull() ?: throw NotFoundError("Drive with id $id not found.")
+        val drive: Drive = drivesRepository.findById(java.util.UUID.fromString(driveId)).getOrNull() ?: throw NotFoundError("Drive with id $driveId not found.")
         if(drive.driver.id != user.id && drive.passengers.none { it.id == user.id }) throw ForbiddenError("UserToken id does neither match the driver id nor any of the passenger ids.")
 
         return ResponseEntity.ok(DetailedDriveDP.fromDrive(drive))
@@ -77,18 +75,18 @@ private class DrivesCommunicator(
         ]
     )
     @CommonApiResponses @NotFoundApiResponse
-    @GetMapping("{id}/car/image")
-    fun getImageOfCar(@PathVariable @UUID id: String, @RequestParam quality: QualityDP, userToken: UserToken): ResponseEntity<ByteArray> {
+    @GetMapping("{driveId}/car/image")
+    fun getImageOfCar(@PathVariable @UUID driveId: String, @RequestParam quality: QualityDP, userToken: UserToken): ResponseEntity<ByteArray> {
         val user: User = usersRepository.findById(UUIDType.fromString(userToken.id)).getOrNull() ?: throw ForbiddenError("User with id ${userToken.id} does not exist in resource server.")
 
-        val drive: Drive = drivesRepository.findById(UUIDType.fromString(id)).getOrNull() ?: throw NotFoundError("Drive with id $id not found.")
+        val drive: Drive = drivesRepository.findById(UUIDType.fromString(driveId)).getOrNull() ?: throw NotFoundError("Drive with id $driveId not found.")
         if(drive.driver.id != user.id && drive.passengers.none { it.id == user.id }) throw ForbiddenError("UserToken id does neither match the driver id nor any of the passenger ids.")
 
         val car: Car = drive.car
-        if (car.image == null) throw NotFoundError("Car of drive with id $id has no image.")
+        if (car.image == null) throw NotFoundError("Car of drive with id $driveId has no image.")
 
         try {
-            val image:ByteArray = imagesRepository.getById(car.image!!.id, if(quality == QualityDP.Preview) ImagesRepository.Quality.Preview else ImagesRepository.Quality.Full).getOrNull() ?: throw NotFoundError("Image not found.")
+            val image:ByteArray = imagesRepository.getById(car.image!!.id, quality.toQuality()).getOrNull() ?: throw NotFoundError("Image not found.")
             return ResponseEntity.ok().contentType(MediaType.IMAGE_JPEG).body(image)
         } catch (error: ImageDirectoryMissingError) {
             throw NotFoundError(error.message!!)
@@ -97,21 +95,21 @@ private class DrivesCommunicator(
 
     @Operation(description = "Update the actual departure or the arrival of a specific drive. If the actual departure was updated once, it must not be updated again. The same applies to the arrival.")
     @CommonApiResponses @NoContentApiResponse @NotFoundApiResponse
-    @PatchMapping("{id}")
-    fun updateDrive(@PathVariable @UUID id:String, @RequestBody @Valid driveUpdate: DriveUpdateDP, userToken: UserToken): ResponseEntity<Void>
+    @PatchMapping("{driveId}")
+    fun updateDrive(@PathVariable @UUID driveId:String, @RequestBody @Valid driveUpdate: DriveUpdateDP, userToken: UserToken): ResponseEntity<Void>
     {
         val user: User = usersRepository.findById(java.util.UUID.fromString(userToken.id)).getOrNull() ?: throw ForbiddenError("User with id ${userToken.id} does not exist in resource server.")
 
-        val drive: Drive = drivesRepository.findById(java.util.UUID.fromString(id)).getOrNull() ?: throw NotFoundError("Drive with id $id not found.")
+        val drive: Drive = drivesRepository.findById(java.util.UUID.fromString(driveId)).getOrNull() ?: throw NotFoundError("Drive with id $driveId not found.")
         if(drive.driver.id != user.id) throw ForbiddenError("UserToken id does not match the driver id.")
-        if(drive.isCancelled) throw ForbiddenError("Drive with id $id is cancelled.")
+        if(drive.isCancelled) throw ForbiddenError("Drive with id $driveId is cancelled.")
 
         driveUpdate.actualDeparture?.let {
-            if(drive.actualDeparture != null) throw ForbiddenError("Actual departure of drive with id $id was already updated.")
+            if(drive.actualDeparture != null) throw ForbiddenError("Actual departure of drive with id $driveId was already updated.")
             drive.actualDeparture = ZonedDateTime.parse(it)
         }
         driveUpdate.actualArrival?.let {
-            if(drive.actualArrival != null) throw ForbiddenError("Actual arrival of drive with id $id was already updated.")
+            if(drive.actualArrival != null) throw ForbiddenError("Actual arrival of drive with id $driveId was already updated.")
             drive.actualArrival = ZonedDateTime.parse(it)
         }
 
@@ -128,7 +126,7 @@ private class DrivesCommunicator(
         val user: User = usersRepository.findById(UUIDType.fromString(userToken.id)).getOrNull() ?: throw ForbiddenError("User with id ${userToken.id} does not exist in resource server.")
 
         val drive: Drive = drivesRepository.findById(UUIDType.fromString(driveId)).getOrNull() ?: throw NotFoundError("Drive with id $driveId not found.")
-        if(drive.passengers.none { it.id == user.id }) throw ForbiddenError("User is not a passenger of this drive.")
+        if(drive.passengers.none { it.id == user.id }) throw ForbiddenError("User with id ${user.id} is not a passenger of drive with id $driveId.")
         if(drive.isCancelled) throw ForbiddenError("Drive with id $driveId is cancelled.")
         try{
             drive.route.confirmUserStop(user.id)
@@ -151,10 +149,10 @@ private class DrivesCommunicator(
         val user: User = usersRepository.findById(UUIDType.fromString(userToken.id)).getOrNull() ?: throw ForbiddenError("User with id ${userToken.id} does not exist in resource server.")
 
         val drive: Drive = drivesRepository.findById(UUIDType.fromString(driveId)).getOrNull() ?: throw NotFoundError("Drive with id $driveId not found.")
-        if(drive.passengers.none { it.id == user.id }) throw ForbiddenError("User is not a passenger of this drive.")
         if(drive.isCancelled) throw ForbiddenError("Drive with id $driveId is cancelled.")
         try{
             drive.route.cancelUserStop(user.id)
+            drive.removePassenger(user)
         } catch(error: NotAvailableError){
             throw NotFoundError(error.message!!)
         }
@@ -166,13 +164,13 @@ private class DrivesCommunicator(
 
     @Operation(description = "Cancel a specific drive.")
     @CommonApiResponses @NoContentApiResponse @NotFoundApiResponse
-    @PostMapping("{id}/cancellation")
-    fun cancelDrive(@PathVariable @UUID id:String, userToken: UserToken): ResponseEntity<Void>
+    @PostMapping("{driveId}/cancellation")
+    fun cancelDrive(@PathVariable @UUID driveId:String, userToken: UserToken): ResponseEntity<Void>
     {
         val user: User = usersRepository.findById(UUIDType.fromString(userToken.id)).getOrNull() ?: throw ForbiddenError("User with id ${userToken.id} does not exist in resource server.")
-        val drive: Drive = drivesRepository.findById(UUIDType.fromString(id)).getOrNull() ?: throw NotFoundError("Drive with id $id not found.")
-        if(drive.driver.id != user.id) throw ForbiddenError("User with id ${user.id} is not the driver of drive with id $id.")
-        if(drive.isCancelled) throw ForbiddenError("Drive with id $id is already cancelled.")
+        val drive: Drive = drivesRepository.findById(UUIDType.fromString(driveId)).getOrNull() ?: throw NotFoundError("Drive with id $driveId not found.")
+        if(drive.driver.id != user.id) throw ForbiddenError("User with id ${user.id} is not the driver of drive with id $driveId.")
+        if(drive.isCancelled) throw ForbiddenError("Drive with id $driveId is already cancelled.")
 
         drive.isCancelled = true
         drivesRepository.save(drive)

@@ -91,7 +91,7 @@ private class DriveOffersCommunicator(
                         SortingDirectionDP.Ascending -> Sort.Direction.ASC
                         SortingDirectionDP.Descending -> Sort.Direction.DESC
                     },
-                    ScheduleTime::time.name
+                    "scheduleTime.time"
                 )
             )
             .filter { it.route.isCoordinateOnRoute(startCoordinate, tolerance) && it.route.isCoordinateOnRoute(destinationCoordinate, tolerance) }
@@ -128,16 +128,16 @@ private class DriveOffersCommunicator(
         ]
     )
     @CommonApiResponses @NotFoundApiResponse
-    @GetMapping("{id}/car/image")
-    fun getImageOfCar(@PathVariable @UUID id: String, @RequestParam quality: QualityDP, userToken: UserToken): ResponseEntity<ByteArray> {
+    @GetMapping("{driveOfferId}/car/image")
+    fun getImageOfCar(@PathVariable @UUID driveOfferId: String, @RequestParam quality: QualityDP, userToken: UserToken): ResponseEntity<ByteArray> {
         if(!usersRepository.existsById(UUIDType.fromString(userToken.id))) throw ForbiddenError("User with id ${userToken.id} does not exist in resource server.")
 
-        val driveOffer: DriveOffer = driveOffersRepository.findById(UUIDType.fromString(id)).getOrNull() ?: throw NotFoundError("DriveOffer with id $id not found.")
+        val driveOffer: DriveOffer = driveOffersRepository.findById(UUIDType.fromString(driveOfferId)).getOrNull() ?: throw NotFoundError("Drive offer with id $driveOfferId not found.")
 
         val car: Car = driveOffer.car
-        if (car.image == null) throw NotFoundError("Car of drive offer with id $id has no image.")
+        if (car.image == null) throw NotFoundError("Car of drive offer with id $driveOfferId has no image.")
         try {
-            val image:ByteArray = imagesRepository.getById(car.image!!.id, if(quality == QualityDP.Preview) ImagesRepository.Quality.Preview else ImagesRepository.Quality.Full).getOrNull() ?: throw NotFoundError("Image not found.")
+            val image:ByteArray = imagesRepository.getById(car.image!!.id, quality.toQuality()).getOrNull() ?: throw NotFoundError("Image not found.")
             return ResponseEntity.ok().contentType(MediaType.IMAGE_JPEG).body(image)
         } catch (error: ImageDirectoryMissingError) {
             throw NotFoundError(error.message!!)
@@ -304,7 +304,7 @@ private class DriveOffersCommunicator(
         return ResponseEntity.noContent().build()
     }
 
-    @Operation(description = "Get the complete route for a specific drive offer including its passengers with a specific requesting user.")
+    @Operation(description = "Get the complete route for a specific drive offer including its passengers and a specific requesting user.")
     @CommonApiResponses @UnprocessableContentApiResponse @OkApiResponse @NotFoundApiResponse
     @GetMapping("{driveOfferId}/requesting-users/{requestingUserId}/complete-route")
     fun getCompleteRouteWithRequestingUser(@PathVariable @UUID driveOfferId: String, @PathVariable @UUID requestingUserId: String, userToken: UserToken): ResponseEntity<CompleteRoute>
@@ -325,8 +325,8 @@ private class DriveOffersCommunicator(
                     )
                 )
             }
-            is CarpoolDriveOffer -> throw UnprocessableContentError("Drive offer with id $driveOfferId is a CarpoolDriveOffer, so requests are automatically accepted.")
-            else -> { throw InternalServerError("DriveOffer is neither a PublicDriveOffer nor a CarpoolDriveOffer.") }
+            is CarpoolDriveOffer -> throw UnprocessableContentError("Drive offer with id $driveOfferId is a carpool drive offer, so requests are automatically accepted.")
+            else -> { throw InternalServerError("Drive offer is neither a public drive offer nor a carpool drive offer.") }
         }
     }
 }

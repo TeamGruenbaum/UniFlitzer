@@ -13,7 +13,10 @@ import de.uniflitzer.backend.model.User
 import de.uniflitzer.backend.model.errors.MissingActionError
 import de.uniflitzer.backend.model.errors.RepeatedActionError
 import de.uniflitzer.backend.repositories.CarpoolsRepository
+import de.uniflitzer.backend.repositories.ImagesRepository
 import de.uniflitzer.backend.repositories.UsersRepository
+import de.uniflitzer.backend.repositories.errors.FileMissingError
+import de.uniflitzer.backend.repositories.errors.ImageDirectoryMissingError
 import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.annotations.security.SecurityRequirement
 import io.swagger.v3.oas.annotations.tags.Tag
@@ -29,15 +32,14 @@ import org.springframework.web.bind.annotation.*
 import kotlin.jvm.optionals.getOrNull
 import java.util.UUID as UUIDType
 
-@RestController
-@RequestMapping("v1/carpools")
+@RestController @RequestMapping("v1/carpools")
+@Tag(name = "Carpools") @SecurityRequirement(name = "Token Authentication")
 @Validated
 @Transactional(rollbackFor = [Throwable::class])
-@SecurityRequirement(name = "Token Authentication")
-@Tag(name = "Carpools")
 private class CarpoolsCommunicator(
     @field:Autowired private val usersRepository: UsersRepository,
     @field:Autowired private val carpoolsRepository: CarpoolsRepository,
+    @field:Autowired private val imagesRepository: ImagesRepository,
     @field:Autowired private val authenticationAdministrator: Keycloak,
     @field:Autowired private val environment: Environment
     )
@@ -57,26 +59,42 @@ private class CarpoolsCommunicator(
 
     @Operation(description = "Get details of a specific carpool.")
     @CommonApiResponses @OkApiResponse @NotFoundApiResponse
-    @GetMapping("{id}")
-    fun getCarpool(@PathVariable @UUID id:String, userToken: UserToken): ResponseEntity<DetailedCarpoolDP>
+    @GetMapping("{carpoolId}")
+    fun getCarpool(@PathVariable @UUID carpoolId:String, userToken: UserToken): ResponseEntity<DetailedCarpoolDP>
     {
         val user: User = usersRepository.findById(java.util.UUID.fromString(userToken.id)).getOrNull() ?: throw ForbiddenError("User with id ${userToken.id} does not exist in resource server.")
 
-        val carpool: Carpool = carpoolsRepository.findById(UUIDType.fromString(id)).getOrNull() ?: throw NotFoundError("Carpool with id $id not found.")
-        if(carpool.users.none { it.id == user.id }) throw ForbiddenError("User with id ${user.id} is not part of carpool with id $id.")
+        val carpool: Carpool = carpoolsRepository.findById(UUIDType.fromString(carpoolId)).getOrNull() ?: throw NotFoundError("Carpool with id $carpoolId not found.")
+        if(carpool.users.none { it.id == user.id }) throw ForbiddenError("User with id ${user.id} is not part of carpool with id $carpoolId.")
 
         return ResponseEntity.ok(DetailedCarpoolDP.fromCarpool(carpool, user.favoriteUsers))
     }
 
     @Operation(description = "Delete a specific carpool.")
     @CommonApiResponses @NoContentApiResponse @NotFoundApiResponse
-    @DeleteMapping("{id}")
-    fun deleteCarpool(@PathVariable @UUID id: String, userToken: UserToken): ResponseEntity<Void>
+    @DeleteMapping("{carpoolId}")
+    fun deleteCarpool(@PathVariable @UUID carpoolId: String, userToken: UserToken): ResponseEntity<Void>
     {
         val user: User = usersRepository.findById(UUIDType.fromString(userToken.id)).getOrNull() ?: throw ForbiddenError("User with id ${userToken.id} does not exist in resource server.")
 
-        val carpool: Carpool = carpoolsRepository.findById(UUIDType.fromString(id)).getOrNull() ?: throw NotFoundError("Carpool with id $id not found.")
-        if(carpool.users.none { it.id == user.id }) throw ForbiddenError("User with id ${user.id} is not part of carpool with id $id.")
+        val carpool: Carpool = carpoolsRepository.findById(UUIDType.fromString(carpoolId)).getOrNull() ?: throw NotFoundError("Carpool with id $carpoolId not found.")
+        if(carpool.users.none { it.id == user.id }) throw ForbiddenError("User with id ${user.id} is not part of carpool with id $carpoolId.")
+
+        var driveOfferCarImageId: UUIDType
+        carpool.driveOffers.forEach {
+            if(it.car.image != null) {
+                try {
+                    driveOfferCarImageId = it.car.image!!.id
+                    it.car.image = null
+                    imagesRepository.deleteById(driveOfferCarImageId)
+                } catch (error: ImageDirectoryMissingError) {
+                    throw NotFoundError(error.message ?: "Image directory not found.")
+                }
+                catch (error: FileMissingError) {
+                    throw NotFoundError(error.message ?: "Image of car of drive offer with id ${it.id} not found.")
+                }
+            }
+        }
 
         carpool.drives.filter { it.actualDeparture == null && it.actualArrival == null }.forEach { it.isCancelled = true }
         carpool.sentInvites.forEach {
@@ -106,7 +124,7 @@ private class CarpoolsCommunicator(
         val users: List<UserRepresentation> = authenticationAdministrator.realm(
             environment.getProperty("keycloak.realm.name") ?: throw InternalServerError("Keycloak realm name not defined.")
         ).users().search(username)
-        if (users.isEmpty()) throw NotFoundError("User with id ${userToken.id} does not exist in identity server.")
+        if (users.isEmpty()) throw NotFoundError("User with username ${username} does not exist in identity server.")
 
         val invitedUser: User = usersRepository.findById(UUIDType.fromString(users[0].id)).getOrNull() ?: throw NotFoundError("User with id ${users[0].id} does not exist in resource server.")
         try {

@@ -164,12 +164,12 @@ private class UsersCommunicator(
 
     @Operation(description = "Create an image for a specific user.")
     @CommonApiResponses @CreatedApiResponse @NotFoundApiResponse
-    @PostMapping("{id}/image", consumes = [MediaType.MULTIPART_FORM_DATA_VALUE])
-    fun createImageForUser(@PathVariable @UUID id: String, @RequestPart image: MultipartFile, userToken: UserToken): ResponseEntity<IdDP> {
-        if (userToken.id != id) throw ForbiddenError("UserToken id does not match the user id.")
+    @PostMapping("{userId}/image", consumes = [MediaType.MULTIPART_FORM_DATA_VALUE])
+    fun createImageForUser(@PathVariable @UUID userId: String, @RequestPart image: MultipartFile, userToken: UserToken): ResponseEntity<IdDP> {
+        if (userToken.id != userId) throw ForbiddenError("UserToken id does not match the user id.")
         val user: User = usersRepository.findById(UUIDType.fromString(userToken.id)).getOrNull() ?: throw ForbiddenError("User with id ${userToken.id} does not exist in resource server.")
 
-        if(user.profilePicture != null) throw BadRequestError(listOf("User already has a profile picture."))
+        if(user.profilePicture != null) throw BadRequestError(listOf("User with id $userId already has a profile picture."))
 
         val imageEntity:Image
         try {
@@ -188,11 +188,11 @@ private class UsersCommunicator(
 
     @Operation(description = "Delete the image of a specific user.")
     @CommonApiResponses @NoContentApiResponse @NotFoundApiResponse
-    @DeleteMapping("{id}/image")
-    fun deleteImageOfUser(@PathVariable @UUID id: String, userToken: UserToken): ResponseEntity<Void> {
-        if (userToken.id != id) throw ForbiddenError("UserToken id does not match the user id.")
+    @DeleteMapping("{userId}/image")
+    fun deleteImageOfUser(@PathVariable @UUID userId: String, userToken: UserToken): ResponseEntity<Void> {
+        if (userToken.id != userId) throw ForbiddenError("UserToken id does not match the user id.")
         val user: User = usersRepository.findById(UUIDType.fromString(userToken.id)).getOrNull() ?: throw ForbiddenError("User with id ${userToken.id} does not exist in resource server.")
-        if(user.profilePicture == null) throw NotFoundError("User has no profile picture.")
+        if(user.profilePicture == null) throw NotFoundError("User with id $userId has no profile picture.")
 
         try {
             val profilePictureId:UUIDType = user.profilePicture!!.id
@@ -201,10 +201,10 @@ private class UsersCommunicator(
             imagesRepository.deleteById(profilePictureId)
         }
         catch (error: ImageDirectoryMissingError) {
-            throw NotFoundError(error.message ?: "Image not found.")
+            throw NotFoundError(error.message ?: "Image directory not found.")
         }
         catch (error: FileMissingError) {
-            throw NotFoundError(error.message ?: "Image not found.")
+            throw NotFoundError(error.message ?: "Image of user with id $userId not found.")
         }
         return ResponseEntity.noContent().build()
     }
@@ -220,15 +220,15 @@ private class UsersCommunicator(
     )
 
     @CommonApiResponses @NotFoundApiResponse
-    @GetMapping("{id}/image")
-    fun getImageOfUser(@PathVariable @UUID id: String, @RequestParam quality: QualityDP, userToken: UserToken): ResponseEntity<ByteArray> {
-        if (userToken.id != id) throw ForbiddenError("UserToken id does not match the user id.")
+    @GetMapping("{userId}/image")
+    fun getImageOfUser(@PathVariable @UUID userId: String, @RequestParam quality: QualityDP, userToken: UserToken): ResponseEntity<ByteArray> {
+        if (userToken.id != userId) throw ForbiddenError("UserToken id does not match the user id.")
         val user: User = usersRepository.findById(UUIDType.fromString(userToken.id)).getOrNull() ?: throw ForbiddenError("User with id ${userToken.id} does not exist in resource server.")
 
-        if (user.profilePicture == null) throw NotFoundError("User has no profile picture.")
+        if (user.profilePicture == null) throw NotFoundError("User with id $userId has no profile picture.")
 
         try {
-            val image:ByteArray = imagesRepository.getById(user.profilePicture!!.id, if(quality == QualityDP.Preview) ImagesRepository.Quality.Preview else ImagesRepository.Quality.Full).getOrNull() ?: throw NotFoundError("Image not found.")
+            val image:ByteArray = imagesRepository.getById(user.profilePicture!!.id, quality.toQuality()).getOrNull() ?: throw NotFoundError("Image of user with id $userId not found.")
             return ResponseEntity.ok().contentType(MediaType.IMAGE_JPEG).body(image)
         } catch (error: ImageDirectoryMissingError) {
             throw NotFoundError(error.message!!)
@@ -237,10 +237,10 @@ private class UsersCommunicator(
 
     @Operation(description = "Create a car for a specific user.")
     @CommonApiResponses @CreatedApiResponse
-    @PostMapping("{id}/cars")
-    fun createCarForUser(@PathVariable @UUID id: String, @RequestBody @Valid carCreation: CarCreationDP, userToken: UserToken): ResponseEntity<Void> {
-        if(userToken.id != id) throw ForbiddenError("The user can only create a car for themselves.")
-        val actingUser: User = usersRepository.findById(UUIDType.fromString(id)).getOrNull() ?: throw ForbiddenError("User with id $id does not exist in resource server.")
+    @PostMapping("{userId}/cars")
+    fun createCarForUser(@PathVariable @UUID userId: String, @RequestBody @Valid carCreation: CarCreationDP, userToken: UserToken): ResponseEntity<Void> {
+        if(userToken.id != userId) throw ForbiddenError("The user can only create a car for themselves.")
+        val actingUser: User = usersRepository.findById(UUIDType.fromString(userId)).getOrNull() ?: throw ForbiddenError("User with id $userId does not exist in resource server.")
 
         actingUser.addCar(carCreation.toCar())
         usersRepository.save(actingUser)
@@ -257,7 +257,7 @@ private class UsersCommunicator(
 
         val car: Car
         try { car = user.getCarByIndex(carIndex) } catch (error: NotAvailableError) { throw NotFoundError(error.message!!) }
-        if(car.image != null) throw BadRequestError(listOf("Car already has an image."))
+        if(car.image != null) throw BadRequestError(listOf("Car with index $carIndex of user with id $userId already has an image."))
 
         val imageEntity:Image
         try {
@@ -294,7 +294,7 @@ private class UsersCommunicator(
         if (car.image == null) throw NotFoundError("Car with index $carIndex of user with id $userId has no image.")
 
         try {
-            val image:ByteArray = imagesRepository.getById(car.image!!.id, if(quality == QualityDP.Preview) ImagesRepository.Quality.Preview else ImagesRepository.Quality.Full).getOrNull() ?: throw NotFoundError("Image not found.")
+            val image:ByteArray = imagesRepository.getById(car.image!!.id, quality.toQuality()).getOrNull() ?: throw NotFoundError("Image of car with index $carIndex of user with id $userId not found.")
             return ResponseEntity.ok().contentType(MediaType.IMAGE_JPEG).body(image)
         } catch (error: ImageDirectoryMissingError) {
             throw NotFoundError(error.message!!)
@@ -448,10 +448,10 @@ private class UsersCommunicator(
 
     @Operation(description = "Get all drive requests of a specific user.")
     @CommonApiResponses @OkApiResponse
-    @GetMapping("{id}/drive-requests")
-    fun getDriveRequestsOfUser(@PathVariable @UUID id: String, @RequestParam @Min(1) pageNumber: Int, @RequestParam @Min(1) @Max(50) perPage: Int, @RequestParam sortingDirection: SortingDirectionDP = SortingDirectionDP.Ascending, userToken: UserToken): ResponseEntity<PageDP<PartialDriveRequestDP>> {
+    @GetMapping("{userId}/drive-requests")
+    fun getDriveRequestsOfUser(@PathVariable @UUID userId: String, @RequestParam @Min(1) pageNumber: Int, @RequestParam @Min(1) @Max(50) perPage: Int, @RequestParam sortingDirection: SortingDirectionDP = SortingDirectionDP.Ascending, userToken: UserToken): ResponseEntity<PageDP<PartialDriveRequestDP>> {
         val user: User = usersRepository.findById(UUIDType.fromString(userToken.id)).getOrNull() ?: throw ForbiddenError("User with id ${userToken.id} does not exist in resource server.")
-        if(user.id != UUIDType.fromString(id)) throw ForbiddenError("The user can only get his own drive requests.")
+        if(user.id != UUIDType.fromString(userId)) throw ForbiddenError("The user can only get his own drive requests.")
 
         val driveRequests: List<DriveRequest> = driveRequestsRepository.findAllDriveRequests(
             Sort.by(
@@ -459,7 +459,7 @@ private class UsersCommunicator(
                     SortingDirectionDP.Ascending -> Sort.Direction.ASC
                     SortingDirectionDP.Descending -> Sort.Direction.DESC
                 },
-                ScheduleTime::time.name
+                "scheduleTime.time"
             ),
             user.id
         )
@@ -481,13 +481,13 @@ private class UsersCommunicator(
 
     @Operation(description = "Get all drives of a specific user.")
     @CommonApiResponses @OkApiResponse
-    @GetMapping("{id}/drives")
-    fun getDrivesOfUser(@PathVariable @UUID id: String, @RequestParam @Min(1) pageNumber: Int, @RequestParam @Min(1) @Max(50) perPage: Int, @RequestParam sortingDirection: SortingDirectionDP = SortingDirectionDP.Ascending, userToken: UserToken): ResponseEntity<PageDP<PartialDriveDP>> {
+    @GetMapping("{userId}/drives")
+    fun getDrivesOfUser(@PathVariable @UUID userId: String, @RequestParam @Min(1) pageNumber: Int, @RequestParam @Min(1) @Max(50) perPage: Int, @RequestParam sortingDirection: SortingDirectionDP = SortingDirectionDP.Ascending, userToken: UserToken): ResponseEntity<PageDP<PartialDriveDP>> {
         val user: User = usersRepository.findById(UUIDType.fromString(userToken.id)).getOrNull() ?: throw ForbiddenError("User with id ${userToken.id} does not exist in resource server.")
-        if(user.id != UUIDType.fromString(id)) throw ForbiddenError("The user can only get his own drives.")
+        if(user.id != UUIDType.fromString(userId)) throw ForbiddenError("The user can only get his own drives.")
 
         val sort: Sort = if (sortingDirection == SortingDirectionDP.Ascending) Sort.by("plannedDeparture").ascending() else Sort.by("plannedDeparture").descending()
-        val page: Page<Drive> = drivesRepository.findDrives(PageRequest.of(pageNumber - 1, perPage, sort), user.id)
+        val page: Page<Drive> = drivesRepository.findAllDrives(PageRequest.of(pageNumber - 1, perPage, sort), user.id)
 
         return ResponseEntity.ok(
             PartialDrivePageDP(page.totalPages, page.content.map { PartialDriveDP.fromDrive(it) })
@@ -496,13 +496,13 @@ private class UsersCommunicator(
 
     @Operation(description = "Get all carpools of a specific user.")
     @CommonApiResponses @OkApiResponse
-    @GetMapping("{id}/carpools")
-    fun getCarpoolsOfUser(@PathVariable @UUID id: String, @RequestParam @Min(1) pageNumber: Int, @RequestParam @Min(1) @Max(50) perPage: Int, @RequestParam sortingDirection: SortingDirectionDP = SortingDirectionDP.Ascending, userToken: UserToken): ResponseEntity<PageDP<PartialCarpoolDP>> {
+    @GetMapping("{userId}/carpools")
+    fun getCarpoolsOfUser(@PathVariable @UUID userId: String, @RequestParam @Min(1) pageNumber: Int, @RequestParam @Min(1) @Max(50) perPage: Int, @RequestParam sortingDirection: SortingDirectionDP = SortingDirectionDP.Ascending, userToken: UserToken): ResponseEntity<PageDP<PartialCarpoolDP>> {
         val user: User = usersRepository.findById(UUIDType.fromString(userToken.id)).getOrNull() ?: throw ForbiddenError("User with id ${userToken.id} does not exist in resource server.")
-        if(user.id != UUIDType.fromString(id)) throw ForbiddenError("The user can only get his own carpools.")
+        if(user.id != UUIDType.fromString(userId)) throw ForbiddenError("The user can only get his own carpools.")
 
         val sort: Sort = if (sortingDirection == SortingDirectionDP.Ascending) Sort.by("name").ascending() else Sort.by("name").descending()
-        val page: Page<Carpool> = carpoolsRepository.findCarpools(PageRequest.of(pageNumber - 1, perPage, sort), user.id)
+        val page: Page<Carpool> = carpoolsRepository.findAllCarpools(PageRequest.of(pageNumber - 1, perPage, sort), user.id)
 
         return ResponseEntity.ok(
             PartialCarpoolPageDP(page.totalPages, page.content.map { PartialCarpoolDP.fromCarpool(it) })
@@ -511,28 +511,28 @@ private class UsersCommunicator(
 
     @Operation(description = "Create a rating for a specific user.")
     @CommonApiResponses @CreatedApiResponse @NotFoundApiResponse
-    @PostMapping("{id}/ratings")
-    fun createRatingForUser(@PathVariable @UUID id: String, @RequestBody @Valid ratingCreation: RatingCreationDP, userToken: UserToken): ResponseEntity<Void>
+    @PostMapping("{userId}/ratings")
+    fun createRatingForUser(@PathVariable @UUID userId: String, @RequestBody @Valid ratingCreation: RatingCreationDP, userToken: UserToken): ResponseEntity<Void>
     {
-        if(userToken.id == id) throw ForbiddenError("The user cannot create a rating for himself.")
+        if(userToken.id == userId) throw ForbiddenError("The user cannot create a rating for himself.")
         val author: User = usersRepository.findById(UUIDType.fromString(userToken.id)).getOrNull() ?: throw ForbiddenError("User with id ${userToken.id} does not exist in resource server.")
-        val ratedUser: User = usersRepository.findById(UUIDType.fromString(id)).getOrNull() ?: throw NotFoundError("User with id $id does not exist in resource server.")
+        val ratedUser: User = usersRepository.findById(UUIDType.fromString(userId)).getOrNull() ?: throw NotFoundError("User with id $userId does not exist in resource server.")
 
         when(ratingCreation.role) {
             RoleDP.Driver -> {
                 if(ratedUser.drivesAsDriver
-                    .filter { (it.actualArrival?.isAfter(ZonedDateTime.now().minusDays(3)) ?: false) && (it.actualArrival?.isBefore(ZonedDateTime.now()) ?: false) }
+                    .filter { (it.actualArrival?.isAfter(ZonedDateTime.now().minusDays(3)) == true) && (it.actualArrival?.isBefore(ZonedDateTime.now()) == true) }
                     .none { it.passengers.contains(author) })
-                    throw BadRequestError(listOf("User with id ${ratedUser.id} was no driver of user wit id ${author.id}."))
+                    throw BadRequestError(listOf("User with id ${ratedUser.id} was no driver of user wit id ${author.id} in the last three days."))
 
                 if(ratedUser.ratings.any { it.author == author && it.role == Role.Driver && it.created.isAfter(ZonedDateTime.now().minusDays(3)) })
                     throw BadRequestError(listOf("User with id ${author.id} already rated user with id ${ratedUser.id} as driver in the last three days."))
             }
             RoleDP.Passenger -> {
                 if(ratedUser.drivesAsPassenger
-                    .filter { (it.actualArrival?.isAfter(ZonedDateTime.now().minusDays(3)) ?: false) && (it.actualArrival?.isBefore(ZonedDateTime.now()) ?: false) }
+                    .filter { (it.actualArrival?.isAfter(ZonedDateTime.now().minusDays(3)) == true) && (it.actualArrival?.isBefore(ZonedDateTime.now()) == true) }
                     .none { it.driver == author })
-                    throw BadRequestError(listOf("User with id ${ratedUser.id} was no passenger of user wit id ${author.id}."))
+                    throw BadRequestError(listOf("User with id ${ratedUser.id} was no passenger of user wit id ${author.id} in the last three days."))
 
                 if(ratedUser.ratings.any { it.author == author && it.role == Role.Passenger && it.created.isAfter(ZonedDateTime.now().minusDays(3)) })
                     throw BadRequestError(listOf("User with id ${author.id} already rated user with id ${ratedUser.id} as passenger in the last three days."))

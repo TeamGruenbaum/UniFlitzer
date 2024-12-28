@@ -5,12 +5,12 @@ import de.uniflitzer.backend.repositories.errors.*
 import fi.solita.clamav.ClamAVClient
 import jakarta.persistence.EntityManager
 import jakarta.persistence.PersistenceContext
-import jakarta.transaction.Transactional
 import net.coobird.thumbnailator.Thumbnails
 import org.apache.tika.Tika
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.core.env.Environment
 import org.springframework.stereotype.Component
+import org.springframework.transaction.annotation.Transactional
 import org.springframework.web.multipart.MultipartFile
 import java.io.File
 import java.nio.file.Files
@@ -19,11 +19,11 @@ import java.nio.file.attribute.PosixFilePermission
 import java.util.*
 
 @Component
+@Transactional(rollbackFor = [Throwable::class])
 class ImagesRepositoryImpl(@field:Autowired private val environment:Environment): ImagesRepository {
     @PersistenceContext
     private lateinit var entityManager: EntityManager
 
-    @Transactional
     override fun save(multipartFile: MultipartFile): Image {
         val reply: ByteArray
         try {
@@ -75,7 +75,6 @@ class ImagesRepositoryImpl(@field:Autowired private val environment:Environment)
         return image
     }
 
-    @Transactional
     override fun getById(id: UUID, quality: ImagesRepository.Quality): Optional<ByteArray> {
         val image: Image = entityManager.find(Image::class.java, id)
 
@@ -90,7 +89,6 @@ class ImagesRepositoryImpl(@field:Autowired private val environment:Environment)
         return Optional.of(Files.readAllBytes(file.toPath()))
     }
 
-    @Transactional
     override fun deleteById(id: UUID) {
         val image: Image = entityManager.find(Image::class.java, id)
 
@@ -99,20 +97,19 @@ class ImagesRepositoryImpl(@field:Autowired private val environment:Environment)
 
         val fileFullQuality: File = File(imagesDirectory.toString(), image.fileNameFullQuality)
         if (!fileFullQuality.exists()) {
-            throw FileMissingError("Full quality image does not exist.")
+            throw FileMissingError("Full quality image with id $id does not exist.")
         }
         val filePreviewQuality: File = File(imagesDirectory.toString(), image.fileNamePreviewQuality)
         if (!filePreviewQuality.exists()) {
-            throw FileMissingError("Preview quality image does not exist.")
+            throw FileMissingError("Preview quality image with id $id does not exist.")
         }
 
-        fileFullQuality.delete()
-        filePreviewQuality.delete()
+        if (!fileFullQuality.delete()) throw FileDeletionError("Full quality image with id $id could not be deleted.")
+        if (!filePreviewQuality.delete()) throw FileDeletionError("Preview quality image with id $id could not be deleted.")
 
         entityManager.remove(image)
     }
 
-    @Transactional
     override fun copy(image: Image): Image {
         val imagesDirectory = Paths.get(environment.getProperty("directory.images") ?: throw ApplicationPropertyMissingError("Property directory.images is missing."))
         if (!Files.exists(imagesDirectory)) throw ImageDirectoryMissingError("Image directory does not exist.")
@@ -121,7 +118,10 @@ class ImagesRepositoryImpl(@field:Autowired private val environment:Environment)
 
         val copiedFileFullQuality = File(imagesDirectory.toString(), copiedImage.fileNameFullQuality)
         val copiedFilePreviewQuality = File(imagesDirectory.toString(), copiedImage.fileNamePreviewQuality)
-        Files.copy(File(imagesDirectory.toString(), image.fileNameFullQuality).toPath(), copiedFileFullQuality.toPath())
+        Files.copy(
+            File(imagesDirectory.toString(), image.fileNameFullQuality).toPath(),
+            copiedFileFullQuality.toPath()
+        )
         Files.copy(
             File(imagesDirectory.toString(), image.fileNamePreviewQuality).toPath(),
             copiedFilePreviewQuality.toPath()
