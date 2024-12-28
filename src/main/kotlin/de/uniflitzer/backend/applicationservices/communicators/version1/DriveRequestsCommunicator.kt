@@ -201,7 +201,7 @@ private class DriveRequestsCommunicator(
                 {
                     is CarpoolDriveOfferCreationDP ->
                     {
-                        val originalCar:Car = try{ user.getCarByIndex(driveOfferCreation.carIndex) } catch(error:NotAvailableError){ throw NotFoundError(error.message!!) }
+                        val originalCar:Car = try{ user.getCarByIndex(driveOfferCreation.carIndex.toUInt()) } catch(error:NotAvailableError){ throw NotFoundError(error.message!!) }
                         driveOffer = CarpoolDriveOffer(
                             user,
                             Car(originalCar.brand, originalCar.model, originalCar.color, originalCar.licencePlate),
@@ -223,7 +223,7 @@ private class DriveRequestsCommunicator(
                 {
                     is CarpoolDriveOfferCreationDP -> { throw UnprocessableContentError("Carpool drive offer creation is not allowed for public drive requests.") }
                     is PublicDriveOfferCreationDP -> {
-                        val originalCar:Car = try{ user.getCarByIndex(driveOfferCreation.carIndex) } catch(error:NotAvailableError){ throw NotFoundError(error.message!!) }
+                        val originalCar:Car = try{ user.getCarByIndex(driveOfferCreation.carIndex.toUInt()) } catch(error:NotAvailableError){ throw NotFoundError(error.message!!) }
                         driveOffer = PublicDriveOffer(
                             user,
                             Car(originalCar.brand, originalCar.model, originalCar.color, originalCar.licencePlate),

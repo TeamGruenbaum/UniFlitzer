@@ -10,7 +10,9 @@ import de.uniflitzer.backend.applicationservices.communicators.version1.errors.N
 import de.uniflitzer.backend.applicationservices.communicators.version1.valuechecker.UUID
 import de.uniflitzer.backend.applicationservices.geography.GeographyService
 import de.uniflitzer.backend.model.*
+import de.uniflitzer.backend.model.errors.ConflictingActionError
 import de.uniflitzer.backend.model.errors.NotAvailableError
+import de.uniflitzer.backend.model.errors.RepeatedActionError
 import de.uniflitzer.backend.repositories.*
 import de.uniflitzer.backend.repositories.errors.*
 import io.swagger.v3.oas.annotations.Operation
@@ -41,14 +43,10 @@ import java.time.ZonedDateTime
 import kotlin.jvm.optionals.getOrNull
 import java.util.UUID as UUIDType
 
-
-
-@SecurityRequirement(name = "Token Authentication")
-@Transactional(rollbackFor = [Throwable::class])
-@RestController
-@RequestMapping("v1/users")
+@RestController @RequestMapping("v1/users")
+@Tag(name = "User") @SecurityRequirement(name = "Token Authentication")
 @Validated
-@Tag(name = "User")
+@Transactional(rollbackFor = [Throwable::class])
 private class UsersCommunicator(
     @field:Autowired private val usersRepository: UsersRepository,
     @field:Autowired private val drivesRepository: DrivesRepository,
@@ -61,10 +59,10 @@ private class UsersCommunicator(
 ) {
     @Operation(description = "Get details of a specific user.")
     @CommonApiResponses @OkApiResponse @NotFoundApiResponse
-    @GetMapping("{id}")
-    fun getUser(@PathVariable @UUID id: String, userToken: UserToken): ResponseEntity<DetailedUserDP> {
+    @GetMapping("{userId}")
+    fun getUser(@PathVariable @UUID userId: String, userToken: UserToken): ResponseEntity<DetailedUserDP> {
         if(!usersRepository.existsById(UUIDType.fromString(userToken.id))) throw ForbiddenError("User with id ${userToken.id} does not exist in resource server.")
-        val searchedUser: User = usersRepository.findById(UUIDType.fromString(id)).getOrNull() ?: throw NotFoundError("User with id $id not found.")
+        val searchedUser: User = usersRepository.findById(UUIDType.fromString(userId)).getOrNull() ?: throw NotFoundError("User with id $userId not found.")
 
         return ResponseEntity.ok(
             DetailedUserDP(
@@ -105,11 +103,13 @@ private class UsersCommunicator(
         )
         usersRepository.save(newUser)
 
-        val userResource: UserResource = authenticationAdministrator.realm(
-            environment.getProperty("keycloak.realm.name") ?: throw InternalServerError("Keycloak realm name not defined.")
-        ).users().get(userToken.id)
-        val user: UserRepresentation  = userResource.toRepresentation();
-        user.singleAttribute<UserRepresentation>("hasUserInResourceServer", "true")
+        val userResource: UserResource = authenticationAdministrator
+            .realm(environment.getProperty("keycloak.realm.name") ?: throw InternalServerError("Keycloak realm name not defined."))
+            .users()
+            .get(userToken.id)
+        val user: UserRepresentation = userResource
+            .toRepresentation()
+            .singleAttribute<UserRepresentation>("hasUserInResourceServer", "true")
         userResource.update(user);
 
         return ResponseEntity.status(HttpStatus.CREATED).body(IdDP(newUser.id.toString()))
@@ -117,12 +117,12 @@ private class UsersCommunicator(
 
     @Operation(description = "Delete a specific user.")
     @CommonApiResponses @NoContentApiResponse @NotFoundApiResponse
-    @DeleteMapping("{id}")
-    fun deleteUser(@PathVariable @UUID id: String, userToken: UserToken): ResponseEntity<Void> {
-        if(userToken.id != id) throw ForbiddenError("The User can only its own account.")
-        val actingUser: User = usersRepository.findById(UUIDType.fromString(id)).getOrNull() ?: throw NotFoundError("User with id $id not found.")
+    @DeleteMapping("{userId}")
+    fun deleteUser(@PathVariable @UUID userId: String, userToken: UserToken): ResponseEntity<Void> {
+        if(userToken.id != userId) throw ForbiddenError("The User can only delete its own account.")
+        val actingUser: User = usersRepository.findById(UUIDType.fromString(userId)).getOrNull() ?: throw NotFoundError("User with id $userId not found.")
 
-        imagesRepository.deleteById(UUIDType.fromString(id))
+        actingUser.profilePicture?.id?.let { imagesRepository.deleteById(it) }
         actingUser.cars.forEach { car -> car.image?.let { image -> imagesRepository.deleteById(image.id) } }
         usersRepository.findAll().forEach { it.removeRatingOfUser(actingUser) }
         actingUser.driveOffersAsPassenger.forEach { it.removePassenger(actingUser) }
@@ -133,17 +133,17 @@ private class UsersCommunicator(
         authenticationAdministrator
             .realm(environment.getProperty("keycloak.realm.name") ?: throw InternalServerError("Keycloak realm name not defined."))
             .users()
-            .delete(userToken.id)
+            .delete(userId)
 
         return ResponseEntity.noContent().build<Void>()
     }
 
     @Operation(description = "Update a specific user.")
     @CommonApiResponses @NoContentApiResponse
-    @PatchMapping("{id}")
-    fun updateUser(@PathVariable @UUID id: String, @RequestBody @Valid userUpdate: UserUpdateDP, userToken: UserToken): ResponseEntity<Void> {
-        if(userToken.id != id) throw ForbiddenError("The User can only update their own data.")
-        val actingUser: User = usersRepository.findById(UUIDType.fromString(id)).getOrNull() ?: throw ForbiddenError("User with id ${userToken.id} does not exist in resource server.")
+    @PatchMapping("{userId}")
+    fun updateUser(@PathVariable @UUID userId: String, @RequestBody @Valid userUpdate: UserUpdateDP, userToken: UserToken): ResponseEntity<Void> {
+        if(userToken.id != userId) throw ForbiddenError("The User can only update their own data.")
+        val actingUser: User = usersRepository.findById(UUIDType.fromString(userId)).getOrNull() ?: throw ForbiddenError("User with id $userId does not exist in resource server.")
 
         actingUser.apply{
             userUpdate.firstName?.let { actingUser.firstName = FirstName(it) }
@@ -218,7 +218,6 @@ private class UsersCommunicator(
             )
         ]
     )
-
     @CommonApiResponses @NotFoundApiResponse
     @GetMapping("{userId}/image")
     fun getImageOfUser(@PathVariable @UUID userId: String, @RequestParam quality: QualityDP, userToken: UserToken): ResponseEntity<ByteArray> {
@@ -256,7 +255,7 @@ private class UsersCommunicator(
         val user: User = usersRepository.findById(UUIDType.fromString(userToken.id)).getOrNull() ?: throw ForbiddenError("User with id ${userToken.id} does not exist in resource server.")
 
         val car: Car
-        try { car = user.getCarByIndex(carIndex) } catch (error: NotAvailableError) { throw NotFoundError(error.message!!) }
+        try { car = user.getCarByIndex(carIndex.toUInt()) } catch (error: NotAvailableError) { throw NotFoundError(error.message!!) }
         if(car.image != null) throw BadRequestError(listOf("Car with index $carIndex of user with id $userId already has an image."))
 
         val imageEntity:Image
@@ -290,7 +289,7 @@ private class UsersCommunicator(
         val user: User = usersRepository.findById(UUIDType.fromString(userToken.id)).getOrNull() ?: throw ForbiddenError("User with id ${userToken.id} does not exist in resource server.")
 
         val car: Car
-        try { car = user.getCarByIndex(carIndex) } catch (error: NotAvailableError) { throw NotFoundError(error.message!!) }
+        try { car = user.getCarByIndex(carIndex.toUInt()) } catch (error: NotAvailableError) { throw NotFoundError(error.message!!) }
         if (car.image == null) throw NotFoundError("Car with index $carIndex of user with id $userId has no image.")
 
         try {
@@ -307,12 +306,10 @@ private class UsersCommunicator(
     fun deleteCarOfUser(@PathVariable @UUID userId: String, @PathVariable @Min(0) carIndex: Int, userToken: UserToken): ResponseEntity<Void> {
         if(userToken.id != userId) throw ForbiddenError("The user can only delete their own car.")
         val actingUser: User = usersRepository.findById(UUIDType.fromString(userId)).getOrNull() ?: throw ForbiddenError("User with id $userId does not exist in resource server.")
+        val carToDelete: Car = try { actingUser.getCarByIndex(carIndex.toUInt()) } catch (_: NotAvailableError) { throw NotFoundError("Car with index $carIndex not found.") }
 
-        try {
-            actingUser.removeCarAtIndex(carIndex.toUInt())
-        } catch (_: IndexOutOfBoundsException) {
-            throw NotFoundError("Car with index $carIndex not found.")
-        }
+        actingUser.removeCarAtIndex(carIndex.toUInt())
+        imagesRepository.deleteById(carToDelete.image?.id ?: throw NotFoundError("Image of car with index $carIndex not found."))
         usersRepository.save(actingUser)
 
         return ResponseEntity.noContent().build<Void>()
@@ -320,10 +317,10 @@ private class UsersCommunicator(
 
     @Operation(description = "Create a favorite address for a specific user.")
     @CommonApiResponses @CreatedApiResponse
-    @PostMapping("{id}/favorite-addresses")
-    fun addFavoriteAddressForUser(@PathVariable @UUID id: String, @RequestBody @Valid address: AddressDP, userToken: UserToken): ResponseEntity<Void> {
-        if (userToken.id != id) throw ForbiddenError("Users can only add favorite addresses to their own account.")
-        val actingUser: User = usersRepository.findById(UUIDType.fromString(id)).getOrNull() ?: throw ForbiddenError("User with id $id does not exist in resource server.")
+    @PostMapping("{userId}/favorite-addresses")
+    fun addFavoriteAddressForUser(@PathVariable @UUID userId: String, @RequestBody @Valid address: AddressDP, userToken: UserToken): ResponseEntity<Void> {
+        if (userToken.id != userId) throw ForbiddenError("Users can only add favorite addresses to their own account.")
+        val actingUser: User = usersRepository.findById(UUIDType.fromString(userId)).getOrNull() ?: throw ForbiddenError("User with id $userId does not exist in resource server.")
 
         actingUser.addFavoriteAddress(address.toAddress())
         usersRepository.save(actingUser)
@@ -356,7 +353,13 @@ private class UsersCommunicator(
         val actingUser: User = usersRepository.findById(UUIDType.fromString(userId)).getOrNull() ?: throw ForbiddenError("Acting user with id $userId does not exist in resource server.")
         val userToFavorite = usersRepository.findById(UUIDType.fromString(favoriteUserAddition.id)).getOrNull() ?: throw NotFoundError("User to favorite with id ${favoriteUserAddition.id} was not found")
 
-        actingUser.addFavoriteUser(userToFavorite)
+        try {
+            actingUser.addFavoriteUser(userToFavorite)
+        } catch (_: RepeatedActionError) {
+            throw BadRequestError(listOf("User with id ${actingUser.id} is already a favorite user."))
+        } catch (_: ConflictingActionError) {
+            throw BadRequestError(listOf("User with id ${actingUser.id} cannot be a favorite user of itself."))
+        }
         usersRepository.save(actingUser)
 
         return ResponseEntity.noContent().build<Void>()
@@ -365,7 +368,7 @@ private class UsersCommunicator(
     @Operation(description = "Delete favorite user of a specific user")
     @CommonApiResponses @NoContentApiResponse @NotFoundApiResponse
     @DeleteMapping("/{userId}/favorite-users/{favoriteUserId}")
-    fun deleteFavoriteUserOfUser(@PathVariable @UUID userId: String, @PathVariable @UUID favoriteUserId: String,  userToken: UserToken): ResponseEntity<Void> {
+    fun deleteFavoriteUserOfUser(@PathVariable @UUID userId: String, @PathVariable @UUID favoriteUserId: String, userToken: UserToken): ResponseEntity<Void> {
         if (userToken.id != userId) throw ForbiddenError("Users can only delete favorite users of their own account.")
         val actingUser: User = usersRepository.findById(UUIDType.fromString(userId)).getOrNull() ?: throw ForbiddenError("Acting user with id $userId does not exist in resource server.")
         val favoriteUserToDelete = usersRepository.findById(UUIDType.fromString(favoriteUserId)).getOrNull() ?: throw NotFoundError("Favorite user to delete with id $favoriteUserId was not found")
@@ -388,7 +391,13 @@ private class UsersCommunicator(
         val actingUser: User = usersRepository.findById(UUIDType.fromString(userId)).getOrNull() ?: throw ForbiddenError("Acting user with id $userId does not exist in resource server.")
         val userToBlock = usersRepository.findById(UUIDType.fromString(blockedUserAddition.id)).getOrNull() ?: throw NotFoundError("User to block with ${blockedUserAddition.id} was not found")
 
-        actingUser.addBlockedUser(userToBlock)
+        try {
+            actingUser.addBlockedUser(userToBlock)
+        } catch (_: RepeatedActionError) {
+            throw BadRequestError(listOf("User with id ${actingUser.id} is already a blocked user."))
+        } catch (_: ConflictingActionError) {
+            throw BadRequestError(listOf("User with id ${actingUser.id} cannot be a blocked user of itself."))
+        }
         usersRepository.save(actingUser)
 
         return ResponseEntity.noContent().build<Void>()
@@ -414,10 +423,10 @@ private class UsersCommunicator(
 
     @Operation(description = "Get all drive offers of a specific user.")
     @CommonApiResponses @OkApiResponse
-    @GetMapping("{id}/drive-offers")
-    fun getDriveOffersOfUser(@PathVariable @UUID id: String, @RequestParam @Min(1) pageNumber: Int, @RequestParam @Min(1) @Max(50) perPage: Int, @RequestParam sortingDirection: SortingDirectionDP = SortingDirectionDP.Ascending, role: DriverOfferRoleDP? = null, userToken: UserToken): ResponseEntity<PageDP<PartialDriveOfferDP>> {
+    @GetMapping("{userId}/drive-offers")
+    fun getDriveOffersOfUser(@PathVariable @UUID userId: String, @RequestParam @Min(1) pageNumber: Int, @RequestParam @Min(1) @Max(50) perPage: Int, @RequestParam sortingDirection: SortingDirectionDP = SortingDirectionDP.Ascending, role: DriverOfferRoleDP? = null, userToken: UserToken): ResponseEntity<PageDP<PartialDriveOfferDP>> {
         val actingUser: User = usersRepository.findById(UUIDType.fromString(userToken.id)).getOrNull() ?: throw ForbiddenError("User with id ${userToken.id} does not exist in resource server.")
-        if(actingUser.id != UUIDType.fromString(id)) throw ForbiddenError("The user can only get their own drive offers.")
+        if(actingUser.id != UUIDType.fromString(userId)) throw ForbiddenError("The user can only get their own drive offers.")
 
         val resultingDriveOffersOfUser: List<DriveOffer> =
             if(role == null) {
@@ -550,4 +559,3 @@ private class UsersCommunicator(
         return ResponseEntity.status(HttpStatus.CREATED).build()
     }
 }
-

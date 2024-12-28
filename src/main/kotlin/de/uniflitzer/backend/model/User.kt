@@ -1,6 +1,9 @@
 package de.uniflitzer.backend.model
 
+import de.uniflitzer.backend.model.errors.ConflictingActionError
+import de.uniflitzer.backend.model.errors.MissingActionError
 import de.uniflitzer.backend.model.errors.NotAvailableError
+import de.uniflitzer.backend.model.errors.RepeatedActionError
 import jakarta.persistence.*
 import java.time.ZonedDateTime
 import java.util.*
@@ -105,8 +108,8 @@ class User(id: UUID, firstName: FirstName, lastName: LastName, birthday: ZonedDa
     }
 
     @Throws(NotAvailableError::class)
-    fun getCarByIndex(index: Int): Car {
-        return cars.getOrNull(index) ?: throw NotAvailableError("The car with index $index does not exist.")
+    fun getCarByIndex(index: UInt): Car {
+        return cars.getOrNull(index.toInt()) ?: throw NotAvailableError("The car with index $index does not exist.")
     }
 
     fun refillAnimals(animals: List<Animal>) {
@@ -128,7 +131,12 @@ class User(id: UUID, firstName: FirstName, lastName: LastName, birthday: ZonedDa
         return if (ratings.isEmpty()) null else ratings.map { it.stars.value.toDouble() }.sum() / ratings.size
     }
 
-    fun addFavoriteUser(user: User) = _favoriteUsers.add(user)
+    fun addFavoriteUser(user: User) {
+        if(user in _favoriteUsers) throw RepeatedActionError("The user with id ${user.id} is already a favorite user of user with id $id.")
+        if(user == this) throw ConflictingActionError("The user with id $id cannot be a favorite user of itself.")
+
+        _favoriteUsers.add(user)
+    }
 
     @Throws(NotAvailableError::class)
     fun removeFavoriteUser(user: User) {
@@ -136,7 +144,12 @@ class User(id: UUID, firstName: FirstName, lastName: LastName, birthday: ZonedDa
         _favoriteUsers.remove(user)
     }
 
-    fun addBlockedUser(user: User) = _blockedUsers.add(user)
+    fun addBlockedUser(user: User) {
+        if(user in _blockedUsers) throw RepeatedActionError("The user with id ${user.id} is already a blocked user of user with id $id.")
+        if(user == this) throw ConflictingActionError("The user with id $id cannot be a blocked user of itself.")
+
+        _blockedUsers.add(user)
+    }
 
     @Throws(NotAvailableError::class)
     fun removeBlockedUser(user: User) {
@@ -144,14 +157,33 @@ class User(id: UUID, firstName: FirstName, lastName: LastName, birthday: ZonedDa
         _blockedUsers.remove(user)
     }
 
-    fun leaveDriveOfferAsRequestingUser(driveOffer: DriveOffer) {
-        if(driveOffer !in driveOffersAsRequestingUser)  throw NotAvailableError("The user is not a passenger of the drive offer.")
-        driveOffersAsPassenger.remove(driveOffer)
+    @Throws(RepeatedActionError::class)
+    fun joinDriveOfferAsRequestingUser(driveOffer: PublicDriveOffer) {
+        if(driveOffer in driveOffersAsRequestingUser) throw RepeatedActionError("The user is already a requesting user of the drive offer.")
+
+        driveOffersAsRequestingUser.add(driveOffer)
     }
 
-    fun leaveDriveOfferAsPassenger(driveOffer: DriveOffer) {
-        if(driveOffer !in driveOffersAsPassenger) throw NotAvailableError("The user is not a requesting user of the drive offer.")
+    @Throws(MissingActionError::class)
+    fun leaveDriveOfferAsRequestingUser(driveOffer: DriveOffer) {
+        if(driveOffer !in driveOffersAsRequestingUser) throw MissingActionError("The user is not a passenger of the drive offer.")
+
         driveOffersAsRequestingUser.remove(driveOffer)
+    }
+
+    @Throws(RepeatedActionError::class)
+    fun joinDriveOfferAsPassenger(driveOffer: DriveOffer) {
+        if(driveOffer in driveOffersAsPassenger) throw RepeatedActionError("The user is already a passenger of the drive offer.")
+
+        driveOffersAsPassenger.add(driveOffer)
+        driveOffersAsRequestingUser.remove(driveOffer)
+    }
+
+    @Throws(NotAvailableError::class)
+    fun leaveDriveOfferAsPassenger(driveOffer: DriveOffer) {
+        if(driveOffer !in driveOffersAsPassenger) throw NotAvailableError("The user is not a passenger of the drive offer.")
+
+        driveOffersAsPassenger.remove(driveOffer)
     }
 
     fun removeRatingOfUser(user: User) = _ratings.removeIf { it.author == user }

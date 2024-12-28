@@ -1,6 +1,8 @@
 package de.uniflitzer.backend.model
 
+import de.uniflitzer.backend.model.errors.ConflictingActionError
 import de.uniflitzer.backend.model.errors.NotAvailableError
+import de.uniflitzer.backend.model.errors.RepeatedActionError
 import jakarta.persistence.CascadeType
 import jakarta.persistence.Entity
 import jakarta.persistence.OneToMany
@@ -24,7 +26,7 @@ class PublicDriveRequest(requestingUser: User, route: Route, scheduleTime: Sched
         this._driveOffers.remove(driveOffer)
     }
 
-    @Throws(NotAvailableError::class)
+    @Throws(NotAvailableError::class, ConflictingActionError::class, RepeatedActionError::class)
     fun acceptDriveOffer(driveOfferId: UUID)
     {
         val driveOffer: PublicDriveOffer = this.driveOffers.find { it.id == driveOfferId } ?: throw NotAvailableError("DriveOffer with id $driveOfferId not found.")

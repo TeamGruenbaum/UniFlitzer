@@ -1,5 +1,6 @@
 package de.uniflitzer.backend.model
 
+import de.uniflitzer.backend.model.errors.ConflictingActionError
 import de.uniflitzer.backend.model.errors.MissingActionError
 import de.uniflitzer.backend.model.errors.NotAvailableError
 import de.uniflitzer.backend.model.errors.RepeatedActionError
@@ -15,17 +16,19 @@ class PublicDriveOffer(driver: User, car: Car, freeSeats: Seats, route: Route, s
     private var _requestingUsers: MutableList<UserStop> = mutableListOf()
     val requestingUsers: List<UserStop> get() = _requestingUsers
 
-    @Throws(NotAvailableError::class, RepeatedActionError::class)
+    @Throws(RepeatedActionError::class, MissingActionError::class)
     fun addRequestFromUser(user: User, start: Position, destination: Position) {
-        if(requestingUsers.any { it.user.id == user.id }) throw RepeatedActionError("User with id ${user.id} already requested a seat for this public drive offer with id $id.")
+        if(user in requestingUsers.map { it.user }) throw RepeatedActionError("User with id ${user.id} already requested a seat for this public drive offer with id $id.")
+        if (user == driver) throw ConflictingActionError("The Driver with id ${user.id} of this drive offer with id $id cannot be a passenger at the same time.")
 
-        super.addPassenger(UserStop(user, start, destination))
+        _requestingUsers.add(UserStop(user, start, destination))
     }
 
-    @Throws(MissingActionError::class, NotAvailableError::class)
+    @Throws(MissingActionError::class, NotAvailableError::class, RepeatedActionError::class, ConflictingActionError::class)
     fun acceptRequestFromUser(userId: UUID) {
         val userStop = requestingUsers.find { it.user.id == userId } ?: throw MissingActionError("User with id $userId did not request a seat for this public drive offer with id $id.")
         if (passengers.size.toUInt() >= freeSeats.value) throw NotAvailableError("No free seats left for this public drive offer with id $id.")
+        if (userId in passengers.map { it.user.id }) throw RepeatedActionError("User with id $userId is already a passenger of drive offer with id $id.")
 
         super.addPassenger(userStop)
         _requestingUsers.remove(userStop)
@@ -34,6 +37,7 @@ class PublicDriveOffer(driver: User, car: Car, freeSeats: Seats, route: Route, s
     @Throws(MissingActionError::class)
     fun rejectRequestFromUser(userId: UUID) {
         val userStop = requestingUsers.find { it.user.id == userId } ?: throw MissingActionError("User with id $userId did not request a seat for this public drive offer with id $id.")
+
         _requestingUsers.remove(userStop)
     }
 }

@@ -1,5 +1,6 @@
 package de.uniflitzer.backend.model
 
+import de.uniflitzer.backend.model.errors.ConflictingActionError
 import de.uniflitzer.backend.model.errors.MissingActionError
 import de.uniflitzer.backend.model.errors.NotAvailableError
 import de.uniflitzer.backend.model.errors.RepeatedActionError
@@ -42,10 +43,10 @@ class DriveOffer(driver: User, car: Car, freeSeats: Seats, route: Route, schedul
         this.scheduleTime = scheduleTime
     }
 
-    @Throws(MissingActionError::class, NotAvailableError::class, RepeatedActionError::class)
+    @Throws(ConflictingActionError::class, NotAvailableError::class, RepeatedActionError::class)
     fun addPassenger(userStop: UserStop) {
         if (userStop.user in _passengers.map { it.user }) throw RepeatedActionError("User with id ${userStop.user.id} is already a passenger of this drive offer with id $id.")
-        if (userStop.user == driver) throw MissingActionError("The Driver id ${userStop.user.id} of this drive offer with id $id cannot be a passenger at the same time.")
+        if (userStop.user == driver) throw ConflictingActionError("The Driver with id ${userStop.user.id} of this drive offer with id $id cannot be a passenger at the same time.")
         if (freeSeats.value == _passengers.count().toUInt()) throw NotAvailableError("No more seats available for this drive offer with id $id.")
 
         _passengers.add(userStop)
@@ -57,11 +58,10 @@ class DriveOffer(driver: User, car: Car, freeSeats: Seats, route: Route, schedul
         _passengers.remove(searcherUserStop)
     }
 
-    @PostRemove
-    private fun doAfterRemove() {
+    fun throwAllUsersOut() {
         _passengers.forEach {
             try {
-                it.user.leaveDriveOfferAsRequestingUser(this)
+                //it.user.leaveDriveOfferAsRequestingUser(this)
                 it.user.leaveDriveOfferAsPassenger(this)
             }
             catch (_: NotAvailableError) {}
