@@ -127,9 +127,8 @@ class User(id: UUID, firstName: FirstName, lastName: LastName, birthday: ZonedDa
 
     fun addRating(rating: Rating) = _ratings.add(rating)
 
-    fun getAverageStars(): Double? {
-        return if (ratings.isEmpty()) null else ratings.map { it.stars.value.toDouble() }.sum() / ratings.size
-    }
+    val averageStars
+        get(): Double? = if (ratings.isEmpty()) null else ratings.map { it.stars.value.toDouble() }.sum() / ratings.size
 
     fun addFavoriteUser(user: User) {
         if(user in _favoriteUsers) throw RepeatedActionError("The user with id ${user.id} is already a favorite user of user with id $id.")
@@ -186,7 +185,7 @@ class User(id: UUID, firstName: FirstName, lastName: LastName, birthday: ZonedDa
         driveOffersAsPassenger.remove(driveOffer)
     }
 
-    fun removeRatingOfUser(user: User) = _ratings.removeIf { it.author == user }
+    fun removeRatingsOfUser(user: User) = _ratings.removeIf { it.author == user }
 
     override fun equals(other: Any?): Boolean {
         if (this === other) return true

@@ -1,12 +1,10 @@
 package de.uniflitzer.backend.model
 
 import de.uniflitzer.backend.model.errors.ConflictingActionError
-import de.uniflitzer.backend.model.errors.MissingActionError
 import de.uniflitzer.backend.model.errors.NotAvailableError
 import de.uniflitzer.backend.model.errors.RepeatedActionError
 import jakarta.persistence.*
 import java.util.UUID
-import kotlin.jvm.Throws
 
 @Entity
 @Inheritance(strategy = InheritanceType.SINGLE_TABLE)

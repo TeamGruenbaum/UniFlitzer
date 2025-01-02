@@ -7,7 +7,7 @@ class PartialPublicDriveRequestDP(
     id: String,
     containsFavoriteRequestingUser: Boolean,
     requestingUser: PartialUserDP,
-    route: RouteDP,
+    route: PartialRouteDP,
     scheduleTime: ScheduleTimeDP?,
     @field:Size(min = 0) val driveOffersCount: Int
 ): PartialDriveRequestDP(id, containsFavoriteRequestingUser, requestingUser, route, scheduleTime) {
@@ -17,7 +17,7 @@ class PartialPublicDriveRequestDP(
                 publicDriveRequest.id.toString(),
                 containsFavoriteRequestingUser,
                 PartialUserDP.fromUser(publicDriveRequest.requestingUser),
-                RouteDP.fromRoute(publicDriveRequest.route),
+                PartialRouteDP.fromRoute(publicDriveRequest.route),
                 publicDriveRequest.scheduleTime?.let { ScheduleTimeDP.fromScheduleTime(it) },
                 publicDriveRequest.driveOffers.size
             )

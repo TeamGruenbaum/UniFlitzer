@@ -8,7 +8,7 @@ class PartialCarpoolDriveOfferDP (
     id: String,
     driver: PartialUserDP,
     freeSeats: Int,
-    route: RouteDP,
+    route: PartialRouteDP,
     passengersCount: Int,
     scheduleTimeDP: ScheduleTimeDP?,
     @field:UUID val carpoolId: String,
@@ -20,7 +20,7 @@ class PartialCarpoolDriveOfferDP (
                 carpoolDriveOffer.id.toString(),
                 PartialUserDP.fromUser(carpoolDriveOffer.driver),
                 carpoolDriveOffer.freeSeats.value.toInt(),
-                RouteDP.fromRoute(carpoolDriveOffer.route),
+                PartialRouteDP.fromRoute(carpoolDriveOffer.route),
                 carpoolDriveOffer.passengers.size,
                 carpoolDriveOffer.scheduleTime?.let { ScheduleTimeDP.fromScheduleTime(it) },
                 carpoolDriveOffer.carpool.id.toString()

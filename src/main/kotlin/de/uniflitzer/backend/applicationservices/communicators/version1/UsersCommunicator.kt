@@ -124,7 +124,7 @@ private class UsersCommunicator(
 
         actingUser.profilePicture?.id?.let { imagesRepository.deleteById(it) }
         actingUser.cars.forEach { car -> car.image?.let { image -> imagesRepository.deleteById(image.id) } }
-        usersRepository.findAll().forEach { it.removeRatingOfUser(actingUser) }
+        usersRepository.findAll().forEach { it.removeRatingsOfUser(actingUser) }
         actingUser.driveOffersAsPassenger.forEach { it.removePassenger(actingUser) }
         actingUser.driveOffersAsRequestingUser.forEach { it.rejectRequestFromUser(actingUser.id) }
         actingUser.drivesAsPassenger.forEach { it.route = geographyService.createCompleteRouteBasedOnConfirmableUserStops(it.route.start, it.route.userStops, it.route.destination) }
@@ -221,7 +221,6 @@ private class UsersCommunicator(
     @CommonApiResponses @NotFoundApiResponse
     @GetMapping("{userId}/image")
     fun getImageOfUser(@PathVariable @UUID userId: String, @RequestParam quality: QualityDP, userToken: UserToken): ResponseEntity<ByteArray> {
-        if (userToken.id != userId) throw ForbiddenError("UserToken id does not match the user id.")
         val user: User = usersRepository.findById(UUIDType.fromString(userToken.id)).getOrNull() ?: throw ForbiddenError("User with id ${userToken.id} does not exist in resource server.")
 
         if (user.profilePicture == null) throw NotFoundError("User with id $userId has no profile picture.")
@@ -285,7 +284,6 @@ private class UsersCommunicator(
     @CommonApiResponses @NotFoundApiResponse
     @GetMapping("{userId}/cars/{carIndex}/image")
     fun getImageOfCarOfUser(@PathVariable @UUID userId: String, @PathVariable @Min(0) carIndex: Int, @RequestParam quality: QualityDP, userToken: UserToken): ResponseEntity<ByteArray> {
-        if (userToken.id != userId) throw ForbiddenError("UserToken id does not match the user id.")
         val user: User = usersRepository.findById(UUIDType.fromString(userToken.id)).getOrNull() ?: throw ForbiddenError("User with id ${userToken.id} does not exist in resource server.")
 
         val car: Car

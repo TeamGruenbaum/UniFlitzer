@@ -14,8 +14,10 @@ class PublicDriveRequest(requestingUser: User, route: Route, scheduleTime: Sched
     private var _driveOffers: MutableList<PublicDriveOffer> = mutableListOf()
     val driveOffers: List<PublicDriveOffer> get() = _driveOffers
 
+    @Throws(RepeatedActionError::class)
     fun addDriveOffer(driveOffer: PublicDriveOffer)
     {
+        if(driveOffer in this.driveOffers) throw RepeatedActionError("Drive offer with id ${driveOffer.id} has already been added to drive request with id ${this.id}.")
         this._driveOffers.add(driveOffer)
     }
 

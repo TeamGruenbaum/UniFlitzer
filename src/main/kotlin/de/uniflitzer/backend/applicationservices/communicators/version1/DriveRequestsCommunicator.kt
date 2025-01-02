@@ -7,7 +7,9 @@ import de.uniflitzer.backend.applicationservices.communicators.version1.errors.*
 import de.uniflitzer.backend.applicationservices.communicators.version1.valuechecker.UUID
 import de.uniflitzer.backend.applicationservices.geography.GeographyService
 import de.uniflitzer.backend.model.*
+import de.uniflitzer.backend.model.errors.ConflictingActionError
 import de.uniflitzer.backend.model.errors.NotAvailableError
+import de.uniflitzer.backend.model.errors.RepeatedActionError
 import de.uniflitzer.backend.repositories.*
 import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.annotations.security.SecurityRequirement
@@ -83,19 +85,52 @@ private class DriveRequestsCommunicator(
         @RequestParam currentLatitude: Double? = null,
         @RequestParam currentLongitude: Double? = null,
         @RequestParam sortingDirection: SortingDirectionDP = SortingDirectionDP.Ascending,
+        @RequestParam scheduleTimeType: ScheduleTimeTypeDP = ScheduleTimeTypeDP.Departure,
+        @RequestParam scheduleTime: ZonedDateTime? = null,
         userToken: UserToken): ResponseEntity<PageDP<PartialDriveRequestDP>>
     {
         val user: User = usersRepository.findById(UUIDType.fromString(userToken.id)).getOrNull() ?: throw ForbiddenError("User with id ${userToken.id} does not exist in resource server.")
 
         var driveRequests:List<DriveRequest> = driveRequestsRepository.findAllDriveRequests(
-            Sort.by(
-                when(sortingDirection) {
-                    SortingDirectionDP.Ascending -> Sort.Direction.ASC
-                    SortingDirectionDP.Descending -> Sort.Direction.DESC
-                },
-                "scheduleTime.time"
+                Sort.by(
+                    when(sortingDirection) {
+                        SortingDirectionDP.Ascending -> Sort.Direction.ASC
+                        SortingDirectionDP.Descending -> Sort.Direction.DESC
+                    },
+                    "scheduleTime.time"
+                )
             )
-        )
+            .filter {
+                when (it) {
+                    is CarpoolDriveRequest -> user.carpools.contains(it.carpool)
+                    is PublicDriveRequest -> true
+                    else -> false
+                }
+            }
+            .filter { it.requestingUser !in user.blockedUsers }
+
+        if(scheduleTime != null)
+        {
+            driveRequests = driveRequests.filter {
+                when(scheduleTimeType) {
+                    ScheduleTimeTypeDP.Arrival -> {
+                        when (it.scheduleTime?.type) {
+                            ScheduleTimeType.Arrival -> it.scheduleTime?.time?.isBefore(scheduleTime) ?: true
+                            ScheduleTimeType.Departure -> it.scheduleTime?.time?.plus(it.route.duration)?.isBefore(scheduleTime) ?: true
+                            else -> true
+                        }
+                    }
+                    ScheduleTimeTypeDP.Departure -> {
+                        when (it.scheduleTime?.type) {
+                            ScheduleTimeType.Arrival -> it.scheduleTime?.time?.minus(it.route.duration)?.isAfter(scheduleTime) ?: true
+                            ScheduleTimeType.Departure -> it.scheduleTime?.time?.isAfter(scheduleTime) ?: true
+                            else -> true
+                        }
+                    }
+                    null -> true
+                }
+            }
+        }
 
         if(role != null)
         {
@@ -110,16 +145,6 @@ private class DriveRequestsCommunicator(
             }
         }
         else if(currentLatitude != null || currentLongitude != null) throw BadRequestError(listOf("Role must be provided when filtering by current latitude and longitude."))
-
-        driveRequests = driveRequests
-            .filter {
-                when (it) {
-                    is CarpoolDriveRequest -> user.carpools.contains(it.carpool)
-                    is PublicDriveRequest -> true
-                    else -> false
-                }
-            }
-            .filter { it.requestingUser !in user.blockedUsers }
 
         return ResponseEntity.ok(
             PartialDriveRequestPageDP.fromList(
@@ -151,7 +176,7 @@ private class DriveRequestsCommunicator(
                 driveRequest.id.toString(),
                 driveRequest.requestingUser in user.favoriteUsers,
                 PartialUserDP.fromUser(driveRequest.requestingUser),
-                RouteDP.fromRoute(driveRequest.route),
+                PartialRouteDP.fromRoute(driveRequest.route),
                 driveRequest.scheduleTime?.let { ScheduleTimeDP.fromScheduleTime(it) },
                 PartialCarpoolDP.fromCarpool(driveRequest.carpool)
             )
@@ -159,7 +184,7 @@ private class DriveRequestsCommunicator(
                 driveRequest.id.toString(),
                 driveRequest.requestingUser in user.favoriteUsers,
                 PartialUserDP.fromUser(driveRequest.requestingUser),
-                RouteDP.fromRoute(driveRequest.route),
+                PartialRouteDP.fromRoute(driveRequest.route),
                 driveRequest.scheduleTime?.let { ScheduleTimeDP.fromScheduleTime(it) },
                 driveRequest.driveOffers.map { PartialPublicDriveOfferDP.fromPublicDriveOffer(it, it.driver in user.favoriteUsers) }
             )
@@ -234,7 +259,9 @@ private class DriveRequestsCommunicator(
                         originalCar.image?.let { driveOffer.car.image = imagesRepository.copy(it) }
 
                         driveOffersRepository.saveAndFlush(driveOffer)
-                        driveRequest.addDriveOffer(driveOffer)
+                        try { driveRequest.addDriveOffer(driveOffer) }
+                        catch (repeatedActionError: RepeatedActionError) { throw ForbiddenError(repeatedActionError.message!!) }
+
                         driveRequestsRepository.saveAndFlush(driveRequest)
                     }
                 }
@@ -285,6 +312,8 @@ private class DriveRequestsCommunicator(
             is PublicDriveRequest -> {
                 try { driveRequest.acceptDriveOffer(UUIDType.fromString(driveOfferId)) }
                 catch (notAvailableError: NotAvailableError) { throw NotFoundError(notAvailableError.message!!) }
+                catch (conflictingActionError: ConflictingActionError) { throw ForbiddenError(conflictingActionError.message!!) }
+                catch (repeatedActionError: RepeatedActionError) { throw ForbiddenError(repeatedActionError.message!!) }
                 driveRequestsRepository.saveAndFlush(driveRequest)
                 driveRequestsRepository.delete(driveRequest)
             }

@@ -333,7 +333,7 @@ private class DriveOffersCommunicator(
     @Operation(description = "Get the complete route for a specific drive offer including its passengers and a specific requesting user.")
     @CommonApiResponses @UnprocessableContentApiResponse @OkApiResponse @NotFoundApiResponse
     @GetMapping("{driveOfferId}/requesting-users/{requestingUserId}/complete-route")
-    fun getCompleteRouteWithRequestingUser(@PathVariable @UUID driveOfferId: String, @PathVariable @UUID requestingUserId: String, userToken: UserToken): ResponseEntity<CompleteRoute> {
+    fun getCompleteRouteWithRequestingUser(@PathVariable @UUID driveOfferId: String, @PathVariable @UUID requestingUserId: String, userToken: UserToken): ResponseEntity<CompleteRouteDP> {
         val user: User = usersRepository.findById(UUIDType.fromString(userToken.id)).getOrNull() ?: throw ForbiddenError("User with id ${userToken.id} does not exist in resource server.")
         val driveOffer: DriveOffer = driveOffersRepository.findById(UUIDType.fromString(driveOfferId)).getOrNull() ?: throw NotFoundError("The drive offer with id $driveOfferId could not be found.")
         if (driveOffer.driver.id != user.id) throw ForbiddenError("User with id ${user.id} is not the driver of the drive offer with id $driveOfferId.")
@@ -342,13 +342,12 @@ private class DriveOffersCommunicator(
         when (driveOffer) {
             is PublicDriveOffer -> {
                 if(driveOffer.requestingUsers.none { it.user.id.toString() == requestingUserId }) throw NotFoundError("User with id $requestingUserId has not requested the drive offer with id $driveOfferId.")
-                return ResponseEntity.ok(
-                    geographyService.createCompleteRouteBasedOnUserStops(
+                val completeRoute: CompleteRoute = geographyService.createCompleteRouteBasedOnUserStops(
                         driveOffer.route.start,
                         driveOffer.passengers + driveOffer.requestingUsers.filter { it.user.id.toString() == requestingUserId },
                         driveOffer.route.destination
                     )
-                )
+                return ResponseEntity.ok(CompleteRouteDP.fromCompleteRoute(completeRoute))
             }
             is CarpoolDriveOffer -> throw UnprocessableContentError("Drive offer with id $driveOfferId is a carpool drive offer, so requests are automatically accepted.")
             else -> { throw InternalServerError("Drive offer is neither a public drive offer nor a carpool drive offer.") }

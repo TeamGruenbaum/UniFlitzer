@@ -64,7 +64,7 @@ class Carpool(name: Name, users: MutableList<User>){
     }
 
     fun addDrive(drive: Drive) {
-        if(drive in _drives) throw RepeatedActionError("Drive with id ${drive.id} already exists in carpoo.")
+        if(drive in _drives) throw RepeatedActionError("Drive with id ${drive.id} already exists in carpool.")
         _drives.add(drive)
     }
 

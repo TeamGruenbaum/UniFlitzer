@@ -19,7 +19,7 @@ data class PartialUserDP(
                 user.id.toString(),
                 user.firstName.value,
                 user.lastName.value,
-                user.getAverageStars(),
+                user.averageStars,
                 user.ratings.size
             )
     }
