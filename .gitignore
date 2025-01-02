@@ -46,3 +46,4 @@ node_modules
 images/
 *.log
 logs/
+!gradle/wrapper/gradle-wrapper.jar

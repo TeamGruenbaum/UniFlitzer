@@ -25,7 +25,7 @@ class DriveOffer(driver: User, car: Car, freeSeats: Seats, route: Route, schedul
     var route: Route = route
 
     @field:ElementCollection
-    private var _passengers: MutableList<UserStop> = mutableListOf()
+    private var _passengers: MutableList<UserStop> = mutableListOf() //Manual bidirectional relationship 2
     val passengers: List<UserStop> get() = _passengers
 
     @AttributeOverrides(

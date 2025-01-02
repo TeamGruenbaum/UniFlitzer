@@ -13,7 +13,7 @@ import kotlin.jvm.Throws
 @Entity
 class PublicDriveOffer(driver: User, car: Car, freeSeats: Seats, route: Route, scheduleTime: ScheduleTime?) : DriveOffer(driver, car, freeSeats, route, scheduleTime) {
     @field:ElementCollection
-    private var _requestingUsers: MutableList<UserStop> = mutableListOf()
+    private var _requestingUsers: MutableList<UserStop> = mutableListOf() //Manual bidirectional relationship 1
     val requestingUsers: List<UserStop> get() = _requestingUsers
 
     @Throws(RepeatedActionError::class, MissingActionError::class)

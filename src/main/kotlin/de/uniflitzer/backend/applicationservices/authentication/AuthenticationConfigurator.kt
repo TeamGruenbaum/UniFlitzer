@@ -29,6 +29,8 @@ import org.springframework.security.config.annotation.web.configuration.EnableWe
 import org.springframework.security.config.http.SessionCreationPolicy
 import org.springframework.security.oauth2.jwt.Jwt
 import org.springframework.security.web.SecurityFilterChain
+import org.springframework.web.cors.CorsConfiguration
+import org.springframework.web.cors.UrlBasedCorsConfigurationSource
 import kotlin.system.exitProcess
 
 @Configuration
@@ -71,7 +73,17 @@ class AuthenticationConfigurator(
                     .requestMatchers("/api-documentation/**").permitAll()
                     .anyRequest().authenticated()
             }
-            .cors(Customizer.withDefaults())
+            .cors {
+                it.configurationSource(
+                    UrlBasedCorsConfigurationSource().apply {
+                        registerCorsConfiguration(
+                            "/**",
+                            CorsConfiguration().apply {
+                                allowedOrigins = listOf(environment.getProperty("keycloak.url") ?: throw IllegalStateException("keycloak.webOrigins is not set."));
+                        });
+                    }
+                )
+            }
 
         return http.build()
     }

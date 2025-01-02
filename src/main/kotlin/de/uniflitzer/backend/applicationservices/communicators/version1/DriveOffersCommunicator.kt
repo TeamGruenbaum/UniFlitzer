@@ -36,6 +36,7 @@ import org.springframework.http.ResponseEntity
 import org.springframework.transaction.annotation.Transactional
 import org.springframework.validation.annotation.Validated
 import org.springframework.web.bind.annotation.*
+import java.time.ZonedDateTime
 import kotlin.jvm.optionals.getOrNull
 import java.util.UUID as UUIDType
 
@@ -65,22 +66,21 @@ private class DriveOffersCommunicator(
         @RequestParam allowedDrivingStyles: List<DrivingStyleDP>? = null,
         @RequestParam allowedGenders: List<GenderDP>? = null,
         @RequestParam sortingDirection: SortingDirectionDP = SortingDirectionDP.Ascending,
+        @RequestParam scheduleTimeType: ScheduleTimeTypeDP = ScheduleTimeTypeDP.Departure,
+        @RequestParam scheduleTime: ZonedDateTime? = null,
         userToken: UserToken
     ): ResponseEntity<PageDP<PartialDriveOfferDP>> {
         val actingUser: User = usersRepository.findById(UUIDType.fromString(userToken.id)).getOrNull() ?: throw ForbiddenError("User with id ${userToken.id} does not exist in resource server.")
-        val allowedAnimals: List<Animal>? = allowedAnimals?.map { it.toAnimal() }
-        val allowedDrivingStyles: List<DrivingStyle>? = allowedDrivingStyles?.map { it.toDrivingStyle() }
-        val allowedGenders: List<Gender>? = allowedGenders?.map { it.toGender() }
         val startCoordinate: Coordinate = Coordinate(startLatitude, startLongitude)
         val destinationCoordinate: Coordinate = Coordinate(destinationLatitude, destinationLongitude)
         val tolerance: Meters = Meters(1000.0)
 
         val searchedDriveOffers: List<DriveOffer> =
             driveOffersRepository.findAll(
-                allowedAnimals,
+                allowedAnimals?.map { it.toAnimal() },
                 isSmoking,
-                allowedDrivingStyles,
-                allowedGenders,
+                allowedDrivingStyles?.map { it.toDrivingStyle() },
+                allowedGenders?.map { it.toGender() },
                 actingUser.blockedUsers,
                 actingUser.carpools,
                 Sort.by(
@@ -91,6 +91,26 @@ private class DriveOffersCommunicator(
                     "scheduleTime.time"
                 )
             )
+            .filter {
+                if(scheduleTime == null) return@filter true
+
+                when(scheduleTimeType) {
+                    ScheduleTimeTypeDP.Arrival -> {
+                        when (it.scheduleTime?.type) {
+                            ScheduleTimeType.Arrival -> it.scheduleTime?.time?.isBefore(scheduleTime) ?: true
+                            ScheduleTimeType.Departure -> it.scheduleTime?.time?.plus(it.route.duration)?.isBefore(scheduleTime) ?: true
+                            else -> true
+                        }
+                    }
+                    ScheduleTimeTypeDP.Departure -> {
+                        when (it.scheduleTime?.type) {
+                            ScheduleTimeType.Arrival -> it.scheduleTime?.time?.minus(it.route.duration)?.isAfter(scheduleTime) ?: true
+                            ScheduleTimeType.Departure -> it.scheduleTime?.time?.isAfter(scheduleTime) ?: true
+                            else -> true
+                        }
+                    }
+                }
+            }
             .filter { it.route.isCoordinateOnRoute(startCoordinate, tolerance) && it.route.isCoordinateOnRoute(destinationCoordinate, tolerance) }
             .filter { it.route.areCoordinatesInCorrectDirection(startCoordinate, destinationCoordinate) }
 
