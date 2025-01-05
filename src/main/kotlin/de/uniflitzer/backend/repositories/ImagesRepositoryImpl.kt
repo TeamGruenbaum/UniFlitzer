@@ -24,20 +24,21 @@ class ImagesRepositoryImpl(@field:Autowired private val environment:Environment)
     @PersistenceContext
     private lateinit var entityManager: EntityManager
 
-    override fun save(multipartFile: MultipartFile): Image {
+    override fun save(data:ByteArray, fileEnding:String?): Image {
         val reply: ByteArray
         try {
-            reply = ClamAVClient("127.0.0.1", 3310).scan(multipartFile.getBytes())
+            reply = ClamAVClient(
+                environment.getProperty("clamav.ip") ?: throw IllegalStateException("clamav.ip is not set."),
+                environment.getProperty("clamav.port")?.toInt() ?: throw IllegalStateException("clamav.port is not set.")
+            ).scan(data)
         } catch (exception: Exception) {
             throw FileCheckError("Uploaded file could not be scanned for infections.")
         }
         if (!ClamAVClient.isCleanReply(reply)) throw FileCorruptedError("Uploaded file is infected.")
 
 
-        val fileEnding: String = multipartFile.originalFilename!!.substringAfterLast(".")
-        var fileType = ""
-        try {
-            fileType = Tika().detect(multipartFile.getBytes())
+        var fileType = try {
+            Tika().detect(data)
         } catch (exception: Exception) {
             throw FileCheckError("File type could not be detected.")
         }
@@ -54,7 +55,7 @@ class ImagesRepositoryImpl(@field:Autowired private val environment:Environment)
 
         val image: Image = Image(".$fileEnding")
         val fileFullQuality = File(imagesDirectory.toString(), image.fileNameFullQuality)
-        multipartFile.transferTo(fileFullQuality)
+        fileFullQuality.writeBytes(data)
 
         val filePreviewQuality = File(imagesDirectory.toString(), image.fileNamePreviewQuality)
         Thumbnails

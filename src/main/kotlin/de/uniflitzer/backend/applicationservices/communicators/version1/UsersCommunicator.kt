@@ -7,6 +7,7 @@ import de.uniflitzer.backend.applicationservices.communicators.version1.errors.B
 import de.uniflitzer.backend.applicationservices.communicators.version1.errors.ForbiddenError
 import de.uniflitzer.backend.applicationservices.communicators.version1.errors.InternalServerError
 import de.uniflitzer.backend.applicationservices.communicators.version1.errors.NotFoundError
+import de.uniflitzer.backend.applicationservices.communicators.version1.localization.LocalizationService
 import de.uniflitzer.backend.applicationservices.communicators.version1.valuechecker.UUID
 import de.uniflitzer.backend.applicationservices.geography.GeographyService
 import de.uniflitzer.backend.model.*
@@ -56,6 +57,7 @@ private class UsersCommunicator(
     @field:Autowired private val environment: Environment,
     @field:Autowired private val imagesRepository: ImagesRepository,
     @field:Autowired private val geographyService: GeographyService,
+    @field:Autowired private val localizationService: LocalizationService
 ) {
     @Operation(description = "Get details of a specific user.")
     @CommonApiResponses @OkApiResponse @NotFoundApiResponse
@@ -104,7 +106,7 @@ private class UsersCommunicator(
         usersRepository.save(newUser)
 
         val userResource: UserResource = authenticationAdministrator
-            .realm(environment.getProperty("keycloak.realm.name") ?: throw InternalServerError("Keycloak realm name not defined."))
+            .realm(environment.getProperty("keycloak.realm.name") ?: throw IllegalStateException("Keycloak realm name not defined."))
             .users()
             .get(userToken.id)
         val user: UserRepresentation = userResource
@@ -131,7 +133,7 @@ private class UsersCommunicator(
         usersRepository.delete(actingUser)
         usersRepository.flush()
         authenticationAdministrator
-            .realm(environment.getProperty("keycloak.realm.name") ?: throw InternalServerError("Keycloak realm name not defined."))
+            .realm(environment.getProperty("keycloak.realm.name") ?: throw IllegalStateException("Keycloak realm name not defined."))
             .users()
             .delete(userId)
 
@@ -166,19 +168,19 @@ private class UsersCommunicator(
     @CommonApiResponses @CreatedApiResponse @NotFoundApiResponse
     @PostMapping("{userId}/image", consumes = [MediaType.MULTIPART_FORM_DATA_VALUE])
     fun createImageForUser(@PathVariable @UUID userId: String, @RequestPart image: MultipartFile, userToken: UserToken): ResponseEntity<IdDP> {
-        if (userToken.id != userId) throw ForbiddenError("UserToken id does not match the user id.")
-        val user: User = usersRepository.findById(UUIDType.fromString(userToken.id)).getOrNull() ?: throw ForbiddenError("User with id ${userToken.id} does not exist in resource server.")
+        if (userToken.id != userId) throw ForbiddenError(localizationService.getMessage("user.profilePicture.uploadOthers", userToken.id))
+        val user: User = usersRepository.findById(UUIDType.fromString(userToken.id)).getOrNull() ?: throw ForbiddenError(localizationService.getMessage("user.notExists", userToken.id))
 
-        if(user.profilePicture != null) throw BadRequestError(listOf("User with id $userId already has a profile picture."))
+        if(user.profilePicture != null) throw BadRequestError(listOf(localizationService.getMessage("user.profilePicture.alreadyExists", user.id)))
 
         val imageEntity:Image
         try {
-            imageEntity = imagesRepository.save(image)
+            imageEntity = imagesRepository.save(image.bytes, image.originalFilename?.substringAfterLast("."))
         } catch (error: FileCorruptedError) {
-            throw BadRequestError(listOf(error.message!!))
+            throw BadRequestError(listOf(localizationService.getMessage("requestPart.image.invalid")))
         }
         catch (error: WrongFileFormatError) {
-            throw BadRequestError(listOf(error.message!!))
+            throw BadRequestError(listOf(localizationService.getMessage("requestPart.image.wrongFormat")))
         }
         user.profilePicture = imageEntity
         usersRepository.save(user)
@@ -190,9 +192,9 @@ private class UsersCommunicator(
     @CommonApiResponses @NoContentApiResponse @NotFoundApiResponse
     @DeleteMapping("{userId}/image")
     fun deleteImageOfUser(@PathVariable @UUID userId: String, userToken: UserToken): ResponseEntity<Void> {
-        if (userToken.id != userId) throw ForbiddenError("UserToken id does not match the user id.")
-        val user: User = usersRepository.findById(UUIDType.fromString(userToken.id)).getOrNull() ?: throw ForbiddenError("User with id ${userToken.id} does not exist in resource server.")
-        if(user.profilePicture == null) throw NotFoundError("User with id $userId has no profile picture.")
+        if (userToken.id != userId) throw ForbiddenError(localizationService.getMessage("user.profilePicture.deleteOthers", userToken.id))
+        val user: User = usersRepository.findById(UUIDType.fromString(userToken.id)).getOrNull() ?: throw ForbiddenError(localizationService.getMessage("user.notExists", userToken.id))
+        if(user.profilePicture == null) throw NotFoundError(localizationService.getMessage("user.profilePicture.notExists", userId))
 
         try {
             val profilePictureId:UUIDType = user.profilePicture!!.id
@@ -200,11 +202,8 @@ private class UsersCommunicator(
             usersRepository.save(user)
             imagesRepository.deleteById(profilePictureId)
         }
-        catch (error: ImageDirectoryMissingError) {
-            throw NotFoundError(error.message ?: "Image directory not found.")
-        }
         catch (error: FileMissingError) {
-            throw NotFoundError(error.message ?: "Image of user with id $userId not found.")
+            throw NotFoundError(localizationService.getMessage("user.profilePicture.notFound", userId))
         }
         return ResponseEntity.noContent().build()
     }
@@ -221,16 +220,13 @@ private class UsersCommunicator(
     @CommonApiResponses @NotFoundApiResponse
     @GetMapping("{userId}/image")
     fun getImageOfUser(@PathVariable @UUID userId: String, @RequestParam quality: QualityDP, userToken: UserToken): ResponseEntity<ByteArray> {
-        val user: User = usersRepository.findById(UUIDType.fromString(userToken.id)).getOrNull() ?: throw ForbiddenError("User with id ${userToken.id} does not exist in resource server.")
+        if(!usersRepository.existsById(UUIDType.fromString(userToken.id))) throw ForbiddenError(localizationService.getMessage("user.notExists", userToken.id))
 
-        if (user.profilePicture == null) throw NotFoundError("User with id $userId has no profile picture.")
+        val user: User = usersRepository.findById(UUIDType.fromString(userId)).getOrNull() ?: throw ForbiddenError(localizationService.getMessage("user.notExists", userId))
+        if (user.profilePicture == null) throw NotFoundError(localizationService.getMessage("user.profilePicture.notExists", userId))
 
-        try {
-            val image:ByteArray = imagesRepository.getById(user.profilePicture!!.id, quality.toQuality()).getOrNull() ?: throw NotFoundError("Image of user with id $userId not found.")
-            return ResponseEntity.ok().contentType(MediaType.IMAGE_JPEG).body(image)
-        } catch (error: ImageDirectoryMissingError) {
-            throw NotFoundError(error.message!!)
-        }
+        val image:ByteArray = imagesRepository.getById(user.profilePicture!!.id, quality.toQuality()).getOrNull() ?: throw NotFoundError(localizationService.getMessage("user.profilePicture.notFound", userId))
+        return ResponseEntity.ok().contentType(MediaType.IMAGE_JPEG).body(image)
     }
 
     @Operation(description = "Create a car for a specific user.")
@@ -250,21 +246,21 @@ private class UsersCommunicator(
     @CommonApiResponses @CreatedApiResponse @NotFoundApiResponse
     @PostMapping("{userId}/cars/{carIndex}/image", consumes = [MediaType.MULTIPART_FORM_DATA_VALUE])
     fun createImageForCarOfUser(@PathVariable @UUID userId: String, @PathVariable @Min(0) carIndex: Int, @RequestPart image: MultipartFile, userToken: UserToken):ResponseEntity<IdDP> {
-        if (userToken.id != userId) throw ForbiddenError("UserToken id does not match the user id.")
-        val user: User = usersRepository.findById(UUIDType.fromString(userToken.id)).getOrNull() ?: throw ForbiddenError("User with id ${userToken.id} does not exist in resource server.")
+        if (userToken.id != userId) throw ForbiddenError(localizationService.getMessage("user.car.index.image.uploadOthers", userToken.id))
+        val user: User = usersRepository.findById(UUIDType.fromString(userToken.id)).getOrNull() ?: throw ForbiddenError(localizationService.getMessage("user.notExists", userToken.id))
 
         val car: Car
-        try { car = user.getCarByIndex(carIndex.toUInt()) } catch (error: NotAvailableError) { throw NotFoundError(error.message!!) }
-        if(car.image != null) throw BadRequestError(listOf("Car with index $carIndex of user with id $userId already has an image."))
+        try { car = user.getCarByIndex(carIndex.toUInt()) } catch (error: NotAvailableError) { throw NotFoundError(localizationService.getMessage("user.car.index.notExists", carIndex, userId)) }
+        if(car.image != null) throw BadRequestError(listOf(localizationService.getMessage("user.car.index.image.alreadyExists", carIndex, userId)))
 
         val imageEntity:Image
         try {
-            imageEntity = imagesRepository.save(image)
+            imageEntity = imagesRepository.save(image.bytes, image.originalFilename?.substringAfterLast("."))
         } catch (error: FileCorruptedError) {
-            throw BadRequestError(listOf(error.message!!))
+            throw BadRequestError(listOf(localizationService.getMessage("requestPart.image.invalid")))
         }
         catch (error: WrongFileFormatError) {
-            throw BadRequestError(listOf(error.message!!))
+            throw BadRequestError(listOf(localizationService.getMessage("requestPart.image.wrongFormat")))
         }
         car.image = imageEntity
         usersRepository.save(user)
@@ -284,18 +280,16 @@ private class UsersCommunicator(
     @CommonApiResponses @NotFoundApiResponse
     @GetMapping("{userId}/cars/{carIndex}/image")
     fun getImageOfCarOfUser(@PathVariable @UUID userId: String, @PathVariable @Min(0) carIndex: Int, @RequestParam quality: QualityDP, userToken: UserToken): ResponseEntity<ByteArray> {
-        val user: User = usersRepository.findById(UUIDType.fromString(userToken.id)).getOrNull() ?: throw ForbiddenError("User with id ${userToken.id} does not exist in resource server.")
+        if(!usersRepository.existsById(UUIDType.fromString(userToken.id))) throw ForbiddenError(localizationService.getMessage("user.notExists", userToken.id))
+
+        val user: User = usersRepository.findById(UUIDType.fromString(userId)).getOrNull() ?: throw ForbiddenError(localizationService.getMessage("user.notExists", userId))
 
         val car: Car
-        try { car = user.getCarByIndex(carIndex.toUInt()) } catch (error: NotAvailableError) { throw NotFoundError(error.message!!) }
-        if (car.image == null) throw NotFoundError("Car with index $carIndex of user with id $userId has no image.")
+        try { car = user.getCarByIndex(carIndex.toUInt()) } catch (error: NotAvailableError) { throw NotFoundError(localizationService.getMessage("user.car.index.notExists", carIndex, userId)) }
+        if (car.image == null) throw NotFoundError(localizationService.getMessage("user.car.index.image.notExists", carIndex, userId))
 
-        try {
-            val image:ByteArray = imagesRepository.getById(car.image!!.id, quality.toQuality()).getOrNull() ?: throw NotFoundError("Image of car with index $carIndex of user with id $userId not found.")
-            return ResponseEntity.ok().contentType(MediaType.IMAGE_JPEG).body(image)
-        } catch (error: ImageDirectoryMissingError) {
-            throw NotFoundError(error.message!!)
-        }
+        val image:ByteArray = imagesRepository.getById(car.image!!.id, quality.toQuality()).getOrNull() ?: throw NotFoundError(localizationService.getMessage("user.car.index.image.notFound", carIndex, userId))
+        return ResponseEntity.ok().contentType(MediaType.IMAGE_JPEG).body(image)
     }
 
     @Operation(description = "Delete the car of a specific user.")
@@ -457,8 +451,8 @@ private class UsersCommunicator(
     @CommonApiResponses @OkApiResponse
     @GetMapping("{userId}/drive-requests")
     fun getDriveRequestsOfUser(@PathVariable @UUID userId: String, @RequestParam @Min(1) pageNumber: Int, @RequestParam @Min(1) @Max(50) perPage: Int, @RequestParam sortingDirection: SortingDirectionDP = SortingDirectionDP.Ascending, userToken: UserToken): ResponseEntity<PageDP<PartialDriveRequestDP>> {
-        val user: User = usersRepository.findById(UUIDType.fromString(userToken.id)).getOrNull() ?: throw ForbiddenError("User with id ${userToken.id} does not exist in resource server.")
-        if(user.id != UUIDType.fromString(userId)) throw ForbiddenError("The user can only get his own drive requests.")
+        val user: User = usersRepository.findById(UUIDType.fromString(userToken.id)).getOrNull() ?: throw ForbiddenError(localizationService.getMessage("user.notExists", userToken.id))
+        if(user.id != UUIDType.fromString(userId)) throw ForbiddenError(localizationService.getMessage("user.resource.driveRequests.getOthers", userToken.id))
 
         val driveRequests: List<DriveRequest> = driveRequestsRepository.findAllDriveRequests(
             Sort.by(
@@ -490,8 +484,8 @@ private class UsersCommunicator(
     @CommonApiResponses @OkApiResponse
     @GetMapping("{userId}/drives")
     fun getDrivesOfUser(@PathVariable @UUID userId: String, @RequestParam @Min(1) pageNumber: Int, @RequestParam @Min(1) @Max(50) perPage: Int, @RequestParam sortingDirection: SortingDirectionDP = SortingDirectionDP.Ascending, userToken: UserToken): ResponseEntity<PageDP<PartialDriveDP>> {
-        val user: User = usersRepository.findById(UUIDType.fromString(userToken.id)).getOrNull() ?: throw ForbiddenError("User with id ${userToken.id} does not exist in resource server.")
-        if(user.id != UUIDType.fromString(userId)) throw ForbiddenError("The user can only get his own drives.")
+        val user: User = usersRepository.findById(UUIDType.fromString(userToken.id)).getOrNull() ?: throw ForbiddenError(localizationService.getMessage("user.notExists", userToken.id))
+        if(user.id != UUIDType.fromString(userId)) throw ForbiddenError(localizationService.getMessage("user.resource.drives.getOthers", userToken.id))
 
         val sort: Sort = if (sortingDirection == SortingDirectionDP.Ascending) Sort.by("plannedDeparture").ascending() else Sort.by("plannedDeparture").descending()
         val page: Page<Drive> = drivesRepository.findAllDrives(PageRequest.of(pageNumber - 1, perPage, sort), user.id)
@@ -505,8 +499,8 @@ private class UsersCommunicator(
     @CommonApiResponses @OkApiResponse
     @GetMapping("{userId}/carpools")
     fun getCarpoolsOfUser(@PathVariable @UUID userId: String, @RequestParam @Min(1) pageNumber: Int, @RequestParam @Min(1) @Max(50) perPage: Int, @RequestParam sortingDirection: SortingDirectionDP = SortingDirectionDP.Ascending, userToken: UserToken): ResponseEntity<PageDP<PartialCarpoolDP>> {
-        val user: User = usersRepository.findById(UUIDType.fromString(userToken.id)).getOrNull() ?: throw ForbiddenError("User with id ${userToken.id} does not exist in resource server.")
-        if(user.id != UUIDType.fromString(userId)) throw ForbiddenError("The user can only get his own carpools.")
+        val user: User = usersRepository.findById(UUIDType.fromString(userToken.id)).getOrNull() ?: throw ForbiddenError(localizationService.getMessage("user.notExists", userToken.id))
+        if(user.id != UUIDType.fromString(userId)) throw ForbiddenError(localizationService.getMessage("user.resource.carpools.getOthers", userToken.id))
 
         val sort: Sort = if (sortingDirection == SortingDirectionDP.Ascending) Sort.by("name").ascending() else Sort.by("name").descending()
         val page: Page<Carpool> = carpoolsRepository.findAllCarpools(PageRequest.of(pageNumber - 1, perPage, sort), user.id)
@@ -521,28 +515,28 @@ private class UsersCommunicator(
     @PostMapping("{userId}/ratings")
     fun createRatingForUser(@PathVariable @UUID userId: String, @RequestBody @Valid ratingCreation: RatingCreationDP, userToken: UserToken): ResponseEntity<Void>
     {
-        if(userToken.id == userId) throw ForbiddenError("The user cannot create a rating for himself.")
-        val author: User = usersRepository.findById(UUIDType.fromString(userToken.id)).getOrNull() ?: throw ForbiddenError("User with id ${userToken.id} does not exist in resource server.")
-        val ratedUser: User = usersRepository.findById(UUIDType.fromString(userId)).getOrNull() ?: throw NotFoundError("User with id $userId does not exist in resource server.")
+        if(userToken.id == userId) throw ForbiddenError(localizationService.getMessage("user.rating.createOwn", userId))
+        val author: User = usersRepository.findById(UUIDType.fromString(userToken.id)).getOrNull() ?: throw ForbiddenError(localizationService.getMessage("user.notExists", userToken.id))
+        val ratedUser: User = usersRepository.findById(UUIDType.fromString(userId)).getOrNull() ?: throw NotFoundError(localizationService.getMessage("user.notExists", userId))
 
         when(ratingCreation.role) {
             RoleDP.Driver -> {
                 if(ratedUser.drivesAsDriver
                     .filter { (it.actualArrival?.isAfter(ZonedDateTime.now().minusDays(3)) == true) && (it.actualArrival?.isBefore(ZonedDateTime.now()) == true) }
                     .none { it.passengers.contains(author) })
-                    throw BadRequestError(listOf("User with id ${ratedUser.id} was no driver of user wit id ${author.id} in the last three days."))
+                    throw BadRequestError(listOf(localizationService.getMessage("user.rating.notDriverOf", ratedUser.id, author.id)))
 
                 if(ratedUser.ratings.any { it.author == author && it.role == Role.Driver && it.created.isAfter(ZonedDateTime.now().minusDays(3)) })
-                    throw BadRequestError(listOf("User with id ${author.id} already rated user with id ${ratedUser.id} as driver in the last three days."))
+                    throw BadRequestError(listOf(localizationService.getMessage("user.rating.alreadyExistsAsDriver", author.id, ratedUser.id)))
             }
             RoleDP.Passenger -> {
                 if(ratedUser.drivesAsPassenger
                     .filter { (it.actualArrival?.isAfter(ZonedDateTime.now().minusDays(3)) == true) && (it.actualArrival?.isBefore(ZonedDateTime.now()) == true) }
                     .none { it.driver == author })
-                    throw BadRequestError(listOf("User with id ${ratedUser.id} was no passenger of user wit id ${author.id} in the last three days."))
+                    throw BadRequestError(listOf(localizationService.getMessage("user.rating.notPassengerOf", ratedUser.id, author.id)))
 
                 if(ratedUser.ratings.any { it.author == author && it.role == Role.Passenger && it.created.isAfter(ZonedDateTime.now().minusDays(3)) })
-                    throw BadRequestError(listOf("User with id ${author.id} already rated user with id ${ratedUser.id} as passenger in the last three days."))
+                    throw BadRequestError(listOf(localizationService.getMessage("user.rating.alreadyExistsAsPassenger", author.id, ratedUser.id)))
             }
         }
 

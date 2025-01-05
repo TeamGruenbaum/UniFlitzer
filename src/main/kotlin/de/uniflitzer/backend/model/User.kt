@@ -58,7 +58,7 @@ class User(id: UUID, firstName: FirstName, lastName: LastName, birthday: ZonedDa
     private var _blockedUsers: MutableList<User> = mutableListOf()
     val blockedUsers: List<User> get() = _blockedUsers
 
-    @field:OneToMany(mappedBy = "requestingUser", fetch = FetchType.LAZY) //TODO: jetzt nicht mehr cascading
+    @field:OneToMany(mappedBy = "requestingUser", fetch = FetchType.LAZY)
     private var _driveRequests: MutableList<DriveRequest> = mutableListOf()
     val driveRequests: List<DriveRequest> get() = _driveRequests
 

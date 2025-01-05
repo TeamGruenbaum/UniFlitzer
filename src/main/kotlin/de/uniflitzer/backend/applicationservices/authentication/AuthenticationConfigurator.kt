@@ -3,6 +3,7 @@ package de.uniflitzer.backend.applicationservices.authentication
 import com.fasterxml.jackson.databind.ObjectMapper
 import de.uniflitzer.backend.applicationservices.communicators.version1.datapackages.ErrorDP
 import de.uniflitzer.backend.applicationservices.communicators.version1.errors.InternalServerError
+import de.uniflitzer.backend.applicationservices.communicators.version1.localization.LocalizationService
 import jakarta.servlet.http.HttpServletResponse
 import jakarta.ws.rs.NotFoundException
 import org.keycloak.admin.client.Keycloak
@@ -38,6 +39,7 @@ import kotlin.system.exitProcess
 class AuthenticationConfigurator(
     @field:Autowired private val environment: Environment,
     @field:Autowired private val authenticationConfigurator: Keycloak,
+    @field:Autowired private val localizationService: LocalizationService
 ):InitializingBean {
     private val logger: Logger = LoggerFactory.getLogger(this::class.java)
     private val newRealmName: String? = environment.getProperty("keycloak.realm.name") ?: throw IllegalStateException("keycloak.realm.name is not set.")
@@ -61,7 +63,8 @@ class AuthenticationConfigurator(
                     response.apply {
                         status = HttpServletResponse.SC_UNAUTHORIZED
                         contentType = "application/json"
-                        writer.write(ObjectMapper().writeValueAsString(ErrorDP("You need to provide a valid token to access this resource.")))
+                        characterEncoding = "UTF-8"
+                        writer.write(ObjectMapper().writeValueAsString(ErrorDP(localizationService.getMessage("error.unauthorized"))))
                     }
                 }
             }
