@@ -16,6 +16,6 @@ sealed class DetailedDriveRequestDP(
     @field:UUID val id: String,
     val containsFavoriteRequestingUser: Boolean,
     @field:Valid val requestingUser: PartialUserDP,
-    @field:Valid val route: PartialRouteDP,
+    @field:Valid val route: DetailedRouteDP,
     @field:Valid val scheduleTime: ScheduleTimeDP?
 )

@@ -12,6 +12,7 @@ import de.uniflitzer.backend.applicationservices.communicators.version1.valueche
 import de.uniflitzer.backend.applicationservices.geography.GeographyService
 import de.uniflitzer.backend.model.*
 import de.uniflitzer.backend.model.errors.ConflictingActionError
+import de.uniflitzer.backend.model.errors.ImpossibleActionError
 import de.uniflitzer.backend.model.errors.NotAvailableError
 import de.uniflitzer.backend.model.errors.RepeatedActionError
 import de.uniflitzer.backend.repositories.*
@@ -41,6 +42,7 @@ import org.springframework.validation.annotation.Validated
 import org.springframework.web.bind.annotation.*
 import org.springframework.web.multipart.MultipartFile
 import java.time.ZonedDateTime
+import kotlin.jvm.optionals.getOrElse
 import kotlin.jvm.optionals.getOrNull
 import java.util.UUID as UUIDType
 
@@ -79,7 +81,7 @@ private class UsersCommunicator(
                 searchedUser.isSmoking,
                 searchedUser.animals.map { AnimalDP.fromAnimal(it) },
                 DrivingStyleDP.fromDrivingStyle(searchedUser.drivingStyle),
-                searchedUser.cars.map { CarDP.fromCar(it) },
+                if(searchedUser.id == UUIDType.fromString(userToken.id)) searchedUser.cars.map { CarDP.fromCar(it) } else null,
                 if(searchedUser.id == UUIDType.fromString(userToken.id)) searchedUser.favoriteUsers.map { PartialUserDP.fromUser(it) } else null,
                 if(searchedUser.id == UUIDType.fromString(userToken.id)) searchedUser.blockedUsers.map { PartialUserDP.fromUser(it) } else null,
                 searchedUser.favoriteAddresses.map { AddressDP.fromAddress(it) },
@@ -150,14 +152,23 @@ private class UsersCommunicator(
         actingUser.apply{
             userUpdate.firstName?.let { actingUser.firstName = FirstName(it) }
             userUpdate.lastName?.let { actingUser.lastName = LastName(it) }
-            userUpdate.birthday?.let { actingUser.birthday = ZonedDateTime.parse(it) }
+            try { userUpdate.birthday?.let { actingUser.birthday = ZonedDateTime.parse(it) } } catch (_: ImpossibleActionError) { throw BadRequestError(listOf("Birthday must be in past")) }
             userUpdate.gender?.let { actingUser.gender = it.toGender() }
             userUpdate.address?.let { actingUser.address = it.toAddress() }
             userUpdate.studyProgramme?.let { actingUser.studyProgramme = StudyProgramme(it) }
-            userUpdate.description?.ifPresent { actingUser.description = Description(it) }
-            userUpdate.isSmoking?.ifPresent { actingUser.isSmoking = it }
-            userUpdate.animals?.ifPresent { actingUser.refillAnimals(it.map { it.toAnimal() }) }
-            userUpdate.drivingStyle?.ifPresent { actingUser.drivingStyle = it.toDrivingStyle() }
+            userUpdate.description?.let { descriptionOptional -> actingUser.description = descriptionOptional.getOrNull()?.let { descriptionOptionalUnwrapped -> Description(descriptionOptionalUnwrapped) } }
+            userUpdate.isSmoking?.let { isSmokingOptional -> actingUser.isSmoking = isSmokingOptional.getOrNull() }
+            try {
+                userUpdate.animals?.let {
+                    animalsOptional ->
+                        actingUser.refillAnimals(
+                            animalsOptional
+                                .getOrElse { listOf() }
+                                .map { animal -> animal.toAnimal() }
+                        )
+                }
+            } catch (_: RepeatedActionError) { throw BadRequestError(listOf("Duplicate animal values")) }
+            userUpdate.drivingStyle?.let { drivingStyleOptional -> actingUser.drivingStyle = drivingStyleOptional.getOrNull()?.toDrivingStyle() }
         }
         usersRepository.save(actingUser)
 
@@ -284,8 +295,7 @@ private class UsersCommunicator(
 
         val user: User = usersRepository.findById(UUIDType.fromString(userId)).getOrNull() ?: throw ForbiddenError(localizationService.getMessage("user.notExists", userId))
 
-        val car: Car
-        try { car = user.getCarByIndex(carIndex.toUInt()) } catch (error: NotAvailableError) { throw NotFoundError(localizationService.getMessage("user.car.index.notExists", carIndex, userId)) }
+        val car: Car = try { user.getCarByIndex(carIndex.toUInt()) } catch (_: NotAvailableError) { throw NotFoundError(localizationService.getMessage("user.car.index.notExists", carIndex, userId)) }
         if (car.image == null) throw NotFoundError(localizationService.getMessage("user.car.index.image.notExists", carIndex, userId))
 
         val image:ByteArray = imagesRepository.getById(car.image!!.id, quality.toQuality()).getOrNull() ?: throw NotFoundError(localizationService.getMessage("user.car.index.image.notFound", carIndex, userId))
@@ -300,7 +310,7 @@ private class UsersCommunicator(
         val actingUser: User = usersRepository.findById(UUIDType.fromString(userId)).getOrNull() ?: throw ForbiddenError("User with id $userId does not exist in resource server.")
         val carToDelete: Car = try { actingUser.getCarByIndex(carIndex.toUInt()) } catch (_: NotAvailableError) { throw NotFoundError("Car with index $carIndex not found.") }
 
-        actingUser.removeCarAtIndex(carIndex.toUInt())
+        try { actingUser.removeCarAtIndex(carIndex.toUInt()) } catch (_: NotAvailableError) { throw NotFoundError("Car with index $carIndex not found.") }
         imagesRepository.deleteById(carToDelete.image?.id ?: throw NotFoundError("Image of car with index $carIndex not found."))
         usersRepository.save(actingUser)
 

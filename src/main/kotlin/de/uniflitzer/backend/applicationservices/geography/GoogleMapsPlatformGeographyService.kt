@@ -125,6 +125,30 @@ class GoogleMapsPlatformGeographyService(
         }
     }
 
+    override fun createRoute(start: Position, stops: List<Coordinate>, destination: Position): Route {
+        return computeRoute(
+            start.coordinate,
+            stops.map {
+                Waypoint(
+                    location = Location(LatLng(it.latitude, it.longitude))
+                )
+            },
+            destination.coordinate
+        )
+        .let {
+            Route(
+                start = start,
+                destination = destination,
+                duration = Duration.parse("PT${it.path("staticDuration").asText().replace("s", "S")}"),
+                polyline = GeoJsonLineString(
+                    it.path("polyline")
+                        .path("geoJsonLinestring")
+                        .path("coordinates")
+                        .toList().map { coordinate -> Coordinate(coordinate[1].asDouble(), coordinate[0].asDouble()) })
+            )
+        }
+    }
+
     override fun createPosition(coordinate: Coordinate): Position {
         var responseBody: String = httpClient.send(
             HttpRequest.newBuilder()

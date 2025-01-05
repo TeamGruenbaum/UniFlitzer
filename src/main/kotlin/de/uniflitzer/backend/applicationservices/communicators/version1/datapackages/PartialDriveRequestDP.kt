@@ -21,7 +21,7 @@ sealed class PartialDriveRequestDP(
     val containsFavoriteRequestingUser: Boolean,
     @field:Valid val requestingUser: PartialUserDP,
     @field:Valid val route: PartialRouteDP,
-    @field:Valid val scheduleTimeDP: ScheduleTimeDP?
+    @field:Valid val scheduleTime: ScheduleTimeDP?
 ) {
     companion object {
         fun fromDriveRequest(driveRequest: DriveRequest, containsFavoriteRequestingUser: Boolean): PartialDriveRequestDP {

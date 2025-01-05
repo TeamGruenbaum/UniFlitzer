@@ -1,6 +1,7 @@
 package de.uniflitzer.backend.model
 
 import de.uniflitzer.backend.model.errors.ConflictingActionError
+import de.uniflitzer.backend.model.errors.ImpossibleActionError
 import de.uniflitzer.backend.model.errors.MissingActionError
 import de.uniflitzer.backend.model.errors.NotAvailableError
 import de.uniflitzer.backend.model.errors.RepeatedActionError
@@ -22,6 +23,11 @@ class User(id: UUID, firstName: FirstName, lastName: LastName, birthday: ZonedDa
     var firstName: FirstName = firstName
     var lastName: LastName = lastName
     var birthday: ZonedDateTime = birthday
+        @Throws(ImpossibleActionError::class)
+        set(value) {
+            if (value.isAfter(ZonedDateTime.now())) throw ImpossibleActionError("The birthday must be in the past.")
+            field = value
+        }
 
     @field:Enumerated(EnumType.STRING)
     var gender: Gender = gender
@@ -58,18 +64,21 @@ class User(id: UUID, firstName: FirstName, lastName: LastName, birthday: ZonedDa
     private var _blockedUsers: MutableList<User> = mutableListOf()
     val blockedUsers: List<User> get() = _blockedUsers
 
-    @field:OneToMany(mappedBy = "requestingUser", fetch = FetchType.LAZY)
+    @field:OneToMany(mappedBy = "requestingUser", fetch = FetchType.LAZY, cascade = [CascadeType.ALL])
     private var _driveRequests: MutableList<DriveRequest> = mutableListOf()
     val driveRequests: List<DriveRequest> get() = _driveRequests
 
     @field:OneToMany(mappedBy = "driver", fetch = FetchType.LAZY, cascade = [CascadeType.ALL])
-    var driveOffersAsDriver: MutableList<DriveOffer> = mutableListOf()
+    private var _driveOffersAsDriver: MutableList<DriveOffer> = mutableListOf()
+    val driveOffersAsDriver: List<DriveOffer> get () = _driveOffersAsDriver
 
     @field:OneToMany(fetch = FetchType.LAZY)
-    var driveOffersAsPassenger: MutableList<DriveOffer> = mutableListOf()
+    private var _driveOffersAsPassenger: MutableList<DriveOffer> = mutableListOf() //Manual bidirectional relationship 2
+    val driveOffersAsPassenger: List<DriveOffer> get() = _driveOffersAsPassenger
 
     @field:OneToMany(fetch = FetchType.LAZY)
-    var driveOffersAsRequestingUser: MutableList<PublicDriveOffer> = mutableListOf()
+    private var _driveOffersAsRequestingUser: MutableList<PublicDriveOffer> = mutableListOf() //Manual bidirectional relationship 1
+    val driveOffersAsRequestingUser: List<PublicDriveOffer> get() = _driveOffersAsRequestingUser
 
     @field:ManyToMany(mappedBy = "_users", fetch = FetchType.LAZY)
     private var _carpools: MutableList<Carpool> = mutableListOf()
@@ -112,7 +121,9 @@ class User(id: UUID, firstName: FirstName, lastName: LastName, birthday: ZonedDa
         return cars.getOrNull(index.toInt()) ?: throw NotAvailableError("The car with index $index does not exist.")
     }
 
+    @Throws(RepeatedActionError::class)
     fun refillAnimals(animals: List<Animal>) {
+        if(animals.distinct().count() != animals.count()) throw RepeatedActionError("The list of animals contains duplicates.")
         _animals.clear()
         _animals.addAll(animals)
     }
@@ -160,29 +171,29 @@ class User(id: UUID, firstName: FirstName, lastName: LastName, birthday: ZonedDa
     fun joinDriveOfferAsRequestingUser(driveOffer: PublicDriveOffer) {
         if(driveOffer in driveOffersAsRequestingUser) throw RepeatedActionError("The user is already a requesting user of the drive offer.")
 
-        driveOffersAsRequestingUser.add(driveOffer)
+        _driveOffersAsRequestingUser.add(driveOffer)
     }
 
     @Throws(MissingActionError::class)
     fun leaveDriveOfferAsRequestingUser(driveOffer: DriveOffer) {
         if(driveOffer !in driveOffersAsRequestingUser) throw MissingActionError("The user is not a passenger of the drive offer.")
 
-        driveOffersAsRequestingUser.remove(driveOffer)
+        _driveOffersAsRequestingUser.remove(driveOffer)
     }
 
     @Throws(RepeatedActionError::class)
     fun joinDriveOfferAsPassenger(driveOffer: DriveOffer) {
         if(driveOffer in driveOffersAsPassenger) throw RepeatedActionError("The user is already a passenger of the drive offer.")
 
-        driveOffersAsPassenger.add(driveOffer)
-        driveOffersAsRequestingUser.remove(driveOffer)
+        _driveOffersAsPassenger.add(driveOffer)
+        _driveOffersAsRequestingUser.remove(driveOffer)
     }
 
     @Throws(NotAvailableError::class)
     fun leaveDriveOfferAsPassenger(driveOffer: DriveOffer) {
         if(driveOffer !in driveOffersAsPassenger) throw NotAvailableError("The user is not a passenger of the drive offer.")
 
-        driveOffersAsPassenger.remove(driveOffer)
+        _driveOffersAsPassenger.remove(driveOffer)
     }
 
     fun removeRatingsOfUser(user: User) = _ratings.removeIf { it.author == user }

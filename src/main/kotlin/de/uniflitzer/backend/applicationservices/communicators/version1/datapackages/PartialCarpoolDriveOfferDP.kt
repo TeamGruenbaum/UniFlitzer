@@ -10,9 +10,9 @@ class PartialCarpoolDriveOfferDP (
     freeSeats: Int,
     route: PartialRouteDP,
     passengersCount: Int,
-    scheduleTimeDP: ScheduleTimeDP?,
+    scheduleTime: ScheduleTimeDP?,
     @field:UUID val carpoolId: String,
-): PartialDriveOfferDP(containsFavoriteDriver, id, driver, freeSeats, route, passengersCount, scheduleTimeDP) {
+): PartialDriveOfferDP(containsFavoriteDriver, id, driver, freeSeats, route, passengersCount, scheduleTime) {
     companion object {
         fun fromCarpoolDriveOffer(carpoolDriveOffer: CarpoolDriveOffer, containsFavoriteDriver: Boolean): PartialCarpoolDriveOfferDP =
             PartialCarpoolDriveOfferDP(

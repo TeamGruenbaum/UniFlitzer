@@ -8,7 +8,7 @@ class DetailedPublicDriveOfferDP constructor(
     driver: PartialUserDP,
     car: CarDP,
     freeSeats: Int,
-    route: PartialRouteDP,
+    route: DetailedRouteDP,
     passengers: List<UserStopDP>,
     scheduleTime: ScheduleTimeDP?,
     @field:Valid val requestingUsers: List<UserStopDP>?

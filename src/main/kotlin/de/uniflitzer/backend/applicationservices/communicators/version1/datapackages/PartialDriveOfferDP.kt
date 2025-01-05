@@ -24,33 +24,13 @@ sealed class PartialDriveOfferDP(
     @field:Min(1) @field:Max(8) val freeSeats: Int,
     @field:Valid val route: PartialRouteDP,
     @field:Min(1) @field:Max(8) val passengersCount: Int,
-    @field:Valid val scheduleTimeDP: ScheduleTimeDP?
+    @field:Valid val scheduleTime: ScheduleTimeDP?
 ) {
     companion object {
         fun fromDriveOffer(driveOffer: DriveOffer, containsFavoriteDriver: Boolean): PartialDriveOfferDP {
             return when (driveOffer) {
-                is PublicDriveOffer ->
-                    PartialPublicDriveOfferDP(
-                        containsFavoriteDriver,
-                        driveOffer.id.toString(),
-                        PartialUserDP.fromUser(driveOffer.driver),
-                        driveOffer.freeSeats.value.toInt(),
-                        PartialRouteDP.fromRoute(driveOffer.route),
-                        driveOffer.passengers.size,
-                        driveOffer.scheduleTime?.let { ScheduleTimeDP.fromScheduleTime(it) },
-                        driveOffer.requestingUsers.map { it.user.id.toString() }
-                    )
-                is CarpoolDriveOffer ->
-                    PartialCarpoolDriveOfferDP(
-                        containsFavoriteDriver,
-                        driveOffer.id.toString(),
-                        PartialUserDP.fromUser(driveOffer.driver),
-                        driveOffer.freeSeats.value.toInt(),
-                        PartialRouteDP.fromRoute(driveOffer.route),
-                        driveOffer.passengers.size,
-                        driveOffer.scheduleTime?.let { ScheduleTimeDP.fromScheduleTime(it) },
-                        driveOffer.carpool.id.toString()
-                    )
+                is PublicDriveOffer -> PartialPublicDriveOfferDP.fromPublicDriveOffer(driveOffer, containsFavoriteDriver)
+                is CarpoolDriveOffer -> PartialCarpoolDriveOfferDP.fromCarpoolDriveOffer(driveOffer, containsFavoriteDriver)
                 else -> throw IllegalArgumentException("Unknown DriveOffer type")
             }
         }

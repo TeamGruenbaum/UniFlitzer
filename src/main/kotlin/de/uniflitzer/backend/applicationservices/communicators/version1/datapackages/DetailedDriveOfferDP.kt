@@ -23,7 +23,7 @@ sealed class DetailedDriveOfferDP(
     @field:Valid val driver: PartialUserDP,
     @field:Valid val car: CarDP,
     @field:Min(1) @field:Max(8) val freeSeats: Int,
-    @field:Valid val route: PartialRouteDP,
+    @field:Valid val route: DetailedRouteDP,
     @field:Valid val passengers: List<UserStopDP>,
     @field:Valid val scheduleTime: ScheduleTimeDP?
 ) {
@@ -37,7 +37,7 @@ sealed class DetailedDriveOfferDP(
                         PartialUserDP.fromUser(driveOffer.driver),
                         CarDP.fromCar(driveOffer.car),
                         driveOffer.freeSeats.value.toInt(),
-                        PartialRouteDP.fromRoute(driveOffer.route),
+                        DetailedRouteDP.fromRoute(driveOffer.route),
                         driveOffer.passengers.map { UserStopDP.fromUserStop(it) },
                         driveOffer.scheduleTime?.let { ScheduleTimeDP.fromScheduleTime(it) },
                         driveOffer.requestingUsers.map { UserStopDP.fromUserStop(it) }
@@ -49,7 +49,7 @@ sealed class DetailedDriveOfferDP(
                         PartialUserDP.fromUser(driveOffer.driver),
                         CarDP.fromCar(driveOffer.car),
                         driveOffer.freeSeats.value.toInt(),
-                        PartialRouteDP.fromRoute(driveOffer.route),
+                        DetailedRouteDP.fromRoute(driveOffer.route),
                         driveOffer.passengers.map { UserStopDP.fromUserStop(it) },
                         driveOffer.scheduleTime?.let { ScheduleTimeDP.fromScheduleTime(it) },
                         PartialCarpoolDP.fromCarpool(driveOffer.carpool)

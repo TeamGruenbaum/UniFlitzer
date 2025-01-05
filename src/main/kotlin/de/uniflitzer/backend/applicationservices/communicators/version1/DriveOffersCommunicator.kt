@@ -167,6 +167,13 @@ private class DriveOffersCommunicator(
     fun createDriveOffer(@RequestBody @Valid driveOfferCreation: DriveOfferCreationDP, userToken: UserToken): ResponseEntity<IdDP> {
         val actingUser: User = usersRepository.findById(UUIDType.fromString(userToken.id)).getOrNull() ?: throw ForbiddenError("User with id ${userToken.id} does not exist in resource server.")
         val selectedCarForDriverOffer: Car = actingUser.cars.getOrNull(driveOfferCreation.carIndex) ?: throw NotFoundError("The car with the index ${driveOfferCreation.carIndex} could not be found.")
+        val driveOfferRoute: Route = geographyService.createRoute(
+            geographyService.createPosition(driveOfferCreation.route.start.toCoordinate()),
+            geographyService.createPosition(driveOfferCreation.route.destination.toCoordinate())
+        )
+        driveOfferCreation.scheduleTime?.toScheduleTime()
+            ?.let { if(it.type == ScheduleTimeType.Arrival) it.time.minus(driveOfferRoute.duration) else it.time }
+            ?.let { if(it.isBefore(ZonedDateTime.now().plusHours(1))) throw BadRequestError(listOf("Departure time can not be in the past or less than an hour in the future.")) }
 
         val newDriveOffer: DriveOffer = when (driveOfferCreation) {
             is PublicDriveOfferCreationDP -> {
@@ -179,10 +186,7 @@ private class DriveOffersCommunicator(
                         selectedCarForDriverOffer.licencePlate
                     ),
                     Seats(driveOfferCreation.freeSeats.toUInt()),
-                    geographyService.createRoute(
-                        geographyService.createPosition(driveOfferCreation.route.start.toCoordinate()),
-                        geographyService.createPosition(driveOfferCreation.route.destination.toCoordinate())
-                    ),
+                    driveOfferRoute,
                     driveOfferCreation.scheduleTime?.toScheduleTime()
                 )
             }
@@ -198,10 +202,7 @@ private class DriveOffersCommunicator(
                         selectedCarForDriverOffer.licencePlate
                     ),
                     Seats(driveOfferCreation.freeSeats.toUInt()),
-                    geographyService.createRoute(
-                        geographyService.createPosition(driveOfferCreation.route.start.toCoordinate()),
-                        geographyService.createPosition(driveOfferCreation.route.destination.toCoordinate())
-                    ),
+                    driveOfferRoute,
                     driveOfferCreation.scheduleTime?.toScheduleTime(),
                     targetedCarpool
                 )
@@ -234,7 +235,11 @@ private class DriveOffersCommunicator(
     fun updateDriveOffer(@PathVariable @UUID driveOfferId: String, @RequestBody @Valid driveOfferUpdate: DriverOfferUpdateDP, userToken: UserToken): ResponseEntity<Void> {
         if(!usersRepository.existsById(UUIDType.fromString(userToken.id))) throw ForbiddenError("User with id ${userToken.id} does not exist in resource server.")
         val driveOfferInEditing: DriveOffer = driveOffersRepository.findById(UUIDType.fromString(driveOfferId)).getOrNull() ?: throw NotFoundError("The drive offer with the id $driveOfferId could not be found.")
-        if (driveOfferInEditing.driver.id != UUIDType.fromString(userToken.id)) throw ForbiddenError("The user with the id ${userToken.id} is not the driver of the drive offer with the id $driveOfferId.")
+        if(driveOfferInEditing.scheduleTime != null) throw BadRequestError(listOf("Schedule time is already set and cannot be updated."))
+        if(driveOfferInEditing.driver.id != UUIDType.fromString(userToken.id)) throw ForbiddenError("The user with the id ${userToken.id} is not the driver of the drive offer with the id $driveOfferId.")
+        driveOfferUpdate.scheduleTime.toScheduleTime().time
+            .let { if(driveOfferUpdate.scheduleTime.type == ScheduleTimeTypeDP.Arrival) it.minus(driveOfferInEditing.route.duration) else it }
+            .let { if(it.isBefore(ZonedDateTime.now().plusHours(1))) throw BadRequestError(listOf("Departure time can not be in the past or less than an hour in the future.")) }
 
         driveOfferInEditing.scheduleTime = driveOfferUpdate.scheduleTime.toScheduleTime()
         driveOffersRepository.save(driveOfferInEditing)
@@ -298,15 +303,20 @@ private class DriveOffersCommunicator(
     @PostMapping("{driveOfferId}/requesting-users/{requestingUserId}/acceptances")
     fun acceptRequestingUser(@PathVariable @UUID driveOfferId: String, @PathVariable @UUID requestingUserId: String, userToken: UserToken): ResponseEntity<Void> {
         val actingUser: User = usersRepository.findById(UUIDType.fromString(userToken.id)).getOrNull() ?: throw ForbiddenError("User with id ${userToken.id} does not exist in resource server.")
+        val requestingUser: User = usersRepository.findById(UUIDType.fromString(requestingUserId)).getOrNull() ?: throw NotFoundError("The requesting user with the id $requestingUserId could not be found.")
         val driveOfferInEditing: DriveOffer = driveOffersRepository.findById(UUIDType.fromString(driveOfferId)).getOrNull() ?: throw NotFoundError("The drive offer with the id $driveOfferId could not be found.")
         if (driveOfferInEditing.driver.id != actingUser.id) throw ForbiddenError("A user who is not the driver cannot accept requests")
-        if(!usersRepository.existsById(UUIDType.fromString(requestingUserId))) throw NotFoundError("The requesting user with the id $requestingUserId could not be found.")
 
         when (driveOfferInEditing) {
             is PublicDriveOffer -> {
                 try {
-                    actingUser.joinDriveOfferAsPassenger(driveOfferInEditing)
-                    driveOfferInEditing.acceptRequestFromUser(UUIDType.fromString(requestingUserId))
+                    requestingUser.joinDriveOfferAsPassenger(driveOfferInEditing)
+                    driveOfferInEditing.acceptRequestFromUser(requestingUser.id)
+                    driveOfferInEditing.route = geographyService.createRoute(
+                        driveOfferInEditing.route.start,
+                        driveOfferInEditing.passengers.map { it.start.coordinate } + driveOfferInEditing.passengers.map { it.destination.coordinate },
+                        driveOfferInEditing.route.destination
+                    )
                 } catch (_: MissingActionError) {
                     throw NotFoundError("The requesting user with the id $requestingUserId could not be found in the drive offer with the id $driveOfferId.")
                 } catch (_: NotAvailableError) {
@@ -330,15 +340,15 @@ private class DriveOffersCommunicator(
     @PostMapping("{driveOfferId}/requesting-users/{requestingUserId}/rejections")
     fun rejectRequestingUser(@PathVariable @UUID driveOfferId: String, @PathVariable @UUID requestingUserId: String, userToken: UserToken):ResponseEntity<Void> {
         val actingUser: User = usersRepository.findById(UUIDType.fromString(userToken.id)).getOrNull() ?: throw ForbiddenError("User with id ${userToken.id} does not exist in resource server.")
+        val requestingUser: User = usersRepository.findById(UUIDType.fromString(requestingUserId)).getOrNull() ?: throw NotFoundError("The requesting user with the id $requestingUserId could not be found.")
         val driveOfferInEditing: DriveOffer = driveOffersRepository.findById(UUIDType.fromString(driveOfferId)).getOrNull() ?: throw NotFoundError("The drive offer with the id $driveOfferId could not be found.")
         if (driveOfferInEditing.driver.id != actingUser.id) throw ForbiddenError("A user who is not the driver cannot accept requests")
-        if(!usersRepository.existsById(UUIDType.fromString(requestingUserId))) throw NotFoundError("The requesting user with the id $requestingUserId could not be found.")
 
         when (driveOfferInEditing) {
             is PublicDriveOffer -> {
                 try {
-                    actingUser.leaveDriveOfferAsRequestingUser(driveOfferInEditing)
-                    driveOfferInEditing.rejectRequestFromUser(UUIDType.fromString(requestingUserId))
+                    requestingUser.leaveDriveOfferAsRequestingUser(driveOfferInEditing)
+                    driveOfferInEditing.rejectRequestFromUser(requestingUser.id)
                 } catch (_: MissingActionError) {
                     throw NotFoundError("The requesting user with the id $requestingUserId could not be found in the drive offer with the id $driveOfferId.")
                 }

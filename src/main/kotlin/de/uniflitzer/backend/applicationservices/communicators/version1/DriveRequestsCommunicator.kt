@@ -179,7 +179,7 @@ private class DriveRequestsCommunicator(
                 driveRequest.id.toString(),
                 driveRequest.requestingUser in user.favoriteUsers,
                 PartialUserDP.fromUser(driveRequest.requestingUser),
-                PartialRouteDP.fromRoute(driveRequest.route),
+                DetailedRouteDP.fromRoute(driveRequest.route),
                 driveRequest.scheduleTime?.let { ScheduleTimeDP.fromScheduleTime(it) },
                 PartialCarpoolDP.fromCarpool(driveRequest.carpool)
             )
@@ -187,7 +187,7 @@ private class DriveRequestsCommunicator(
                 driveRequest.id.toString(),
                 driveRequest.requestingUser in user.favoriteUsers,
                 PartialUserDP.fromUser(driveRequest.requestingUser),
-                PartialRouteDP.fromRoute(driveRequest.route),
+                DetailedRouteDP.fromRoute(driveRequest.route),
                 driveRequest.scheduleTime?.let { ScheduleTimeDP.fromScheduleTime(it) },
                 driveRequest.driveOffers.map { PartialPublicDriveOfferDP.fromPublicDriveOffer(it, it.driver in user.favoriteUsers) }
             )
@@ -221,6 +221,11 @@ private class DriveRequestsCommunicator(
         val driveRequest: DriveRequest = driveRequestsRepository.findById(UUIDType.fromString(driveRequestId)).getOrNull() ?: throw NotFoundError(localizationService.getMessage("driveRequest.notFound", driveRequestId))
         if(user in driveRequest.requestingUser.blockedUsers) throw ForbiddenError(localizationService.getMessage("driveRequest.user.blockedByRequestingUser", user.id, driveRequestId))
 
+        val driveOfferRoute: Route = geographyService.createRoute(geographyService.createPosition(driveOfferCreation.route.start.toCoordinate()), geographyService.createPosition(driveOfferCreation.route.destination.toCoordinate()))
+        driveOfferCreation.scheduleTime?.toScheduleTime()
+                ?.let { if(it.type == ScheduleTimeType.Arrival) it.time.minus(driveOfferRoute.duration) else it.time }
+                ?.let { if(it.isBefore(ZonedDateTime.now().plusHours(1))) throw BadRequestError(listOf("Departure time can not be in the past or less than an hour in the future.")) }
+
         val driveOffer: DriveOffer
         when(driveRequest)
         {
@@ -234,7 +239,7 @@ private class DriveRequestsCommunicator(
                             user,
                             Car(originalCar.brand, originalCar.model, originalCar.color, originalCar.licencePlate),
                             Seats(driveOfferCreation.freeSeats.toUInt()),
-                            geographyService.createRoute(geographyService.createPosition(driveOfferCreation.route.start.toCoordinate()), geographyService.createPosition(driveOfferCreation.route.destination.toCoordinate())),
+                            driveOfferRoute,
                             driveOfferCreation.scheduleTime?.toScheduleTime(),
                             carpoolsRepository.findById(UUIDType.fromString(driveOfferCreation.carpoolId)).getOrNull() ?: throw NotFoundError(localizationService.getMessage("carpool.notFound", driveOfferCreation.carpoolId))
                         )
@@ -256,7 +261,7 @@ private class DriveRequestsCommunicator(
                             user,
                             Car(originalCar.brand, originalCar.model, originalCar.color, originalCar.licencePlate),
                             Seats(driveOfferCreation.freeSeats.toUInt()),
-                            geographyService.createRoute(geographyService.createPosition(driveOfferCreation.route.start.toCoordinate()), geographyService.createPosition(driveOfferCreation.route.destination.toCoordinate())),
+                            driveOfferRoute,
                             driveOfferCreation.scheduleTime?.toScheduleTime()
                         )
                         originalCar.image?.let { driveOffer.car.image = imagesRepository.copy(it) }

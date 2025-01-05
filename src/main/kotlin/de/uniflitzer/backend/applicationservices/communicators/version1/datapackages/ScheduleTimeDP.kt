@@ -27,6 +27,4 @@ data class ScheduleTimeDP(
             type.toScheduleTimeType()
         )
     }
-
-
 }
