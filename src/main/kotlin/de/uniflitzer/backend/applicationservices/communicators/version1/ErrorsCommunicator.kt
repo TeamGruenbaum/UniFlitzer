@@ -121,7 +121,7 @@ Headers: ${ObjectMapper().writeValueAsString(request.headerNames.toList().associ
 Method: ${request.method}
 Path: ${request.requestURI}
 QueryParams: ${request.queryString ?: "None"}
-Body: ${try{ request.reader.readText() }catch(_: Exception){ request.contentType }}
+Body: ${try{ request.reader.readText() }catch(_: Exception){ "Text could not be read (Content type: ${request.contentType}" }}
 
 STACKTRACE:
 ${error.stackTraceToString()}

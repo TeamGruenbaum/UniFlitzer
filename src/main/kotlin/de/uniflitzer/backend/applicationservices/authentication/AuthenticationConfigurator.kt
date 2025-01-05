@@ -94,7 +94,10 @@ class AuthenticationConfigurator(
     override fun afterPropertiesSet() {
         when (environment.getProperty("keycloak.setup")) {
             "disabled" -> return@afterPropertiesSet
-            "recreate-if-not-exists" -> if (runCatching{authenticationConfigurator.realm(newRealmName)}.exceptionOrNull() is NotFoundException) recreateAuthenticationData()
+            "recreate-if-not-exists" -> {
+                try { authenticationConfigurator.realm(newRealmName).toRepresentation() }
+                catch (_: NotFoundException) { recreateAuthenticationData() }
+            }
             "recreate-always" -> recreateAuthenticationData()
             else -> logger.warn("Invalid value for keycloak.setup")
         }
@@ -146,6 +149,12 @@ class AuthenticationConfigurator(
                             validations = mapOf(
                                 "length" to mapOf("max" to 255),
                                 "email" to mapOf(),
+                                "pattern" to mapOf(
+                                    "min" to "",
+                                    "max" to "",
+                                    "pattern" to "^[^\\s@]+@hof-university\\.de\$",
+                                    "error-message" to "Value must end with @hof-university.de"
+                                )
                             )
                         },
                         UPAttribute().apply {

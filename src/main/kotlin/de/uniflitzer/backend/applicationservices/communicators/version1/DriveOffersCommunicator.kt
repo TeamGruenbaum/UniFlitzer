@@ -3,6 +3,7 @@ package de.uniflitzer.backend.applicationservices.communicators.version1
 import de.uniflitzer.backend.applicationservices.authentication.UserToken
 import de.uniflitzer.backend.applicationservices.communicators.version1.datapackages.*
 import de.uniflitzer.backend.applicationservices.communicators.version1.documentationinformationadder.apiresponses.*
+import de.uniflitzer.backend.applicationservices.communicators.version1.errors.BadRequestError
 import de.uniflitzer.backend.applicationservices.communicators.version1.errors.ForbiddenError
 import de.uniflitzer.backend.applicationservices.communicators.version1.errors.InternalServerError
 import de.uniflitzer.backend.applicationservices.communicators.version1.errors.NotFoundError
@@ -85,6 +86,7 @@ private class DriveOffersCommunicator(
                 allowedGenders?.map { it.toGender() },
                 actingUser.blockedUsers,
                 actingUser.carpools,
+                actingUser,
                 Sort.by(
                     when (sortingDirection) {
                         SortingDirectionDP.Ascending -> Sort.Direction.ASC

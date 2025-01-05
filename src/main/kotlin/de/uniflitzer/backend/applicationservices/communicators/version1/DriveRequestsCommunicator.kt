@@ -110,6 +110,7 @@ private class DriveRequestsCommunicator(
                 }
             }
             .filter { it.requestingUser !in user.blockedUsers }
+            .filter { it.requestingUser != user }
 
         if(scheduleTime != null)
         {
