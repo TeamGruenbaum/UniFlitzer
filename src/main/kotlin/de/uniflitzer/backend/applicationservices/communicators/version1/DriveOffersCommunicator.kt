@@ -171,9 +171,9 @@ private class DriveOffersCommunicator(
             geographyService.createPosition(driveOfferCreation.route.start.toCoordinate()),
             geographyService.createPosition(driveOfferCreation.route.destination.toCoordinate())
         )
-        driveOfferCreation.scheduleTime?.toScheduleTime()
-            ?.let { if(it.type == ScheduleTimeType.Arrival) it.time.minus(driveOfferRoute.duration) else it.time }
-            ?.let { if(it.isBefore(ZonedDateTime.now().plusHours(1))) throw BadRequestError(listOf("Departure time can not be in the past or less than an hour in the future.")) }
+        //driveOfferCreation.scheduleTime?.toScheduleTime() TODO: Uncomment
+        //    ?.let { if(it.type == ScheduleTimeType.Arrival) it.time.minus(driveOfferRoute.duration) else it.time }
+        //    ?.let { if(it.isBefore(ZonedDateTime.now().plusHours(1))) throw BadRequestError(listOf("Departure time can not be in the past or less than an hour in the future.")) }
 
         val newDriveOffer: DriveOffer = when (driveOfferCreation) {
             is PublicDriveOfferCreationDP -> {
@@ -237,9 +237,9 @@ private class DriveOffersCommunicator(
         val driveOfferInEditing: DriveOffer = driveOffersRepository.findById(UUIDType.fromString(driveOfferId)).getOrNull() ?: throw NotFoundError("The drive offer with the id $driveOfferId could not be found.")
         if(driveOfferInEditing.scheduleTime != null) throw BadRequestError(listOf("Schedule time is already set and cannot be updated."))
         if(driveOfferInEditing.driver.id != UUIDType.fromString(userToken.id)) throw ForbiddenError("The user with the id ${userToken.id} is not the driver of the drive offer with the id $driveOfferId.")
-        driveOfferUpdate.scheduleTime.toScheduleTime().time
-            .let { if(driveOfferUpdate.scheduleTime.type == ScheduleTimeTypeDP.Arrival) it.minus(driveOfferInEditing.route.duration) else it }
-            .let { if(it.isBefore(ZonedDateTime.now().plusHours(1))) throw BadRequestError(listOf("Departure time can not be in the past or less than an hour in the future.")) }
+        //driveOfferUpdate.scheduleTime.toScheduleTime().time TODO: Uncomment
+        //    .let { if(driveOfferUpdate.scheduleTime.type == ScheduleTimeTypeDP.Arrival) it.minus(driveOfferInEditing.route.duration) else it }
+        //    .let { if(it.isBefore(ZonedDateTime.now().plusHours(1))) throw BadRequestError(listOf("Departure time can not be in the past or less than an hour in the future.")) }
 
         driveOfferInEditing.scheduleTime = driveOfferUpdate.scheduleTime.toScheduleTime()
         driveOffersRepository.save(driveOfferInEditing)

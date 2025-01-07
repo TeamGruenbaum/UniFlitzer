@@ -25,14 +25,14 @@ class DriveOffersToDrivesConverter(
     @field:Autowired private val imagesRepository: ImagesRepository,
     @field:Autowired private val carpoolsRepository: CarpoolsRepository
 ) {
-    @Scheduled(fixedRate = 3, timeUnit = TimeUnit.MINUTES)
+    @Scheduled(fixedRate = 10, timeUnit = TimeUnit.SECONDS)
     @Transactional(rollbackFor = [Throwable::class])
     fun execute() {
         driveOffersRepository.findAll()
             .filter {
                 when(it.scheduleTime?.type) {
-                    ScheduleTimeType.Arrival -> it.scheduleTime?.time?.minus(it.route.duration)?.isBefore(ZonedDateTime.now().plusMinutes(30)) ?: false
-                    ScheduleTimeType.Departure -> it.scheduleTime?.time?.isBefore(ZonedDateTime.now().plusMinutes(30)) ?: false
+                    ScheduleTimeType.Arrival -> ZonedDateTime.now().isAfter(it.scheduleTime!!.time.minus(it.route.duration).minusMinutes(30))
+                    ScheduleTimeType.Departure -> ZonedDateTime.now().isAfter(it.scheduleTime!!.time.minusMinutes(30))
                     null -> false
                 }
             }

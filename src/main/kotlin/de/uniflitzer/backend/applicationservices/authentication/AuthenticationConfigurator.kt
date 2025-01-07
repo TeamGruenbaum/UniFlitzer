@@ -116,6 +116,7 @@ class AuthenticationConfigurator(
                     isEnabled = true
                     isEditUsernameAllowed = true
                     isRegistrationAllowed = true
+                    accessTokenLifespan = 3600
                 }
             )
             authenticationConfigurator.realm(newRealmName).users().userProfile().update(

@@ -67,6 +67,7 @@ private class UsersCommunicator(
     fun getUser(@PathVariable @UUID userId: String, userToken: UserToken): ResponseEntity<DetailedUserDP> {
         if(!usersRepository.existsById(UUIDType.fromString(userToken.id))) throw ForbiddenError("User with id ${userToken.id} does not exist in resource server.")
         val searchedUser: User = usersRepository.findById(UUIDType.fromString(userId)).getOrNull() ?: throw NotFoundError("User with id $userId not found.")
+        val isActingUserLookingAtHisOwnProfile: Boolean = searchedUser.id == UUIDType.fromString(userToken.id)
 
         return ResponseEntity.ok(
             DetailedUserDP(
@@ -75,16 +76,16 @@ private class UsersCommunicator(
                 searchedUser.lastName.value,
                 searchedUser.birthday.toString(),
                 GenderDP.valueOf(searchedUser.gender.name),
-                if(searchedUser.id == UUIDType.fromString(userToken.id)) AddressDP.fromAddress(searchedUser.address) else null,
+                if(isActingUserLookingAtHisOwnProfile) AddressDP.fromAddress(searchedUser.address) else null,
                 searchedUser.description?.value,
                 searchedUser.studyProgramme.value,
                 searchedUser.isSmoking,
                 searchedUser.animals.map { AnimalDP.fromAnimal(it) },
                 DrivingStyleDP.fromDrivingStyle(searchedUser.drivingStyle),
-                if(searchedUser.id == UUIDType.fromString(userToken.id)) searchedUser.cars.map { CarDP.fromCar(it) } else null,
-                if(searchedUser.id == UUIDType.fromString(userToken.id)) searchedUser.favoriteUsers.map { PartialUserDP.fromUser(it) } else null,
-                if(searchedUser.id == UUIDType.fromString(userToken.id)) searchedUser.blockedUsers.map { PartialUserDP.fromUser(it) } else null,
-                searchedUser.favoriteAddresses.map { AddressDP.fromAddress(it) },
+                if(isActingUserLookingAtHisOwnProfile) searchedUser.cars.map { CarDP.fromCar(it) } else null,
+                if(isActingUserLookingAtHisOwnProfile) searchedUser.favoriteUsers.map { PartialUserDP.fromUser(it) } else null,
+                if(isActingUserLookingAtHisOwnProfile) searchedUser.blockedUsers.map { PartialUserDP.fromUser(it) } else null,
+                if(isActingUserLookingAtHisOwnProfile) searchedUser.favoriteAddresses.map { AddressDP.fromAddress(it) } else null,
                 searchedUser.ratings.map { RatingDP.fromRating(it) }
             )
         )

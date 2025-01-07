@@ -72,11 +72,11 @@ class User(id: UUID, firstName: FirstName, lastName: LastName, birthday: ZonedDa
     private var _driveOffersAsDriver: MutableList<DriveOffer> = mutableListOf()
     val driveOffersAsDriver: List<DriveOffer> get () = _driveOffersAsDriver
 
-    @field:OneToMany(fetch = FetchType.LAZY)
+    @field:ManyToMany(fetch = FetchType.LAZY)
     private var _driveOffersAsPassenger: MutableList<DriveOffer> = mutableListOf() //Manual bidirectional relationship 2
     val driveOffersAsPassenger: List<DriveOffer> get() = _driveOffersAsPassenger
 
-    @field:OneToMany(fetch = FetchType.LAZY)
+    @field:ManyToMany(fetch = FetchType.LAZY)
     private var _driveOffersAsRequestingUser: MutableList<PublicDriveOffer> = mutableListOf() //Manual bidirectional relationship 1
     val driveOffersAsRequestingUser: List<PublicDriveOffer> get() = _driveOffersAsRequestingUser
 

@@ -222,9 +222,9 @@ private class DriveRequestsCommunicator(
         if(user in driveRequest.requestingUser.blockedUsers) throw ForbiddenError(localizationService.getMessage("driveRequest.user.blockedByRequestingUser", user.id, driveRequestId))
 
         val driveOfferRoute: Route = geographyService.createRoute(geographyService.createPosition(driveOfferCreation.route.start.toCoordinate()), geographyService.createPosition(driveOfferCreation.route.destination.toCoordinate()))
-        driveOfferCreation.scheduleTime?.toScheduleTime()
-                ?.let { if(it.type == ScheduleTimeType.Arrival) it.time.minus(driveOfferRoute.duration) else it.time }
-                ?.let { if(it.isBefore(ZonedDateTime.now().plusHours(1))) throw BadRequestError(listOf("Departure time can not be in the past or less than an hour in the future.")) }
+        //driveOfferCreation.scheduleTime?.toScheduleTime() TODO: Uncomment
+        //        ?.let { if(it.type == ScheduleTimeType.Arrival) it.time.minus(driveOfferRoute.duration) else it.time }
+        //        ?.let { if(it.isBefore(ZonedDateTime.now().plusHours(1))) throw BadRequestError(listOf("Departure time can not be in the past or less than an hour in the future.")) }
 
         val driveOffer: DriveOffer
         when(driveRequest)
