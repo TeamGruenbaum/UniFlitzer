@@ -87,7 +87,7 @@ private class UsersCommunicator(
                 if(isActingUserLookingAtHisOwnProfile) searchedUser.blockedUsers.map { PartialUserDP.fromUser(it) } else null,
                 if(isActingUserLookingAtHisOwnProfile) searchedUser.favoriteAddresses.map { AddressDP.fromAddress(it) } else null,
                 searchedUser.ratings.map { RatingDP.fromRating(it) },
-                searchedUser.receivedInvites.map { PartialCarpoolDP.fromCarpool(it) }
+                if(isActingUserLookingAtHisOwnProfile) searchedUser.receivedInvites.map { PartialCarpoolDP.fromCarpool(it) } else null
             )
         )
     }
