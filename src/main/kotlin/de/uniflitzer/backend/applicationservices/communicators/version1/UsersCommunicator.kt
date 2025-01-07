@@ -86,7 +86,8 @@ private class UsersCommunicator(
                 if(isActingUserLookingAtHisOwnProfile) searchedUser.favoriteUsers.map { PartialUserDP.fromUser(it) } else null,
                 if(isActingUserLookingAtHisOwnProfile) searchedUser.blockedUsers.map { PartialUserDP.fromUser(it) } else null,
                 if(isActingUserLookingAtHisOwnProfile) searchedUser.favoriteAddresses.map { AddressDP.fromAddress(it) } else null,
-                searchedUser.ratings.map { RatingDP.fromRating(it) }
+                searchedUser.ratings.map { RatingDP.fromRating(it) },
+                searchedUser.receivedInvites.map { PartialCarpoolDP.fromCarpool(it) }
             )
         )
     }
@@ -427,7 +428,7 @@ private class UsersCommunicator(
     @Operation(description = "Get all drive offers of a specific user.")
     @CommonApiResponses @OkApiResponse
     @GetMapping("{userId}/drive-offers")
-    fun getDriveOffersOfUser(@PathVariable @UUID userId: String, @RequestParam @Min(1) pageNumber: Int, @RequestParam @Min(1) @Max(50) perPage: Int, @RequestParam sortingDirection: SortingDirectionDP = SortingDirectionDP.Ascending, role: DriverOfferRoleDP? = null, userToken: UserToken): ResponseEntity<PageDP<PartialDriveOfferDP>> {
+    fun getDriveOffersOfUser(@PathVariable @UUID userId: String, @RequestParam @Min(1) pageNumber: Int, @RequestParam @Min(1) @Max(200) perPage: Int, @RequestParam sortingDirection: SortingDirectionDP = SortingDirectionDP.Ascending, role: DriverOfferRoleDP? = null, userToken: UserToken): ResponseEntity<PageDP<PartialDriveOfferDP>> {
         val actingUser: User = usersRepository.findById(UUIDType.fromString(userToken.id)).getOrNull() ?: throw ForbiddenError("User with id ${userToken.id} does not exist in resource server.")
         if(actingUser.id != UUIDType.fromString(userId)) throw ForbiddenError("The user can only get their own drive offers.")
 
@@ -461,7 +462,7 @@ private class UsersCommunicator(
     @Operation(description = "Get all drive requests of a specific user.")
     @CommonApiResponses @OkApiResponse
     @GetMapping("{userId}/drive-requests")
-    fun getDriveRequestsOfUser(@PathVariable @UUID userId: String, @RequestParam @Min(1) pageNumber: Int, @RequestParam @Min(1) @Max(50) perPage: Int, @RequestParam sortingDirection: SortingDirectionDP = SortingDirectionDP.Ascending, userToken: UserToken): ResponseEntity<PageDP<PartialDriveRequestDP>> {
+    fun getDriveRequestsOfUser(@PathVariable @UUID userId: String, @RequestParam @Min(1) pageNumber: Int, @RequestParam @Min(1) @Max(200) perPage: Int, @RequestParam sortingDirection: SortingDirectionDP = SortingDirectionDP.Ascending, userToken: UserToken): ResponseEntity<PageDP<PartialDriveRequestDP>> {
         val user: User = usersRepository.findById(UUIDType.fromString(userToken.id)).getOrNull() ?: throw ForbiddenError(localizationService.getMessage("user.notExists", userToken.id))
         if(user.id != UUIDType.fromString(userId)) throw ForbiddenError(localizationService.getMessage("user.resource.driveRequests.getOthers", userToken.id))
 
@@ -494,7 +495,7 @@ private class UsersCommunicator(
     @Operation(description = "Get all drives of a specific user.")
     @CommonApiResponses @OkApiResponse
     @GetMapping("{userId}/drives")
-    fun getDrivesOfUser(@PathVariable @UUID userId: String, @RequestParam @Min(1) pageNumber: Int, @RequestParam @Min(1) @Max(50) perPage: Int, @RequestParam sortingDirection: SortingDirectionDP = SortingDirectionDP.Ascending, userToken: UserToken): ResponseEntity<PageDP<PartialDriveDP>> {
+    fun getDrivesOfUser(@PathVariable @UUID userId: String, @RequestParam @Min(1) pageNumber: Int, @RequestParam @Min(1) @Max(200) perPage: Int, @RequestParam sortingDirection: SortingDirectionDP = SortingDirectionDP.Ascending, userToken: UserToken): ResponseEntity<PageDP<PartialDriveDP>> {
         val user: User = usersRepository.findById(UUIDType.fromString(userToken.id)).getOrNull() ?: throw ForbiddenError(localizationService.getMessage("user.notExists", userToken.id))
         if(user.id != UUIDType.fromString(userId)) throw ForbiddenError(localizationService.getMessage("user.resource.drives.getOthers", userToken.id))
 
@@ -509,7 +510,7 @@ private class UsersCommunicator(
     @Operation(description = "Get all carpools of a specific user.")
     @CommonApiResponses @OkApiResponse
     @GetMapping("{userId}/carpools")
-    fun getCarpoolsOfUser(@PathVariable @UUID userId: String, @RequestParam @Min(1) pageNumber: Int, @RequestParam @Min(1) @Max(50) perPage: Int, @RequestParam sortingDirection: SortingDirectionDP = SortingDirectionDP.Ascending, userToken: UserToken): ResponseEntity<PageDP<PartialCarpoolDP>> {
+    fun getCarpoolsOfUser(@PathVariable @UUID userId: String, @RequestParam @Min(1) pageNumber: Int, @RequestParam @Min(1) @Max(200) perPage: Int, @RequestParam sortingDirection: SortingDirectionDP = SortingDirectionDP.Ascending, userToken: UserToken): ResponseEntity<PageDP<PartialCarpoolDP>> {
         val user: User = usersRepository.findById(UUIDType.fromString(userToken.id)).getOrNull() ?: throw ForbiddenError(localizationService.getMessage("user.notExists", userToken.id))
         if(user.id != UUIDType.fromString(userId)) throw ForbiddenError(localizationService.getMessage("user.resource.carpools.getOthers", userToken.id))
 

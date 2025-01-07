@@ -59,7 +59,7 @@ private class DriveOffersCommunicator(
     @GetMapping
     fun getDriveOffers(
         @RequestParam @Min(1) pageNumber: Int,
-        @RequestParam @Min(1) @Max(50) perPage: Int,
+        @RequestParam @Min(1) @Max(200) perPage: Int,
         @RequestParam startLatitude: Double,
         @RequestParam startLongitude: Double,
         @RequestParam destinationLatitude: Double,
@@ -364,7 +364,7 @@ private class DriveOffersCommunicator(
     @Operation(description = "Get the complete route for a specific drive offer including its passengers and a specific requesting user.")
     @CommonApiResponses @UnprocessableContentApiResponse @OkApiResponse @NotFoundApiResponse
     @GetMapping("{driveOfferId}/requesting-users/{requestingUserId}/complete-route")
-    fun getCompleteRouteWithRequestingUser(@PathVariable @UUID driveOfferId: String, @PathVariable @UUID requestingUserId: String, userToken: UserToken): ResponseEntity<CompleteRouteDP> {
+    fun getCompleteRouteWithRequestingUser(@PathVariable @UUID driveOfferId: String, @PathVariable @UUID requestingUserId: String, userToken: UserToken): ResponseEntity<DetailedRouteDP> {
         val user: User = usersRepository.findById(UUIDType.fromString(userToken.id)).getOrNull() ?: throw ForbiddenError(localizationService.getMessage("user.notExists", userToken.id))
         val driveOffer: DriveOffer = driveOffersRepository.findById(UUIDType.fromString(driveOfferId)).getOrNull() ?: throw NotFoundError(localizationService.getMessage("driveOffer.notFound", driveOfferId))
         if (driveOffer.driver.id != user.id) throw ForbiddenError(localizationService.getMessage("driveOffer.user.notDriverOf", user.id, driveOfferId))
@@ -373,12 +373,13 @@ private class DriveOffersCommunicator(
         when (driveOffer) {
             is PublicDriveOffer -> {
                 if(driveOffer.requestingUsers.none { it.user.id.toString() == requestingUserId }) throw NotFoundError(localizationService.getMessage("driveOffer.user.notRequested", requestingUserId, driveOfferId))
-                val completeRoute: CompleteRoute = geographyService.createCompleteRouteBasedOnUserStops(
+                val userStops:List<UserStop> = driveOffer.passengers + driveOffer.requestingUsers.filter { it.user.id.toString() == requestingUserId }
+                val route: Route = geographyService.createRoute(
                         driveOffer.route.start,
-                        driveOffer.passengers + driveOffer.requestingUsers.filter { it.user.id.toString() == requestingUserId },
+                        userStops.map { it.start.coordinate } + userStops.map { it.destination.coordinate },
                         driveOffer.route.destination
                     )
-                return ResponseEntity.ok(CompleteRouteDP.fromCompleteRoute(completeRoute))
+                return ResponseEntity.ok(DetailedRouteDP.fromRoute(route))
             }
             is CarpoolDriveOffer -> throw UnprocessableContentError(localizationService.getMessage("driveOffer.carpool.requests.automaticallyAccepted", driveOfferId))
             else -> { throw IllegalStateException("Drive offer is neither a public drive offer nor a carpool drive offer.") }

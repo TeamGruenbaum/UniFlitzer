@@ -82,7 +82,7 @@ private class DriveRequestsCommunicator(
     @GetMapping("")
     fun getDriveRequests(
         @RequestParam @Min(1) pageNumber: Int,
-        @RequestParam @Min(1) @Max(50) perPage: Int,
+        @RequestParam @Min(1) @Max(200) perPage: Int,
         @RequestParam role: RoleDP? = null,
         @RequestParam currentLatitude: Double? = null,
         @RequestParam currentLongitude: Double? = null,
