@@ -5,6 +5,7 @@ import de.uniflitzer.backend.applicationservices.communicators.version1.datapack
 import de.uniflitzer.backend.applicationservices.communicators.version1.datapackages.DetailedCarpoolDP
 import de.uniflitzer.backend.applicationservices.communicators.version1.datapackages.IdDP
 import de.uniflitzer.backend.applicationservices.communicators.version1.documentationinformationadder.apiresponses.*
+import de.uniflitzer.backend.applicationservices.communicators.version1.errors.BadRequestError
 import de.uniflitzer.backend.applicationservices.communicators.version1.errors.ForbiddenError
 import de.uniflitzer.backend.applicationservices.communicators.version1.errors.NotFoundError
 import de.uniflitzer.backend.applicationservices.communicators.version1.localization.LocalizationService
@@ -24,6 +25,8 @@ import io.swagger.v3.oas.annotations.tags.Tag
 import jakarta.validation.Valid
 import org.keycloak.admin.client.Keycloak
 import org.keycloak.representations.idm.UserRepresentation
+import org.slf4j.Logger
+import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.core.env.Environment
 import org.springframework.http.ResponseEntity
@@ -46,6 +49,8 @@ private class CarpoolsCommunicator(
     @field:Autowired private val localizationService: LocalizationService
     )
 {
+    private val logger: Logger = LoggerFactory.getLogger(this::class.java)
+
     @Operation(description = "Create a new carpool.")
     @CommonApiResponses @CreatedApiResponse
     @PostMapping("")
@@ -115,23 +120,53 @@ private class CarpoolsCommunicator(
     @PostMapping("{carpoolId}/sent-invites/{username}")
     fun sendInviteForCarpool(@PathVariable @UUID carpoolId: String, @PathVariable username: String, userToken: UserToken): ResponseEntity<Void>
     {
-        val actingUser: User = usersRepository.findById(UUIDType.fromString(userToken.id)).getOrNull() ?: throw ForbiddenError(localizationService.getMessage("user.notExists", userToken.id))
+        val logId:UUIDType = UUIDType.randomUUID()
+        logger.info("$logId: User with id ${userToken.id} made request to send invite to user $username for carpool $carpoolId.")
 
-        val carpool: Carpool = carpoolsRepository.findById(UUIDType.fromString(carpoolId)).getOrNull() ?: throw NotFoundError(localizationService.getMessage("carpool.notFound", carpoolId))
-        if(carpool.users.none { it.id == actingUser.id }) throw ForbiddenError(localizationService.getMessage("carpool.user.noMemberOf", actingUser.id, carpoolId))
+        val actingUser: User = usersRepository.findById(UUIDType.fromString(userToken.id)).getOrNull() ?: run {
+            logger.warn("$logId: User with id ${userToken.id} does not exist in resource server.")
+            throw ForbiddenError(localizationService.getMessage("user.notExists", userToken.id))
+        }
+        logger.trace("$logId: Requesting user does exist in resource server.")
 
-        val users: List<UserRepresentation> = authenticationAdministrator.realm(
-            environment.getProperty("keycloak.realm.name") ?: throw IllegalStateException("Keycloak realm name not defined.")
-        ).users().search(username)
-        if (users.isEmpty()) throw NotFoundError(localizationService.getMessage("identityServer.user.username.notExists", username))
+        val carpool: Carpool = carpoolsRepository.findById(UUIDType.fromString(carpoolId)).getOrNull() ?: run {
+            logger.warn("$logId: Carpool with id $carpoolId not found.")
+            throw NotFoundError(localizationService.getMessage("carpool.notFound", carpoolId))
+        }
+        logger.trace("$logId: Carpool does exist.")
 
-        val invitedUser: User = usersRepository.findById(UUIDType.fromString(users[0].id)).getOrNull() ?: throw NotFoundError(localizationService.getMessage("user.notExists", users[0].id))
+        if(carpool.users.none { it.id == actingUser.id }) {
+            logger.warn("$logId: User with id ${actingUser.id} is not a member of carpool with id $carpoolId.")
+            throw ForbiddenError(localizationService.getMessage("carpool.user.noMemberOf", actingUser.id, carpoolId))
+        }
+        logger.trace("$logId: Requesting user is a member of carpool.")
+
+        val realmName = environment.getProperty("keycloak.realm.name") ?: run {
+            logger.warn("$logId: Keycloak realm name not defined.")
+            throw IllegalStateException("Keycloak realm name not defined.")
+        }
+        val users: List<UserRepresentation> = authenticationAdministrator.realm(realmName).users().search(username)
+        if (users.none {it.username == username}) {
+            logger.warn("$logId: User with username $username not found in identity server.")
+            throw NotFoundError(localizationService.getMessage("identityServer.user.username.notExists", username))
+        }
+        logger.trace("$logId: User to invite found in identity server.")
+
+        val invitedUser: User = usersRepository.findById(UUIDType.fromString(users[0].id)).getOrNull() ?: run {
+            logger.warn("$logId: User with id ${users[0].id} not found in resource server.")
+            throw NotFoundError(localizationService.getMessage("user.notExists", users[0].id))
+        }
+        logger.trace("$logId: User to invite found in resource server.")
         try {
             carpool.sendInvite(invitedUser)
+            logger.trace("$logId: Invitation sent to user to invite for carpool.")
         } catch (error: RepeatedActionError) {
-            throw ForbiddenError(localizationService.getMessage("carpool.user.alreadyMemberOfOrAlreadyInvited", invitedUser.id, carpoolId))
+            logger.warn("$logId: User with id ${invitedUser.id} is already a member of or has already been invited to carpool with id $carpoolId.")
+            throw BadRequestError(listOf(localizationService.getMessage("carpool.user.alreadyMemberOfOrAlreadyInvited", invitedUser.id, carpoolId)))
         }
         carpoolsRepository.save(carpool)
+        logger.info("$logId: User with id ${actingUser.id} successfully invited user with id ${invitedUser.id} to carpool with id $carpoolId.")
+
         return ResponseEntity.noContent().build()
     }
 
