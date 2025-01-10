@@ -4,6 +4,10 @@ import de.uniflitzer.backend.applicationservices.authentication.UserToken
 import de.uniflitzer.backend.applicationservices.communicators.version1.datapackages.*
 import de.uniflitzer.backend.applicationservices.communicators.version1.documentationinformationadder.apiresponses.*
 import de.uniflitzer.backend.applicationservices.communicators.version1.errors.*
+import de.uniflitzer.backend.applicationservices.communicators.version1.errors.BadRequestError
+import de.uniflitzer.backend.applicationservices.communicators.version1.errors.ForbiddenError
+import de.uniflitzer.backend.applicationservices.communicators.version1.errors.NotFoundError
+import de.uniflitzer.backend.applicationservices.communicators.version1.errors.UnprocessableContentError
 import de.uniflitzer.backend.applicationservices.communicators.version1.localization.LocalizationService
 import de.uniflitzer.backend.applicationservices.communicators.version1.valuechecker.UUID
 import de.uniflitzer.backend.applicationservices.geography.GeographyService
@@ -16,7 +20,6 @@ import de.uniflitzer.backend.repositories.CarpoolsRepository
 import de.uniflitzer.backend.repositories.DriveOffersRepository
 import de.uniflitzer.backend.repositories.ImagesRepository
 import de.uniflitzer.backend.repositories.UsersRepository
-import de.uniflitzer.backend.repositories.errors.ImageDirectoryMissingError
 import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.annotations.media.Content
 import io.swagger.v3.oas.annotations.responses.ApiResponse
@@ -26,6 +29,8 @@ import io.swagger.v3.oas.annotations.tags.Tag
 import jakarta.validation.Valid
 import jakarta.validation.constraints.Max
 import jakarta.validation.constraints.Min
+import org.slf4j.Logger
+import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.data.domain.Sort
 import org.springframework.http.HttpStatus
@@ -50,6 +55,8 @@ class DriveOffersCommunicator(
     @field:Autowired private val carpoolsRepository: CarpoolsRepository,
     @field:Autowired private val localizationService: LocalizationService
 ) {
+    private val logger: Logger = LoggerFactory.getLogger(this::class.java)
+
     @Operation(description = "Get all drive offers.")
     @CommonApiResponses @OkApiResponse
     @GetMapping
@@ -293,7 +300,7 @@ class DriveOffersCommunicator(
 
     @Operation(description = "Accept a requesting user for a specific drive offer.")
     @CommonApiResponses @UnprocessableContentApiResponse @NoContentApiResponse @NotFoundApiResponse @ConflictApiResponse
-    @PostMapping("{driveOfferId}/requesting-users/{requestingUserId}/acceptances")
+    @PostMapping("{driveOfferId}/requesting-users/{requestingUserId}/acceptances") //TODO Manchmal werden Nutzer ohne Anahme angenommen
     fun acceptRequestingUser(@PathVariable @UUID driveOfferId: String, @PathVariable @UUID requestingUserId: String, userToken: UserToken): ResponseEntity<Void> {
         val actingUser: User = usersRepository.findById(UUIDType.fromString(userToken.id)).getOrNull() ?: throw ForbiddenError("User with id ${userToken.id} does not exist in resource server.")
         val requestingUser: User = usersRepository.findById(UUIDType.fromString(requestingUserId)).getOrNull() ?: throw NotFoundError("The requesting user with the id $requestingUserId could not be found.")
@@ -332,25 +339,43 @@ class DriveOffersCommunicator(
     @CommonApiResponses @UnprocessableContentApiResponse @NoContentApiResponse @NotFoundApiResponse
     @PostMapping("{driveOfferId}/requesting-users/{requestingUserId}/rejections")
     fun rejectRequestingUser(@PathVariable @UUID driveOfferId: String, @PathVariable @UUID requestingUserId: String, userToken: UserToken):ResponseEntity<Void> {
+        logger.info("User with id ${userToken.id} made request to reject user with id $requestingUserId in drive offer with id $driveOfferId.")
+
         val actingUser: User = usersRepository.findById(UUIDType.fromString(userToken.id)).getOrNull() ?: throw ForbiddenError("User with id ${userToken.id} does not exist in resource server.")
+        logger.trace("Rejecting user does exist.")
+
         val requestingUser: User = usersRepository.findById(UUIDType.fromString(requestingUserId)).getOrNull() ?: throw NotFoundError("The requesting user with the id $requestingUserId could not be found.")
+        logger.trace("User to reject does exist.")
+
         val driveOfferInEditing: DriveOffer = driveOffersRepository.findById(UUIDType.fromString(driveOfferId)).getOrNull() ?: throw NotFoundError("The drive offer with the id $driveOfferId could not be found.")
-        if (driveOfferInEditing.driver.id != actingUser.id) throw ForbiddenError("A user who is not the driver cannot accept requests")
+        logger.trace("Drive offer does exist.")
+
+        if (driveOfferInEditing.driver.id != actingUser.id) {
+            logger.error("Rejecting user with id ${userToken.id} is not the driver of the drive offer with id $driveOfferId.")
+            throw ForbiddenError("A user who is not the driver cannot accept requests")
+        }
 
         when (driveOfferInEditing) {
             is PublicDriveOffer -> {
                 try {
                     requestingUser.leaveDriveOfferAsRequestingUser(driveOfferInEditing)
                     driveOfferInEditing.rejectRequestFromUser(requestingUser.id)
+                    logger.trace("Requesting user was removed from drive offer and drive offer was remove from user to reject account.")
                 } catch (_: MissingActionError) {
+                    logger.warn("The user to reject with the id $requestingUserId could not be found in the drive offer with the id $driveOfferId.")
                     throw NotFoundError("The requesting user with the id $requestingUserId could not be found in the drive offer with the id $driveOfferId.")
                 }
             }
-            is CarpoolDriveOffer -> throw UnprocessableContentError("The drive offer with the ID $driveOfferId is a carpool drive offer, so requests are automatically accepted.")
+            is CarpoolDriveOffer -> {
+                logger.warn("The drive offer with the ID $driveOfferId is a carpool drive offer, so requests are automatically accepted.")
+                throw UnprocessableContentError("The drive offer with the ID $driveOfferId is a carpool drive offer, so requests are automatically accepted.")
+            }
         }
         usersRepository.save(actingUser)
         driveOffersRepository.save(driveOfferInEditing)
+        logger.trace("User to reject and drive offer were saved.")
 
+        logger.info("Rejecting user with id ${userToken.id} successfully rejected user with id $requestingUserId in drive offer with id $driveOfferId.")
         return ResponseEntity.noContent().build()
     }
 
