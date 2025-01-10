@@ -49,7 +49,7 @@ import java.util.UUID as UUIDType
 @MessageMapping("v1/drives")
 @Validated
 @Transactional(rollbackFor = [Throwable::class])
-private class DrivesCommunicator(
+class DrivesCommunicator(
     @field:Autowired private val usersRepository: UsersRepository,
     @field:Autowired private val drivesRepository: DrivesRepository,
     @field:Autowired private val geographyService: GoogleMapsPlatformGeographyService,

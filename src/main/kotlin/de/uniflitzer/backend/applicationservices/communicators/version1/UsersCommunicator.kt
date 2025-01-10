@@ -4,6 +4,9 @@ import de.uniflitzer.backend.applicationservices.authentication.UserToken
 import de.uniflitzer.backend.applicationservices.communicators.version1.datapackages.*
 import de.uniflitzer.backend.applicationservices.communicators.version1.documentationinformationadder.apiresponses.*
 import de.uniflitzer.backend.applicationservices.communicators.version1.errors.*
+import de.uniflitzer.backend.applicationservices.communicators.version1.errors.BadRequestError
+import de.uniflitzer.backend.applicationservices.communicators.version1.errors.ForbiddenError
+import de.uniflitzer.backend.applicationservices.communicators.version1.errors.NotFoundError
 import de.uniflitzer.backend.applicationservices.communicators.version1.localization.LocalizationService
 import de.uniflitzer.backend.applicationservices.communicators.version1.valuechecker.UUID
 import de.uniflitzer.backend.applicationservices.geography.GeographyService
@@ -48,7 +51,7 @@ import java.util.UUID as UUIDType
 @Tag(name = "User") @SecurityRequirement(name = "Token Authentication")
 @Validated
 @Transactional(rollbackFor = [Throwable::class])
-private class UsersCommunicator(
+class UsersCommunicator(
     @field:Autowired private val usersRepository: UsersRepository,
     @field:Autowired private val drivesRepository: DrivesRepository,
     @field:Autowired private val driveRequestsRepository: DriveRequestsRepository,
@@ -83,7 +86,7 @@ private class UsersCommunicator(
                 if(isActingUserLookingAtHisOwnProfile) searchedUser.cars.map { CarDP.fromCar(it) } else null,
                 if(isActingUserLookingAtHisOwnProfile) searchedUser.favoriteUsers.map { PartialUserDP.fromUser(it) } else null,
                 if(isActingUserLookingAtHisOwnProfile) searchedUser.blockedUsers.map { PartialUserDP.fromUser(it) } else null,
-                if(isActingUserLookingAtHisOwnProfile) searchedUser.favoriteAddresses.map { AddressDP.fromAddress(it) } else null,
+                if(isActingUserLookingAtHisOwnProfile) searchedUser.favoritePositions.map { PositionDP.fromPosition(it) } else null,
                 searchedUser.ratings.map { RatingDP.fromRating(it) },
                 if(isActingUserLookingAtHisOwnProfile) searchedUser.receivedInvites.map { PartialCarpoolDP.fromCarpool(it) } else null
             )
@@ -117,29 +120,6 @@ private class UsersCommunicator(
         userResource.update(user);
 
         return ResponseEntity.status(HttpStatus.CREATED).body(IdDP(newUser.id.toString()))
-    }
-
-    @Operation(description = "Delete a specific user.")
-    @CommonApiResponses @NoContentApiResponse @NotFoundApiResponse
-    @DeleteMapping("{userId}")
-    fun deleteUser(@PathVariable @UUID userId: String, userToken: UserToken): ResponseEntity<Void> {
-        if(userToken.id != userId) throw ForbiddenError("The User can only delete its own account.")
-        val actingUser: User = usersRepository.findById(UUIDType.fromString(userId)).getOrNull() ?: throw NotFoundError("User with id $userId not found.")
-
-        actingUser.profilePicture?.id?.let { imagesRepository.deleteById(it) }
-        actingUser.cars.forEach { car -> car.image?.let { image -> imagesRepository.deleteById(image.id) } }
-        usersRepository.findAll().forEach { it.removeRatingsOfUser(actingUser) }
-        actingUser.driveOffersAsPassenger.forEach { it.removePassenger(actingUser) }
-        actingUser.driveOffersAsRequestingUser.forEach { it.rejectRequestFromUser(actingUser.id) }
-        actingUser.drivesAsPassenger.forEach { it.route = geographyService.createCompleteRouteBasedOnConfirmableUserStops(it.route.start, it.route.userStops, it.route.destination) }
-        usersRepository.delete(actingUser)
-        usersRepository.flush()
-        authenticationAdministrator
-            .realm(environment.getProperty("keycloak.realm.name") ?: throw IllegalStateException("Keycloak realm name not defined."))
-            .users()
-            .delete(userId)
-
-        return ResponseEntity.noContent().build<Void>()
     }
 
     @Operation(description = "Update a specific user.")
@@ -317,30 +297,30 @@ private class UsersCommunicator(
         return ResponseEntity.noContent().build<Void>()
     }
 
-    @Operation(description = "Create a favorite address for a specific user.")
+    @Operation(description = "Create a favorite position for a specific user.")
     @CommonApiResponses @CreatedApiResponse
-    @PostMapping("{userId}/favorite-addresses")
-    fun addFavoriteAddressForUser(@PathVariable @UUID userId: String, @RequestBody @Valid address: AddressDP, userToken: UserToken): ResponseEntity<Void> {
-        if (userToken.id != userId) throw ForbiddenError("Users can only add favorite addresses to their own account.")
+    @PostMapping("{userId}/favorite-positions")
+    fun addFavoritePositionForUser(@PathVariable @UUID userId: String, @RequestBody @Valid coordinate: CoordinateDP, userToken: UserToken): ResponseEntity<Void> {
+        if (userToken.id != userId) throw ForbiddenError("Users can only add favorite positions to their own account.")
         val actingUser: User = usersRepository.findById(UUIDType.fromString(userId)).getOrNull() ?: throw ForbiddenError("User with id $userId does not exist in resource server.")
 
-        actingUser.addFavoriteAddress(address.toAddress())
+        actingUser.addFavoritePosition(geographyService.createPosition(coordinate.toCoordinate()))
         usersRepository.save(actingUser)
 
         return ResponseEntity.status(HttpStatus.CREATED).build<Void>()
     }
 
-    @Operation(description = "Delete a favorite address of a specific user.")
+    @Operation(description = "Delete a favorite position of a specific user.")
     @CommonApiResponses @NoContentApiResponse @NotFoundApiResponse
-    @DeleteMapping("{userId}/favorite-addresses/{addressIndex}")
-    fun deleteFavoriteAddressOfUser(@PathVariable @UUID userId: String, @PathVariable @Min(0) addressIndex: Int, userToken: UserToken): ResponseEntity<Void> {
-        if (userToken.id != userId) throw ForbiddenError("Users can only delete favorite addresses from their own account.")
+    @DeleteMapping("{userId}/favorite-positions/{positionIndex}")
+    fun deleteFavoritePositionOfUser(@PathVariable @UUID userId: String, @PathVariable @Min(0) positionIndex: Int, userToken: UserToken): ResponseEntity<Void> {
+        if (userToken.id != userId) throw ForbiddenError("Users can only delete favorite positions from their own account.")
         val actingUser: User = usersRepository.findById(UUIDType.fromString(userId)).getOrNull() ?: throw ForbiddenError("User with id $userId does not exist in resource server.")
 
         try {
-            actingUser.removeFavoriteAddressByIndex(addressIndex.toUInt())
+            actingUser.removeFavoritePositionByIndex(positionIndex.toUInt())
         } catch (_: NotAvailableError) {
-            throw NotFoundError("Favorite address with index $addressIndex not found.")
+            throw NotFoundError("Favorite position with index $positionIndex not found.")
         }
         usersRepository.save(actingUser)
 

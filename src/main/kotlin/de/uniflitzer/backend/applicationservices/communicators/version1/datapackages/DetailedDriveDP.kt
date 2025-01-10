@@ -8,7 +8,7 @@ import io.swagger.v3.oas.annotations.media.Schema
 import jakarta.validation.Valid
 import jakarta.validation.constraints.Pattern
 
-data class DetailedDriveDP(
+data class DetailedDriveDP private constructor(
     @field:UUID val id: String,
     @field:Valid val driver: PartialUserDP,
     @field:Valid val car: CarDP,

@@ -3,7 +3,7 @@ package de.uniflitzer.backend.applicationservices.communicators.version1.datapac
 import de.uniflitzer.backend.model.PublicDriveOffer
 import jakarta.validation.constraints.Size
 
-class PartialPublicDriveOfferDP constructor(
+class PartialPublicDriveOfferDP private constructor(
     containsFavoriteDriver: Boolean,
     id: String,
     driver: PartialUserDP,

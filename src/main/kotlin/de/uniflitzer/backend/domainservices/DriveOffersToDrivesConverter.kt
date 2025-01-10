@@ -60,13 +60,12 @@ class DriveOffersToDrivesConverter(
                             null -> return@forEach
                         }
                     )
-
                 it.car.image?.let { driveOfferCarImage -> newDrive.car.image = imagesRepository.copy(driveOfferCarImage) }
-                if(it is CarpoolDriveOffer){
-                    it.carpool.addDrive(newDrive)
+                val storedDrive = drivesRepository.saveAndFlush(newDrive)
+                if(it is CarpoolDriveOffer) {
+                    it.carpool.addDrive(storedDrive)
                     carpoolsRepository.save(it.carpool)
                 }
-                drivesRepository.saveAndFlush(newDrive)
                 driveOffersRepository.delete(it)
             }
 

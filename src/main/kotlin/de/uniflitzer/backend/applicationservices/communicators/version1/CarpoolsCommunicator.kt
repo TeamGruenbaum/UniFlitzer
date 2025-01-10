@@ -40,7 +40,7 @@ import java.util.UUID as UUIDType
 @Tag(name = "Carpools") @SecurityRequirement(name = "Token Authentication")
 @Validated
 @Transactional(rollbackFor = [Throwable::class])
-private class CarpoolsCommunicator(
+class CarpoolsCommunicator(
     @field:Autowired private val usersRepository: UsersRepository,
     @field:Autowired private val carpoolsRepository: CarpoolsRepository,
     @field:Autowired private val imagesRepository: ImagesRepository,

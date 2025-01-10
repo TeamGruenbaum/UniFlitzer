@@ -3,7 +3,7 @@ package de.uniflitzer.backend.applicationservices.communicators.version1.datapac
 import de.uniflitzer.backend.model.CompleteRoute
 import jakarta.validation.Valid
 
-data class CompleteRouteDP(
+data class CompleteRouteDP private constructor(
     @field:Valid val start: PositionDP,
     @field:Valid val destination: PositionDP,
     @field:Valid val userStops: List<PartialConfirmableUserStop>,

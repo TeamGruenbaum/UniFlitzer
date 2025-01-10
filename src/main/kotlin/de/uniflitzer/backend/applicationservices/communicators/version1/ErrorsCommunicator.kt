@@ -20,17 +20,11 @@ import org.springframework.http.ResponseEntity
 import org.springframework.http.converter.HttpMessageNotReadableException
 import org.springframework.messaging.Message
 import org.springframework.messaging.MessageChannel
-import org.springframework.messaging.converter.MessageConversionException
 import org.springframework.messaging.handler.annotation.Header
 import org.springframework.messaging.handler.annotation.MessageExceptionHandler
 import org.springframework.messaging.simp.stomp.StompCommand
 import org.springframework.messaging.simp.stomp.StompHeaderAccessor
-import org.springframework.messaging.simp.user.SimpUserRegistry
 import org.springframework.messaging.support.MessageBuilder
-import org.springframework.scheduling.annotation.Scheduled
-import org.springframework.stereotype.Component
-import org.springframework.stereotype.Service
-import org.springframework.transaction.annotation.Transactional
 import org.springframework.web.HttpRequestMethodNotSupportedException
 import org.springframework.web.bind.MethodArgumentNotValidException
 import org.springframework.web.bind.MissingServletRequestParameterException
@@ -40,10 +34,9 @@ import org.springframework.web.method.annotation.MethodArgumentTypeMismatchExcep
 import org.springframework.web.multipart.MaxUploadSizeExceededException
 import org.springframework.web.servlet.resource.NoResourceFoundException
 import java.util.*
-import kotlin.collections.toList
 
 @ControllerAdvice
-private class ErrorsCommunicator(
+class ErrorsCommunicator(
     @field:Autowired private val clientOutboundChannel: MessageChannel,
     @field:Autowired private val localizationService: LocalizationService
 ) {
@@ -90,7 +83,10 @@ private class ErrorsCommunicator(
                 is MethodArgumentNotValidException -> ErrorsDP(error.toList())
                 is MethodArgumentTypeMismatchException -> ErrorsDP(listOf(localizationService.getMessage("parameter.invalid", error.name)))
                 is MissingServletRequestParameterException -> ErrorsDP(listOf(localizationService.getMessage("parameter.missing", error.parameterName)))
-                is HttpMessageNotReadableException -> ErrorsDP(listOf(localizationService.getMessage("requestBody.missingOrInvalid")))
+                is HttpMessageNotReadableException -> {
+                    error.printStackTrace()
+                    ErrorsDP(listOf(localizationService.getMessage("requestBody.missingInvalidOrWrongTypeValue")))
+                }
                 is MaxUploadSizeExceededException -> ErrorsDP(listOf(localizationService.getMessage("error.fileSize")))
                 else -> throw InternalServerError(localizationService.getMessage("error.unexpected"))
             }

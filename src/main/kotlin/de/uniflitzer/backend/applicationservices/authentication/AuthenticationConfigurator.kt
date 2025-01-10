@@ -74,6 +74,7 @@ class AuthenticationConfigurator(
                 requests
                     .requestMatchers("/swagger-ui/**").permitAll()
                     .requestMatchers("/api-documentation/**").permitAll()
+                    .requestMatchers("/authenticationClientCallback").permitAll()
                     .anyRequest().authenticated()
             }
             .cors {

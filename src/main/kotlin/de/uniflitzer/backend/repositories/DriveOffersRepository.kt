@@ -25,7 +25,7 @@ interface DriveOffersRepository: JpaRepository<DriveOffer, UUID> {
             AND (:allowedDrivingStyles IS NULL OR driveOffer.driver.drivingStyle IN :allowedDrivingStyles)
             AND (:allowedGenders IS NULL OR driveOffer.driver.gender IN :allowedGenders)
             AND driveOffer.driver NOT IN :blockedUsers
-            AND (TYPE(driveOffer) <> CarpoolDriveOffer OR driveOffer IN (SELECT carpoolDriveOffer FROM CarpoolDriveOffer carpoolDriveOffer WHERE carpoolDriveOffer.carpool IN :allowedCarpools))
+            AND TYPE(driveOffer) <> CarpoolDriveOffer
             AND driveOffer.driver <> :disallowedDriver
         """
     )
@@ -35,7 +35,6 @@ interface DriveOffersRepository: JpaRepository<DriveOffer, UUID> {
         @Param("allowedDrivingStyles") allowedDrivingStyles: List<DrivingStyle>?,
         @Param("allowedGenders") allowedGenders: List<Gender>?,
         @Param("blockedUsers") blockedUsers: List<User>,
-        @Param("allowedCarpools") allowedCarpools: List<Carpool>,
         @Param("disallowedDriver") disallowedDriver: User,
         sort: Sort
     ): List<DriveOffer>

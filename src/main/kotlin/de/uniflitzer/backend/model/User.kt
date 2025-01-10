@@ -53,8 +53,8 @@ class User(id: UUID, firstName: FirstName, lastName: LastName, birthday: ZonedDa
     val cars: List<Car> get() = _cars
 
     @field:ElementCollection
-    private var _favoriteAddresses: MutableList<Address> = mutableListOf()
-    val favoriteAddresses: List<Address> get() = _favoriteAddresses
+    private var _favoritePositions: MutableList<Position> = mutableListOf()
+    val favoritePositions: List<Position> get() = _favoritePositions
 
     @field:ManyToMany(fetch = FetchType.LAZY)
     private var _favoriteUsers: MutableList<User> = mutableListOf()
@@ -128,12 +128,12 @@ class User(id: UUID, firstName: FirstName, lastName: LastName, birthday: ZonedDa
         _animals.addAll(animals)
     }
 
-    fun addFavoriteAddress(address: Address) = _favoriteAddresses.add(address)
+    fun addFavoritePosition(position: Position) = _favoritePositions.add(position)
 
     @Throws(NotAvailableError::class)
-    fun removeFavoriteAddressByIndex(index: UInt) {
-        if (index.toInt() >= _favoriteAddresses.size) throw NotAvailableError("Car index $index is out of bounds of user with id $id.")
-        _favoriteAddresses.removeAt(index.toInt())
+    fun removeFavoritePositionByIndex(index: UInt) {
+        if (index.toInt() >= _favoritePositions.size) throw NotAvailableError("Favorite position index $index is out of bounds of user with id $id.")
+        _favoritePositions.removeAt(index.toInt())
     }
 
     fun addRating(rating: Rating) = _ratings.add(rating)

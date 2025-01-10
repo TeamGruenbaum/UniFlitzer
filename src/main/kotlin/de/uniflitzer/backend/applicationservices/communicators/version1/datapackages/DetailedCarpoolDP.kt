@@ -6,7 +6,7 @@ import de.uniflitzer.backend.model.User
 import jakarta.validation.Valid
 import jakarta.validation.constraints.Size
 
-data class DetailedCarpoolDP (
+data class DetailedCarpoolDP private constructor(
     @field:UUID val id: String,
     @field:Size(min = 2, max = 100) val name: String,
     @field:Valid val users: List<PartialUserDP>,

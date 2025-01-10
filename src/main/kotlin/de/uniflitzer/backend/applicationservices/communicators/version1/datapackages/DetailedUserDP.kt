@@ -25,7 +25,7 @@ data class DetailedUserDP(
     @field:Valid @field:Size(min = 0, max = 5) val cars: List<CarDP>?,
     @field:Valid @field:Size(min = 0) val favoriteUsers: List<PartialUserDP>?,
     @field:Valid @field:Size(min = 0) val blockedUsers: List<PartialUserDP>?,
-    @field:Valid @field:Size(min = 0) val favoriteAddresses: List<AddressDP>?,
+    @field:Valid @field:Size(min = 0) val favoritePositions: List<PositionDP>?,
     @field:Valid val ratings: List<RatingDP>,
     @field:Valid val receivedInvites: List<PartialCarpoolDP>?
 )

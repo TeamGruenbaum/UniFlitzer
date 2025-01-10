@@ -6,7 +6,7 @@ import jakarta.validation.constraints.Max
 import jakarta.validation.constraints.Min
 import jakarta.validation.constraints.Size
 
-data class PartialUserDP(
+data class PartialUserDP private constructor(
     @field:UUID val id: String,
     @field:Size(min=1, max=100) val firstName: String,
     @field:Size(min=1, max=100) val lastName: String,

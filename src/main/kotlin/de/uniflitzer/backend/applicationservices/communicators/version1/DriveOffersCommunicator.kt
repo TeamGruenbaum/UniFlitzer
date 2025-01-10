@@ -42,7 +42,7 @@ import java.util.UUID as UUIDType
 @Tag(name = "Drive Offers") @SecurityRequirement(name = "Token Authentication")
 @Validated
 @Transactional(rollbackFor = [Throwable::class])
-private class DriveOffersCommunicator(
+class DriveOffersCommunicator(
     @field:Autowired private val driveOffersRepository: DriveOffersRepository,
     @field:Autowired private val usersRepository: UsersRepository,
     @field:Autowired private val geographyService: GeographyService,
@@ -81,7 +81,6 @@ private class DriveOffersCommunicator(
                 allowedDrivingStyles?.map { it.toDrivingStyle() },
                 allowedGenders?.map { it.toGender() },
                 actingUser.blockedUsers,
-                actingUser.carpools,
                 actingUser,
                 Sort.by(
                     when (sortingDirection) {

@@ -2,7 +2,7 @@ package de.uniflitzer.backend.applicationservices.communicators.version1.datapac
 
 import jakarta.validation.Valid
 
-class DetailedCarpoolDriveOfferDP constructor(
+class DetailedCarpoolDriveOfferDP(
     containsFavoriteDriver: Boolean,
     id: String,
     driver: PartialUserDP,

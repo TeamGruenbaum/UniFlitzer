@@ -3,7 +3,7 @@ package de.uniflitzer.backend.applicationservices.communicators.version1.datapac
 import de.uniflitzer.backend.applicationservices.communicators.version1.valuechecker.UUID
 import de.uniflitzer.backend.model.CarpoolDriveRequest
 
-class PartialCarpoolDriveRequestDP(
+class PartialCarpoolDriveRequestDP private constructor(
     id: String,
     containsFavoriteRequestingUser: Boolean,
     requestingUser: PartialUserDP,

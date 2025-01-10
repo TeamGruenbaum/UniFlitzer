@@ -31,7 +31,7 @@ import java.util.UUID as UUIDType
 @Tag(name = "Drive Requests") @SecurityRequirement(name = "Token Authentication")
 @Validated
 @Transactional(rollbackFor = [Throwable::class])
-private class DriveRequestsCommunicator(
+class DriveRequestsCommunicator(
     @field:Autowired private val usersRepository: UsersRepository,
     @field:Autowired private val driveRequestsRepository: DriveRequestsRepository,
     @field:Autowired private val driveOffersRepository: DriveOffersRepository,

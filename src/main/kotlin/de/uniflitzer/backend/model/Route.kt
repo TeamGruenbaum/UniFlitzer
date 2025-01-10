@@ -72,4 +72,24 @@ class Route(start: Position, destination: Position, duration: Duration, polyline
 
         return indexOfStartOnRoute < indexOfDestinationOnRoute
     }
+
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (other !is Route) return false
+
+        if (start != other.start) return false
+        if (destination != other.destination) return false
+        if (duration != other.duration) return false
+        if (polyline != other.polyline) return false
+
+        return true
+    }
+
+    override fun hashCode(): Int {
+        var result = start.hashCode()
+        result = 31 * result + destination.hashCode()
+        result = 31 * result + duration.hashCode()
+        result = 31 * result + polyline.hashCode()
+        return result
+    }
 }

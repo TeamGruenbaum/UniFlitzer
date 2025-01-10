@@ -8,7 +8,7 @@ import jakarta.validation.Valid
 import jakarta.validation.constraints.Pattern
 import java.time.ZonedDateTime
 
-data class ScheduleTimeDP(
+data class ScheduleTimeDP private constructor(
     @field:Pattern(regexp = DateTimeFormat) @field:Schema(example = DateTimeFormatExample) val time: String,
     @field:Valid val type: ScheduleTimeTypeDP
 ) {
