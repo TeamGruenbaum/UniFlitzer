@@ -6,6 +6,7 @@ import de.uniflitzer.backend.applicationservices.communicators.version1.document
 import de.uniflitzer.backend.applicationservices.communicators.version1.documentationinformationadder.apiresponses.NoContentApiResponse
 import de.uniflitzer.backend.applicationservices.communicators.version1.documentationinformationadder.apiresponses.NotFoundApiResponse
 import de.uniflitzer.backend.applicationservices.communicators.version1.documentationinformationadder.apiresponses.OkApiResponse
+import de.uniflitzer.backend.applicationservices.communicators.version1.errors.BadRequestError
 import de.uniflitzer.backend.applicationservices.communicators.version1.errors.ForbiddenError
 import de.uniflitzer.backend.applicationservices.communicators.version1.errors.NotFoundError
 import de.uniflitzer.backend.applicationservices.communicators.version1.errors.StompError
@@ -133,7 +134,7 @@ private class DrivesCommunicator(
         } catch(error: NotAvailableError){
             throw NotFoundError(localizationService.getMessage("drive.userStop.notExists", user.id, driveId))
         } catch(error: RepeatedActionError) {
-            throw ForbiddenError(localizationService.getMessage("drive.userStop.alreadyConfirmed", user.id, driveId))
+            throw BadRequestError(listOf(localizationService.getMessage("drive.userStop.alreadyConfirmed", user.id, driveId)))
         }
 
         drivesRepository.save(drive)

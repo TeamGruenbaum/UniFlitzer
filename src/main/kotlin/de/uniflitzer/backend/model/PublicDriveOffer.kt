@@ -16,7 +16,7 @@ class PublicDriveOffer(driver: User, car: Car, freeSeats: Seats, route: Route, s
     private var _requestingUsers: MutableList<UserStop> = mutableListOf() //Manual bidirectional relationship 1
     val requestingUsers: List<UserStop> get() = _requestingUsers
 
-    @Throws(RepeatedActionError::class, MissingActionError::class)
+    @Throws(RepeatedActionError::class, ConflictingActionError::class)
     fun addRequestFromUser(user: User, start: Position, destination: Position) {
         if(user in requestingUsers.map { it.user }) throw RepeatedActionError("User with id ${user.id} already requested a seat for this public drive offer with id $id.")
         if (user == driver) throw ConflictingActionError("The Driver with id ${user.id} of this drive offer with id $id cannot be a passenger at the same time.")

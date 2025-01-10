@@ -246,7 +246,21 @@ private class DriveRequestsCommunicator(
                         originalCar.image?.let { driveOffer.car.image = imagesRepository.copy(it) }
 
                         driveOffersRepository.saveAndFlush(driveOffer)
+                        try{ driveOffer.addPassenger(UserStop(
+                            driveRequest.requestingUser,
+                            driveOfferRoute.start,
+                            driveOfferRoute.destination
+                        )) }
+                        catch(conflictingActionError: ConflictingActionError) { throw ConflictError(localizationService.getMessage("driveOffer.user.alreadyDriverOf", user.id, driveOffer.id)) }
+                        catch(notAvailableError: NotAvailableError) { throw BadRequestError(listOf(localizationService.getMessage("driveOffer.seats.taken", driveOffer.id))) }
+                        catch(repeatedActionError: RepeatedActionError) { throw BadRequestError(listOf(localizationService.getMessage("driveOffer.user.alreadyPassengerOf", user.id, driveOffer.id)) )}
+
+                        driveOffersRepository.saveAndFlush(driveOffer)
                         driveRequestsRepository.delete(driveRequest)
+
+                        try { user.joinDriveOfferAsPassenger(driveOffer)}
+                        catch (repeatedActionError: RepeatedActionError) { throw BadRequestError(listOf(localizationService.getMessage("driveOffer.user.alreadyPassengerOf", user.id, driveOffer.id)) )}
+                        usersRepository.save(user)
                     }
                     is PublicDriveOfferCreationDP -> { throw UnprocessableContentError(localizationService.getMessage("driveRequest.carpool.driveOffer.publicForbidden", driveRequestId)) }
                 }
@@ -268,7 +282,7 @@ private class DriveRequestsCommunicator(
 
                         driveOffersRepository.saveAndFlush(driveOffer)
                         try { driveRequest.addDriveOffer(driveOffer) }
-                        catch (repeatedActionError: RepeatedActionError) { throw ForbiddenError(localizationService.getMessage("driveRequest.public.driveOffer.alreadyAdded", driveOffer.id, driveRequestId)) }
+                        catch (repeatedActionError: RepeatedActionError) { throw BadRequestError(listOf(localizationService.getMessage("driveRequest.public.driveOffer.alreadyAdded", driveOffer.id, driveRequestId))) }
 
                         driveRequestsRepository.saveAndFlush(driveRequest)
                     }
@@ -306,11 +320,11 @@ private class DriveRequestsCommunicator(
     }
 
     @Operation(description = "This endpoint is only allowed to use on a PublicRequestRequest. Accept a specific drive offer for a specific drive request. The requesting user of the drive request is automatically accepted as a passenger and the drive request is deleted.")
-    @CommonApiResponses @UnprocessableContentApiResponse @NoContentApiResponse @NotFoundApiResponse
+    @CommonApiResponses @UnprocessableContentApiResponse @NoContentApiResponse @NotFoundApiResponse @ConflictApiResponse
     @PostMapping("{driveRequestId}/drive-offers/{driveOfferId}/acceptances")
     fun acceptDriveOffer(@PathVariable @UUID driveRequestId:String, @PathVariable @UUID driveOfferId:String, userToken: UserToken): ResponseEntity<Void>
     {
-        if(!usersRepository.existsById(UUIDType.fromString(userToken.id))) throw ForbiddenError(localizationService.getMessage("user.notExists", userToken.id))
+        val user: User = usersRepository.findById(UUIDType.fromString(userToken.id)).getOrNull() ?: throw ForbiddenError(localizationService.getMessage("user.notExists", userToken.id))
 
         val driveRequest: DriveRequest = driveRequestsRepository.findById(UUIDType.fromString(driveRequestId)).getOrNull() ?: throw NotFoundError(localizationService.getMessage("driveRequest.notFound", driveRequestId))
         if(driveRequest.requestingUser.id != UUIDType.fromString(userToken.id)) throw ForbiddenError(localizationService.getMessage("driveRequest.user.notRequestingUserOf", userToken.id, driveRequestId))
@@ -318,10 +332,16 @@ private class DriveRequestsCommunicator(
         when(driveRequest) {
             is CarpoolDriveRequest -> { throw UnprocessableContentError(localizationService.getMessage("driveRequest.carpool.driveOffer.automaticallyAccepted", driveRequestId)) }
             is PublicDriveRequest -> {
-                try { driveRequest.acceptDriveOffer(UUIDType.fromString(driveOfferId)) }
+                val driveOffer: DriveOffer = driveOffersRepository.findById(UUIDType.fromString(driveOfferId)).getOrNull() ?: throw NotFoundError(localizationService.getMessage("driveOffer.notFound", driveOfferId))
+                try {
+                    user.joinDriveOfferAsPassenger(driveOffer)
+                    driveRequest.acceptDriveOffer(UUIDType.fromString(driveOfferId))
+                }
                 catch (notAvailableError: NotAvailableError) { throw NotFoundError(localizationService.getMessage("driveOffer.notFoundOrAllSeatsTaken", driveOfferId)) }
-                catch (conflictingActionError: ConflictingActionError) { throw ForbiddenError(localizationService.getMessage("driveOffer.user.alreadyDriverOf", driveRequest.requestingUser.id, driveOfferId)) }
-                catch (repeatedActionError: RepeatedActionError) { throw ForbiddenError(localizationService.getMessage("driveOffer.user.alreadyPassengerOf", driveRequest.requestingUser.id, driveOfferId)) }
+                catch (conflictingActionError: ConflictingActionError) { throw ConflictError(localizationService.getMessage("driveOffer.user.alreadyDriverOf", driveRequest.requestingUser.id, driveOfferId)) }
+                catch (repeatedActionError: RepeatedActionError) { throw BadRequestError(listOf(localizationService.getMessage("driveOffer.user.alreadyPassengerOf", driveRequest.requestingUser.id, driveOfferId))) }
+
+                usersRepository.save(user)
                 driveRequestsRepository.saveAndFlush(driveRequest)
                 driveRequestsRepository.delete(driveRequest)
             }

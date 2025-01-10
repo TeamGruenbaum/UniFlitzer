@@ -6,18 +6,14 @@ import de.uniflitzer.backend.applicationservices.communicators.version1.datapack
 import de.uniflitzer.backend.applicationservices.communicators.version1.datapackages.ErrorsDP
 import de.uniflitzer.backend.applicationservices.communicators.version1.datapackages.TraceableErrorDP
 import de.uniflitzer.backend.applicationservices.communicators.version1.datapackages.TraceableErrorsDP
-import de.uniflitzer.backend.applicationservices.communicators.version1.errors.BadRequestError
-import de.uniflitzer.backend.applicationservices.communicators.version1.errors.ForbiddenError
-import de.uniflitzer.backend.applicationservices.communicators.version1.errors.InternalServerError
-import de.uniflitzer.backend.applicationservices.communicators.version1.errors.NotFoundError
-import de.uniflitzer.backend.applicationservices.communicators.version1.errors.StompError
-import de.uniflitzer.backend.applicationservices.communicators.version1.errors.UnprocessableContentError
+import de.uniflitzer.backend.applicationservices.communicators.version1.errors.*
 import de.uniflitzer.backend.applicationservices.communicators.version1.localization.LocalizationService
 import jakarta.servlet.http.HttpServletRequest
 import jakarta.validation.ConstraintViolationException
 import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.beans.factory.annotation.Qualifier
+import org.springframework.context.NoSuchMessageException
 import org.springframework.http.HttpStatus
 import org.springframework.http.MediaType
 import org.springframework.http.ResponseEntity
@@ -56,6 +52,11 @@ private class ErrorsCommunicator(
     @ExceptionHandler(ForbiddenError::class)
     fun handleForbiddenErrors(forbiddenError: ForbiddenError): ResponseEntity<ErrorDP> {
         return ResponseEntity.status(HttpStatus.FORBIDDEN).contentType(MediaType.APPLICATION_JSON).body(ErrorDP(forbiddenError.error))
+    }
+
+    @ExceptionHandler(ConflictError::class)
+    fun handleConflictErrors(conflictError: ConflictError): ResponseEntity<ErrorDP> {
+        return ResponseEntity.status(HttpStatus.CONFLICT).contentType(MediaType.APPLICATION_JSON).body(ErrorDP(conflictError.error))
     }
 
     @ExceptionHandler(
@@ -107,6 +108,7 @@ private class ErrorsCommunicator(
     }
 
     @ExceptionHandler(
+        NoSuchMessageException::class,
         IllegalArgumentException::class,
         IllegalStateException::class,
         InternalServerError::class,

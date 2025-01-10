@@ -3,11 +3,7 @@ package de.uniflitzer.backend.applicationservices.communicators.version1
 import de.uniflitzer.backend.applicationservices.authentication.UserToken
 import de.uniflitzer.backend.applicationservices.communicators.version1.datapackages.*
 import de.uniflitzer.backend.applicationservices.communicators.version1.documentationinformationadder.apiresponses.*
-import de.uniflitzer.backend.applicationservices.communicators.version1.errors.BadRequestError
-import de.uniflitzer.backend.applicationservices.communicators.version1.errors.ForbiddenError
-import de.uniflitzer.backend.applicationservices.communicators.version1.errors.InternalServerError
-import de.uniflitzer.backend.applicationservices.communicators.version1.errors.NotFoundError
-import de.uniflitzer.backend.applicationservices.communicators.version1.errors.UnprocessableContentError
+import de.uniflitzer.backend.applicationservices.communicators.version1.errors.*
 import de.uniflitzer.backend.applicationservices.communicators.version1.localization.LocalizationService
 import de.uniflitzer.backend.applicationservices.communicators.version1.valuechecker.UUID
 import de.uniflitzer.backend.applicationservices.geography.GeographyService
@@ -248,7 +244,7 @@ private class DriveOffersCommunicator(
     }
 
     @Operation(description = "Request the ride for a specific drive offer.")
-    @CommonApiResponses @NoContentApiResponse @NotFoundApiResponse
+    @CommonApiResponses @NoContentApiResponse @NotFoundApiResponse @ConflictApiResponse
     @PostMapping("{driveOfferId}/requests")
     fun requestSeat(@PathVariable @UUID driveOfferId: String, @RequestBody @Valid userStopCreation: UserStopCreationDP, userToken: UserToken): ResponseEntity<Void> {
         val actingUser: User = usersRepository.findById(UUIDType.fromString(userToken.id)).getOrNull() ?: throw ForbiddenError("User with id ${userToken.id} does not exist in resource server.")
@@ -266,11 +262,9 @@ private class DriveOffersCommunicator(
                         geographyService.createPosition(userStopCreation.destination.toCoordinate())
                     )
                 } catch (_: RepeatedActionError) {
-                    throw ForbiddenError("The user with the id ${actingUser.id} has already requested a seat in the drive offer with the id $driveOfferId.")
-                } catch (_: MissingActionError) {
-                    throw ForbiddenError("The Driver with id ${actingUser.id} of this drive offer with id $driveOfferId cannot be a passenger at the same time.")
+                    throw BadRequestError(listOf("The user with the id ${actingUser.id} has already requested a seat in the drive offer with the id $driveOfferId."))
                 } catch (_: ConflictingActionError) {
-                    throw ForbiddenError("The Driver with id ${actingUser.id} of this drive offer with id $driveOfferId cannot be a passenger at the same time.")
+                    throw ConflictError("The Driver with id ${actingUser.id} of this drive offer with id $driveOfferId cannot be a passenger at the same time.")
                 }
             }
             is CarpoolDriveOffer -> {
@@ -284,11 +278,11 @@ private class DriveOffersCommunicator(
                         )
                     )
                 } catch (_: NotAvailableError) {
-                    throw ForbiddenError("No free seats left in the drive offer with the id $driveOfferId.")
+                    throw BadRequestError(listOf("No free seats left in the drive offer with the id $driveOfferId."))
                 } catch (_: RepeatedActionError) {
-                    throw ForbiddenError("The user is already a passenger of the drive offer.")
+                    throw BadRequestError(listOf("The user is already a passenger of the drive offer."))
                 } catch (_: ConflictingActionError) {
-                    throw ForbiddenError("The Driver with id ${actingUser.id} of this drive offer with id $driveOfferId cannot be a passenger at the same time.")
+                    throw ConflictError("The Driver with id ${actingUser.id} of this drive offer with id $driveOfferId cannot be a passenger at the same time.")
                 }
             }
         }
@@ -299,7 +293,7 @@ private class DriveOffersCommunicator(
     }
 
     @Operation(description = "Accept a requesting user for a specific drive offer.")
-    @CommonApiResponses @UnprocessableContentApiResponse @NoContentApiResponse @NotFoundApiResponse
+    @CommonApiResponses @UnprocessableContentApiResponse @NoContentApiResponse @NotFoundApiResponse @ConflictApiResponse
     @PostMapping("{driveOfferId}/requesting-users/{requestingUserId}/acceptances")
     fun acceptRequestingUser(@PathVariable @UUID driveOfferId: String, @PathVariable @UUID requestingUserId: String, userToken: UserToken): ResponseEntity<Void> {
         val actingUser: User = usersRepository.findById(UUIDType.fromString(userToken.id)).getOrNull() ?: throw ForbiddenError("User with id ${userToken.id} does not exist in resource server.")
@@ -320,11 +314,11 @@ private class DriveOffersCommunicator(
                 } catch (_: MissingActionError) {
                     throw NotFoundError("The requesting user with the id $requestingUserId could not be found in the drive offer with the id $driveOfferId.")
                 } catch (_: NotAvailableError) {
-                    throw ForbiddenError("No free seats left in the drive offer with the id $driveOfferId.")
+                    throw BadRequestError(listOf("No free seats left in the drive offer with the id $driveOfferId."))
                 } catch (_: RepeatedActionError) {
-                    throw ForbiddenError("The user with the id $requestingUserId is already a passenger of the drive offer with the id $driveOfferId.")
+                    throw BadRequestError(listOf("The user with the id $requestingUserId is already a passenger of the drive offer with the id $driveOfferId."))
                 } catch (_: ConflictingActionError) {
-                    throw ForbiddenError("The Driver with id $requestingUserId of this drive offer with id $driveOfferId cannot be a passenger at the same time.")
+                    throw ConflictError("The Driver with id $requestingUserId of this drive offer with id $driveOfferId cannot be a passenger at the same time.")
                 }
             }
             is CarpoolDriveOffer -> throw UnprocessableContentError("The drive offer with the ID $driveOfferId is a carpool drive offer, so requests are automatically accepted.")

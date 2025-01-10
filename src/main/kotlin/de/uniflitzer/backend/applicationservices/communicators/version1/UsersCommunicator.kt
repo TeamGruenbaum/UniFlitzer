@@ -3,10 +3,7 @@ package de.uniflitzer.backend.applicationservices.communicators.version1
 import de.uniflitzer.backend.applicationservices.authentication.UserToken
 import de.uniflitzer.backend.applicationservices.communicators.version1.datapackages.*
 import de.uniflitzer.backend.applicationservices.communicators.version1.documentationinformationadder.apiresponses.*
-import de.uniflitzer.backend.applicationservices.communicators.version1.errors.BadRequestError
-import de.uniflitzer.backend.applicationservices.communicators.version1.errors.ForbiddenError
-import de.uniflitzer.backend.applicationservices.communicators.version1.errors.InternalServerError
-import de.uniflitzer.backend.applicationservices.communicators.version1.errors.NotFoundError
+import de.uniflitzer.backend.applicationservices.communicators.version1.errors.*
 import de.uniflitzer.backend.applicationservices.communicators.version1.localization.LocalizationService
 import de.uniflitzer.backend.applicationservices.communicators.version1.valuechecker.UUID
 import de.uniflitzer.backend.applicationservices.geography.GeographyService
@@ -18,6 +15,7 @@ import de.uniflitzer.backend.model.errors.RepeatedActionError
 import de.uniflitzer.backend.repositories.*
 import de.uniflitzer.backend.repositories.errors.*
 import io.swagger.v3.oas.annotations.Operation
+import io.swagger.v3.oas.annotations.media.Schema
 import io.swagger.v3.oas.annotations.media.Content as MediaContent
 import io.swagger.v3.oas.annotations.responses.ApiResponse
 import io.swagger.v3.oas.annotations.responses.ApiResponses
@@ -350,7 +348,7 @@ private class UsersCommunicator(
     }
 
     @Operation(description = "Add favorite user to a specific user")
-    @CommonApiResponses @NoContentApiResponse @NotFoundApiResponse
+    @CommonApiResponses @NoContentApiResponse @NotFoundApiResponse @ConflictApiResponse
     @PostMapping("/{userId}/favorite-users/")
     fun addFavoriteUserToUser(@PathVariable @UUID userId: String, @RequestBody @Valid favoriteUserAddition: UserAdditionDP, userToken: UserToken): ResponseEntity<Void> {
         if (userToken.id != userId) throw ForbiddenError("Users can only add favorite users to their own account.")
@@ -362,7 +360,7 @@ private class UsersCommunicator(
         } catch (_: RepeatedActionError) {
             throw BadRequestError(listOf("User with id ${actingUser.id} is already a favorite user."))
         } catch (_: ConflictingActionError) {
-            throw BadRequestError(listOf("User with id ${actingUser.id} cannot be a favorite user of itself."))
+            throw ConflictError("User with id ${actingUser.id} cannot be a favorite user of itself.")
         }
         usersRepository.save(actingUser)
 
@@ -388,7 +386,7 @@ private class UsersCommunicator(
     }
 
     @Operation(description = "Add blocked user to a specific user")
-    @CommonApiResponses @NoContentApiResponse @NotFoundApiResponse
+    @CommonApiResponses @NoContentApiResponse @NotFoundApiResponse @ConflictApiResponse
     @PostMapping("/{userId}/blocked-users/")
     fun addBlockedUserToUser(@PathVariable @UUID userId: String, @RequestBody @Valid blockedUserAddition: UserAdditionDP, userToken: UserToken): ResponseEntity<Void> {
         if (userToken.id != userId) throw ForbiddenError("Users can only add blocked users to their own account.")
@@ -400,7 +398,7 @@ private class UsersCommunicator(
         } catch (_: RepeatedActionError) {
             throw BadRequestError(listOf("User with id ${actingUser.id} is already a blocked user."))
         } catch (_: ConflictingActionError) {
-            throw BadRequestError(listOf("User with id ${actingUser.id} cannot be a blocked user of itself."))
+            throw ConflictError("User with id ${actingUser.id} cannot be a blocked user of itself.")
         }
         usersRepository.save(actingUser)
 

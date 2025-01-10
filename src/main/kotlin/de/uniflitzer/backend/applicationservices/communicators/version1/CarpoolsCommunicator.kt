@@ -100,7 +100,7 @@ private class CarpoolsCommunicator(
             try {
                 carpool.rejectInvite(it)
             } catch(error: RepeatedActionError) {
-                throw ForbiddenError(localizationService.getMessage("carpool.user.alreadyMemberOf", user.id, carpoolId))
+                throw BadRequestError(listOf(localizationService.getMessage("carpool.user.alreadyMemberOf", user.id, carpoolId)))
             } catch(error: MissingActionError) {
                 throw NotFoundError(localizationService.getMessage("carpool.user.invite.notSent", user.id, carpoolId))
             }
@@ -147,7 +147,7 @@ private class CarpoolsCommunicator(
         try {
             carpool.acceptInvite(user)
         } catch(error: RepeatedActionError) {
-            throw ForbiddenError(localizationService.getMessage("carpool.user.alreadyMemberOf", user.id, carpoolId))
+            throw BadRequestError(listOf(localizationService.getMessage("carpool.user.alreadyMemberOf", user.id, carpoolId)))
         } catch(error: MissingActionError) {
             throw NotFoundError(localizationService.getMessage("carpool.user.invite.notSent", user.id, carpoolId))
         }
@@ -167,7 +167,7 @@ private class CarpoolsCommunicator(
         try {
             carpool.rejectInvite(user)
         } catch(error: RepeatedActionError) {
-            throw ForbiddenError(localizationService.getMessage("carpool.user.alreadyMemberOf", user.id, carpoolId))
+            throw BadRequestError(listOf(localizationService.getMessage("carpool.user.alreadyMemberOf", user.id, carpoolId)))
         } catch(error: MissingActionError) {
             throw NotFoundError(localizationService.getMessage("carpool.user.invite.notSent", user.id, carpoolId))
         }
