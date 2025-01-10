@@ -1,0 +1,33 @@
+services:
+  database:
+    image: "postgres:17"
+    environment:
+      POSTGRES_USER: "administrator"
+      POSTGRES_PASSWORD: 12345678
+      POSTGRES_DB: "uniflitzer"
+    ports:
+      - "5433:5432"
+    volumes:
+      - "database-data:/var/lib/postgresql/data"
+
+  virus-scanning:
+    image: mkodockx/docker-clamav:alpine
+    ports:
+      - "3311:3310/tcp"
+
+  authentication:
+    image: keycloak/keycloak:26.0
+    ports:
+      - "7375:7374"
+    volumes:
+      - "authentication-data:/opt/keycloak/data/"
+    environment:
+      KEYCLOAK_ADMIN: admin
+      KEYCLOAK_ADMIN_PASSWORD: admin
+      KC_FEATURES_DISABLED: ciba,device-flow,kerberos,par,step-up-authentication,web-authn
+      KC_HTTP_PORT: 7374
+    command: start-dev
+
+volumes:
+  database-data:
+  authentication-data:

@@ -47,3 +47,5 @@ images/
 *.log
 logs/
 !gradle/wrapper/gradle-wrapper.jar
+test.env
+local.env
