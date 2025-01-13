@@ -11,11 +11,16 @@ import org.keycloak.admin.client.resource.ClientResource
 import org.keycloak.representations.idm.ClientRepresentation
 import org.keycloak.representations.idm.CredentialRepresentation
 import org.keycloak.representations.idm.UserRepresentation
+import org.springframework.boot.runApplication
+import org.springframework.context.ApplicationContext
+import org.springframework.context.ConfigurableApplicationContext
 import java.net.URI
 import java.net.http.HttpClient
 import java.net.http.HttpRequest
 import java.net.http.HttpResponse
+import java.time.LocalDateTime
 import java.time.ZonedDateTime
+import java.time.format.DateTimeFormatter
 import java.util.*
 
 
@@ -52,109 +57,90 @@ class IntegrationTests {
 		keycloakUniFlitzerClientSecret = keycloakUniFlitzerClientResource.secret.value
 	}
 
+	private fun createTestUser(userName: String, password: String, firstName: String, lastName: String, birthday: String, gender: String, street: String, houseNumber: String, postalCode: String, city: String, studyProgramme: String): Pair<UUID, String> {
+		keycloakAdministrator.realm(keycloakUniFlitzerRealmName).users().create(
+			UserRepresentation().apply {
+				isEnabled = true
+				username = userName
+				email = "${firstName.lowercase()}.${lastName.lowercase()}@hof-university.de"
+				isEmailVerified = true
+				credentials = listOf(
+					CredentialRepresentation().apply {
+						type = CredentialRepresentation.PASSWORD
+						value = password
+						isTemporary = false
+					}
+				)
+			}
+		)
+		val userAccessToken: String = Keycloak.getInstance(keycloakServerUrl, keycloakUniFlitzerRealmName, userName, password, keycloakUniFlitzerClientId, keycloakUniFlitzerClientSecret).tokenManager().accessTokenString
+		val userCreationResponse: HttpResponse<String> = httpClient.send(
+			HttpRequest.newBuilder()
+				.uri(URI.create("$resourceServerUrl/v1/users"))
+				.headers(
+					"Content-Type", "application/json",
+					"Authorization", "Bearer $userAccessToken"
+				)
+				.POST(
+					HttpRequest.BodyPublishers.ofString(
+						"""
+						{
+							"firstName": "$firstName",
+							"lastName": "$lastName",
+							"birthday": "$birthday",
+							"gender": "$gender",
+							"address": {
+								"street": "$street",
+								"houseNumber": "$houseNumber",
+								"postalCode": "$postalCode",
+								"city": "$city"
+							},
+							"studyProgramme": "$studyProgramme"
+						}
+						"""
+					)
+				)
+				.build(),
+			HttpResponse.BodyHandlers.ofString()
+		)
+		println()
+		Assertions.assertEquals(201, userCreationResponse.statusCode())
+		val userId: UUID = Assertions.assertDoesNotThrow(ThrowingSupplier { UUID.fromString(ObjectMapper().readTree(userCreationResponse.body()).get("id").asText()) })
+
+		return Pair(userId, userAccessToken)
+	}
+
 	@Test
 	fun `test public drive offer joining`() {
 		//Anna registers an account
-		val annasUserName: String = "anna"
-		val annasPassword: String = "12345678"
-		keycloakAdministrator.realm(keycloakUniFlitzerRealmName).users().create(
-			UserRepresentation().apply {
-				isEnabled = true
-				username = annasUserName
-				email = "anna.riema@hof-university.de"
-				isEmailVerified = true
-				credentials = listOf(
-					CredentialRepresentation().apply {
-						type = CredentialRepresentation.PASSWORD
-						value = annasPassword
-						isTemporary = false
-					}
-				)
-			}
+		val (annasId: UUID, annasAccessToken: String) = createTestUser(
+			"anna",
+			"12345678",
+			"Anna",
+			"Riema",
+			"2001-03-18T00:00:00+01:00",
+			"Female",
+			"Albert-Einstein-Straße",
+			"2",
+			"95028",
+			"Hof",
+			"Master Informatik"
 		)
-		val annasAccessToken: String = Keycloak.getInstance(keycloakServerUrl, keycloakUniFlitzerRealmName, annasUserName, annasPassword, keycloakUniFlitzerClientId, keycloakUniFlitzerClientSecret).tokenManager().accessTokenString
-		val annaCreationResponse: HttpResponse<String> = httpClient.send(
-			HttpRequest.newBuilder()
-				.uri(URI.create("$resourceServerUrl/v1/users"))
-				.headers(
-					"Content-Type", "application/json",
-					"Authorization", "Bearer $annasAccessToken"
-				)
-				.POST(
-					HttpRequest.BodyPublishers.ofString(
-						"""
-						{
-							"firstName": "Anna",
-							"lastName": "Riema",
-							"birthday": "2001-03-18T00:00:00+01:00",
-							"gender": "Female",
-							"address": {
-								"street": "Albert-Einstein-Straße",
-								"houseNumber": "2",
-								"postalCode": "95028",
-								"city": "Hof"
-							},
-							"studyProgramme": "Master Informatik"
-						}
-						"""
-					)
-				)
-				.build(),
-			HttpResponse.BodyHandlers.ofString()
-		)
-		Assertions.assertEquals(201, annaCreationResponse.statusCode())
-		val annasId: UUID = Assertions.assertDoesNotThrow(ThrowingSupplier { UUID.fromString(ObjectMapper().readTree(annaCreationResponse.body()).get("id").asText()) })
 
 		//Hans registers an account
-		val hansUserName: String = "hans"
-		val hansPassword: String = "abcdefgh"
-		keycloakAdministrator.realm(keycloakUniFlitzerRealmName).users().create(
-			UserRepresentation().apply {
-				isEnabled = true
-				username = hansUserName
-				email = "hans.girah@hof-university.de"
-				isEmailVerified = true
-				credentials = listOf(
-					CredentialRepresentation().apply {
-						type = CredentialRepresentation.PASSWORD
-						value = hansPassword
-						isTemporary = false
-					}
-				)
-			}
+		val (hansId: UUID, hansAccessToken: String) = createTestUser(
+			"hans",
+			"abcdefgh",
+			"Hans",
+			"Girah",
+			"2003-07-23T00:00:00+01:00",
+			"Male",
+			"Fabrikzeile",
+			"26",
+			"95028",
+			"Hof",
+			"Kommunikationsdesign"
 		)
-		val hansAccessToken: String= Keycloak.getInstance(keycloakServerUrl, keycloakUniFlitzerRealmName, hansUserName, hansPassword, keycloakUniFlitzerClientId, keycloakUniFlitzerClientSecret).tokenManager().accessTokenString
-		val hansCreationResponse: HttpResponse<String> = httpClient.send(
-			HttpRequest.newBuilder()
-				.uri(URI.create("$resourceServerUrl/v1/users"))
-				.headers(
-					"Content-Type", "application/json",
-					"Authorization", "Bearer $hansAccessToken"
-				)
-				.POST(
-					HttpRequest.BodyPublishers.ofString(
-						"""
-						{
-							"firstName": "Hans",
-							"lastName": "Girah",
-							"birthday": "2003-07-23T00:00:00+01:00",
-							"gender": "Male",
-							"address": {
-								"street": "Fabrikzeile",
-								"houseNumber": "26",
-								"postalCode": "95028",
-								"city": "Hof"
-							},
-							"studyProgramme": "Kommunikationsdesign"
-						}
-						"""
-					)
-				)
-				.build(),
-			HttpResponse.BodyHandlers.ofString()
-		)
-		Assertions.assertEquals(201, hansCreationResponse.statusCode())
-		val hansId: UUID = Assertions.assertDoesNotThrow(ThrowingSupplier { UUID.fromString(ObjectMapper().readTree(hansCreationResponse.body()).get("id").asText()) })
 
 		//Anna adds a car
 		val annasPorscheCaymenSCreationResponse: HttpResponse<Void> = httpClient.send(
@@ -311,5 +297,141 @@ class IntegrationTests {
 		)
 		Assertions.assertEquals(200, hansDriveOffersAsPassenger.statusCode())
 		Assertions.assertTrue(expectedDriveOffersResponseBody.matches(hansDriveOffersAsPassenger.body()))
+	}
+
+	@Test
+	fun `test carpool joining`() {
+		//Maria registers an account
+		val (mariasId: UUID, mariasAccessToken: String) = createTestUser(
+			"maria",
+			"12344321",
+			"Maria",
+			"Lauer",
+			"2002-08-10T00:00:00+01:00",
+			"Female",
+			"Albert-Einstein-Straße",
+			"2",
+			"95028",
+			"Hof",
+			"Maschinenbau"
+		)
+
+		//Tom registers an account
+		val tomsUserName: String = "tom"
+		val (tomsId: UUID, tomsAccessToken: String) = createTestUser(
+			tomsUserName,
+			"abcde123",
+			"Tom",
+			"Sommer",
+			"2000-11-20T00:00:00+01:00",
+			"Male",
+			"Fabrikzeile",
+			"26",
+			"95028",
+			"Hof",
+			"Betriebswirtschaft"
+		)
+
+		//Maria creates a carpool
+		val mariasCarpoolCreationResponse: HttpResponse<String> = httpClient.send(
+			HttpRequest.newBuilder()
+				.uri(URI.create("$resourceServerUrl/v1/carpools"))
+				.headers(
+					"Content-Type", "application/json",
+					"Authorization", "Bearer $mariasAccessToken"
+				)
+				.POST(
+					HttpRequest.BodyPublishers.ofString(
+						"""
+						{
+							"name": "Uni-Pendler"
+						}
+						"""
+					)
+				)
+				.build(),
+			HttpResponse.BodyHandlers.ofString()
+		)
+		Assertions.assertEquals(201, mariasCarpoolCreationResponse.statusCode())
+		val mariasCarpoolId: UUID = Assertions.assertDoesNotThrow(
+			ThrowingSupplier { UUID.fromString(ObjectMapper().readTree(mariasCarpoolCreationResponse.body()).get("id").asText()) }
+		)
+
+		//Maria invites Tom to the carpool
+		val mariasCarpoolInvitationResponse: HttpResponse<Void> = httpClient.send(
+			HttpRequest.newBuilder()
+				.uri(URI.create("$resourceServerUrl/v1/carpools/$mariasCarpoolId/sent-invites/$tomsUserName"))
+				.headers(
+					"Content-Type", "application/json",
+					"Authorization", "Bearer $mariasAccessToken"
+				)
+				.POST(HttpRequest.BodyPublishers.noBody())
+				.build(),
+			HttpResponse.BodyHandlers.discarding()
+		)
+		Assertions.assertEquals(204, mariasCarpoolInvitationResponse.statusCode())
+
+		//Tom accepts Maria's invitation to the carpool
+		val tomsCarpoolInvitationAcceptanceResponse: HttpResponse<Void> = httpClient.send(
+			HttpRequest.newBuilder()
+				.uri(URI.create("$resourceServerUrl/v1/carpools/$mariasCarpoolId/sent-invites/$tomsId/acceptances"))
+				.headers(
+					"Content-Type", "application/json",
+					"Authorization", "Bearer $tomsAccessToken"
+				)
+				.POST(HttpRequest.BodyPublishers.noBody())
+				.build(),
+			HttpResponse.BodyHandlers.discarding()
+		)
+		Assertions.assertEquals(204, tomsCarpoolInvitationAcceptanceResponse.statusCode())
+
+		//Maria loads the carpool
+		val mariasCarpoolResponse: HttpResponse<String> = httpClient.send(
+			HttpRequest.newBuilder()
+				.uri(URI.create("$resourceServerUrl/v1/carpools/$mariasCarpoolId"))
+				.headers(
+					"Content-Type", "application/json",
+					"Authorization", "Bearer $mariasAccessToken"
+				)
+				.GET()
+				.build(),
+			HttpResponse.BodyHandlers.ofString()
+		)
+		Assertions.assertEquals(200, mariasCarpoolResponse.statusCode())
+		Assertions.assertTrue(
+			Regex("""\{"id":"$mariasCarpoolId","name":"Uni-Pendler","users":\[\{"id":"$mariasId","firstName":"Maria","lastName":"Lauer","averageStars":null,"numberOfRatings":0\},\{"id":"$tomsId","firstName":"Tom","lastName":"Sommer","averageStars":null,"numberOfRatings":0\}\],"driveRequests":\[\],"driveOffers":\[\],"drives":\[\],"sentInvites":\[\]\}""")
+				.matches(mariasCarpoolResponse.body())
+		)
+
+		//Maria loads her carpools and Tom loads his carpools
+		val expectedCarpoolsResponseBody: Regex = Regex("""\{"maximumPage":1,"content":\[\{"id":"$mariasCarpoolId","name":"Uni-Pendler","users":\[\{"id":"$mariasId","firstName":"Maria","lastName":"Lauer","averageStars":null,"numberOfRatings":0\},\{"id":"$tomsId","firstName":"Tom","lastName":"Sommer","averageStars":null,"numberOfRatings":0\}\]\}\]\}""")
+
+		val mariasCarpoolsResponse: HttpResponse<String> = httpClient.send(
+			HttpRequest.newBuilder()
+				.uri(URI.create("$resourceServerUrl/v1/users/$mariasId/carpools?pageNumber=1&perPage=10"))
+				.headers(
+					"Content-Type", "application/json",
+					"Authorization", "Bearer $mariasAccessToken"
+				)
+				.GET()
+				.build(),
+			HttpResponse.BodyHandlers.ofString()
+		)
+		Assertions.assertEquals(200, mariasCarpoolsResponse.statusCode())
+		Assertions.assertTrue(expectedCarpoolsResponseBody.matches(mariasCarpoolsResponse.body()))
+
+		val tomsCarpoolsResponse: HttpResponse<String> = httpClient.send(
+			HttpRequest.newBuilder()
+				.uri(URI.create("$resourceServerUrl/v1/users/$tomsId/carpools?pageNumber=1&perPage=10"))
+				.headers(
+					"Content-Type", "application/json",
+					"Authorization", "Bearer $tomsAccessToken"
+				)
+				.GET()
+				.build(),
+			HttpResponse.BodyHandlers.ofString()
+		)
+		Assertions.assertEquals(200, tomsCarpoolsResponse.statusCode())
+		Assertions.assertTrue(expectedCarpoolsResponseBody.matches(tomsCarpoolsResponse.body()))
 	}
 }
