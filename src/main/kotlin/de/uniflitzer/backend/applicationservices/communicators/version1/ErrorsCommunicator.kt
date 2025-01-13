@@ -79,7 +79,7 @@ class ErrorsCommunicator(
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).contentType(MediaType.APPLICATION_JSON).body(
             when (error) {
                 is BadRequestError -> ErrorsDP(error.errors)
-                is ConstraintViolationException -> ErrorsDP(error.toList())
+                is ConstraintViolationException -> ErrorsDP(error.constraintViolations.map { "\"${it.propertyPath.toList().last().name}\": ${it.message}" }.toList())
                 is MethodArgumentNotValidException -> ErrorsDP(error.toList())
                 is MethodArgumentTypeMismatchException -> ErrorsDP(listOf(localizationService.getMessage("parameter.invalid", error.name)))
                 is MissingServletRequestParameterException -> ErrorsDP(listOf(localizationService.getMessage("parameter.missing", error.parameterName)))

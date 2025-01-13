@@ -76,7 +76,7 @@ class DriveOffersCommunicator(
         @RequestParam scheduleTime: ZonedDateTime? = null,
         userToken: UserToken
     ): ResponseEntity<PageDP<PartialDriveOfferDP>> {
-        val actingUser: User = usersRepository.findById(UUIDType.fromString(userToken.id)).getOrNull() ?: throw ForbiddenError("User with id ${userToken.id} does not exist in resource server.")
+        val actingUser: User = usersRepository.findById(UUIDType.fromString(userToken.id)).getOrNull() ?: throw ForbiddenError(localizationService.getMessage("user.notExists", userToken.id))
         val startCoordinate: Coordinate = Coordinate(startLatitude, startLongitude)
         val destinationCoordinate: Coordinate = Coordinate(destinationLatitude, destinationLongitude)
         val tolerance: Meters = Meters(1000.0)
@@ -133,8 +133,8 @@ class DriveOffersCommunicator(
     @CommonApiResponses @OkApiResponse @NotFoundApiResponse
     @GetMapping("{driveOfferId}")
     fun getDriveOffer(@PathVariable @UUID driveOfferId: String, userToken: UserToken): ResponseEntity<DetailedDriveOfferDP> {
-        val actingUser: User = usersRepository.findById(UUIDType.fromString(userToken.id)).getOrNull() ?: throw ForbiddenError("User with id ${userToken.id} does not exist in resource server.")
-        val searchedDriveOffer: DriveOffer = driveOffersRepository.findById(UUIDType.fromString(driveOfferId)).getOrNull() ?: throw NotFoundError("The drive offer with the id $driveOfferId could not be found.")
+        val actingUser: User = usersRepository.findById(UUIDType.fromString(userToken.id)).getOrNull() ?: throw ForbiddenError(localizationService.getMessage("user.notExists", userToken.id))
+        val searchedDriveOffer: DriveOffer = driveOffersRepository.findById(UUIDType.fromString(driveOfferId)).getOrNull() ?: throw NotFoundError(localizationService.getMessage("driveOffer.notFound", driveOfferId))
 
         return ResponseEntity.ok(
             DetailedDriveOfferDP.fromDriveOffer(searchedDriveOffer, searchedDriveOffer.driver in actingUser.favoriteUsers)
@@ -167,8 +167,8 @@ class DriveOffersCommunicator(
     @CommonApiResponses @CreatedApiResponse
     @PostMapping
     fun createDriveOffer(@RequestBody @Valid driveOfferCreation: DriveOfferCreationDP, userToken: UserToken): ResponseEntity<IdDP> {
-        val actingUser: User = usersRepository.findById(UUIDType.fromString(userToken.id)).getOrNull() ?: throw ForbiddenError("User with id ${userToken.id} does not exist in resource server.")
-        val selectedCarForDriverOffer: Car = actingUser.cars.getOrNull(driveOfferCreation.carIndex) ?: throw NotFoundError("The car with the index ${driveOfferCreation.carIndex} could not be found.")
+        val actingUser: User = usersRepository.findById(UUIDType.fromString(userToken.id)).getOrNull() ?: throw ForbiddenError(localizationService.getMessage("user.notExists", userToken.id))
+        val selectedCarForDriverOffer: Car = actingUser.cars.getOrNull(driveOfferCreation.carIndex) ?: throw NotFoundError(localizationService.getMessage("user.car.index.notExists", driveOfferCreation.carIndex, actingUser.id))
         val driveOfferRoute: Route = geographyService.createRoute(
             geographyService.createPosition(driveOfferCreation.route.start.toCoordinate()),
             geographyService.createPosition(driveOfferCreation.route.destination.toCoordinate())
@@ -193,7 +193,7 @@ class DriveOffersCommunicator(
                 )
             }
             is CarpoolDriveOfferCreationDP -> {
-                val targetedCarpool: Carpool = carpoolsRepository.findById(UUIDType.fromString(driveOfferCreation.carpoolId)).getOrNull() ?: throw NotFoundError("The carpool with the id ${driveOfferCreation.carpoolId} could not be found.")
+                val targetedCarpool: Carpool = carpoolsRepository.findById(UUIDType.fromString(driveOfferCreation.carpoolId)).getOrNull() ?: throw NotFoundError(localizationService.getMessage("carpool.notFound", driveOfferCreation.carpoolId))
 
                 CarpoolDriveOffer(
                     actingUser,
@@ -220,9 +220,9 @@ class DriveOffersCommunicator(
     @CommonApiResponses @CreatedApiResponse
     @DeleteMapping("{driveOfferId}")
     fun deleteDriveOffer(@PathVariable @UUID driveOfferId: String, userToken: UserToken): ResponseEntity<IdDP> {
-        if(!usersRepository.existsById(UUIDType.fromString(userToken.id))) throw ForbiddenError("User with id ${userToken.id} does not exist in resource server.")
-        val driveOfferToDelete: DriveOffer = driveOffersRepository.findById(UUIDType.fromString(driveOfferId)).getOrNull() ?: throw NotFoundError("The drive offer with the id $driveOfferId could not be found.")
-        if (driveOfferToDelete.driver.id != UUIDType.fromString(userToken.id)) throw ForbiddenError("The user with the id ${userToken.id} is not the driver of the drive offer with the id $driveOfferId.")
+        if(!usersRepository.existsById(UUIDType.fromString(userToken.id))) throw ForbiddenError(localizationService.getMessage("user.notExists", userToken.id))
+        val driveOfferToDelete: DriveOffer = driveOffersRepository.findById(UUIDType.fromString(driveOfferId)).getOrNull() ?: throw NotFoundError(localizationService.getMessage("driveOffer.notFound", driveOfferId))
+        if (driveOfferToDelete.driver.id != UUIDType.fromString(userToken.id)) throw ForbiddenError(localizationService.getMessage("driveOffer.user.notDriverOf", userToken.id, driveOfferId))
 
         driveOfferToDelete.throwAllUsersOut()
         driveOffersRepository.delete(driveOfferToDelete)
@@ -235,10 +235,10 @@ class DriveOffersCommunicator(
     @CommonApiResponses @NoContentApiResponse @NotFoundApiResponse
     @PatchMapping("{driveOfferId}")
     fun updateDriveOffer(@PathVariable @UUID driveOfferId: String, @RequestBody @Valid driveOfferUpdate: DriverOfferUpdateDP, userToken: UserToken): ResponseEntity<Void> {
-        if(!usersRepository.existsById(UUIDType.fromString(userToken.id))) throw ForbiddenError("User with id ${userToken.id} does not exist in resource server.")
-        val driveOfferInEditing: DriveOffer = driveOffersRepository.findById(UUIDType.fromString(driveOfferId)).getOrNull() ?: throw NotFoundError("The drive offer with the id $driveOfferId could not be found.")
-        if(driveOfferInEditing.scheduleTime != null) throw BadRequestError(listOf("Schedule time is already set and cannot be updated."))
-        if(driveOfferInEditing.driver.id != UUIDType.fromString(userToken.id)) throw ForbiddenError("The user with the id ${userToken.id} is not the driver of the drive offer with the id $driveOfferId.")
+        if(!usersRepository.existsById(UUIDType.fromString(userToken.id))) throw ForbiddenError(localizationService.getMessage("user.notExists", userToken.id))
+        val driveOfferInEditing: DriveOffer = driveOffersRepository.findById(UUIDType.fromString(driveOfferId)).getOrNull() ?: throw NotFoundError(localizationService.getMessage("driveOffer.notFound", driveOfferId))
+        if(driveOfferInEditing.scheduleTime != null) throw BadRequestError(listOf(localizationService.getMessage("driveOffer.scheduleTime.alreadySet", driveOfferId)))
+        if(driveOfferInEditing.driver.id != UUIDType.fromString(userToken.id)) throw ForbiddenError(localizationService.getMessage("driveOffer.user.notDriverOf", userToken.id, driveOfferId))
         //driveOfferUpdate.scheduleTime.toScheduleTime().time TODO: Uncomment
         //    .let { if(driveOfferUpdate.scheduleTime.type == ScheduleTimeTypeDP.Arrival) it.minus(driveOfferInEditing.route.duration) else it }
         //    .let { if(it.isBefore(ZonedDateTime.now().plusHours(1))) throw BadRequestError(listOf("Departure time can not be in the past or less than an hour in the future.")) }
@@ -253,12 +253,12 @@ class DriveOffersCommunicator(
     @CommonApiResponses @NoContentApiResponse @NotFoundApiResponse @ConflictApiResponse
     @PostMapping("{driveOfferId}/requests")
     fun requestSeat(@PathVariable @UUID driveOfferId: String, @RequestBody @Valid userStopCreation: UserStopCreationDP, userToken: UserToken): ResponseEntity<Void> {
-        val actingUser: User = usersRepository.findById(UUIDType.fromString(userToken.id)).getOrNull() ?: throw ForbiddenError("User with id ${userToken.id} does not exist in resource server.")
-        val driveOfferInEditing: DriveOffer = driveOffersRepository.findById(UUIDType.fromString(driveOfferId)).getOrNull() ?: throw NotFoundError("The drive offer with the id $driveOfferId could not be found.")
+        val actingUser: User = usersRepository.findById(UUIDType.fromString(userToken.id)).getOrNull() ?: throw ForbiddenError(localizationService.getMessage("user.notExists", userToken.id))
+        val driveOfferInEditing: DriveOffer = driveOffersRepository.findById(UUIDType.fromString(driveOfferId)).getOrNull() ?: throw NotFoundError(localizationService.getMessage("driveOffer.notFound", driveOfferId))
 
         when (driveOfferInEditing) {
             is PublicDriveOffer -> {
-                if(actingUser in driveOfferInEditing.driver.blockedUsers) throw ForbiddenError("The requesting user ${actingUser.id} is blocked by the driver and cannot request a seat in this drive offer.")
+                if(actingUser in driveOfferInEditing.driver.blockedUsers) throw ForbiddenError(localizationService.getMessage("driveOffer.user.blockedByDriver", actingUser.id, driveOfferId))
 
                 try {
                     actingUser.joinDriveOfferAsRequestingUser(driveOfferInEditing)
@@ -268,9 +268,9 @@ class DriveOffersCommunicator(
                         geographyService.createPosition(userStopCreation.destination.toCoordinate())
                     )
                 } catch (_: RepeatedActionError) {
-                    throw BadRequestError(listOf("The user with the id ${actingUser.id} has already requested a seat in the drive offer with the id $driveOfferId."))
+                    throw BadRequestError(listOf(localizationService.getMessage("driveOffer.user.alreadyRequested", actingUser.id, driveOfferId)))
                 } catch (_: ConflictingActionError) {
-                    throw ConflictError("The Driver with id ${actingUser.id} of this drive offer with id $driveOfferId cannot be a passenger at the same time.")
+                    throw ConflictError(localizationService.getMessage("driveOffer.user.alreadyDriverOf", actingUser.id, driveOfferId))
                 }
             }
             is CarpoolDriveOffer -> {
@@ -284,11 +284,11 @@ class DriveOffersCommunicator(
                         )
                     )
                 } catch (_: NotAvailableError) {
-                    throw BadRequestError(listOf("No free seats left in the drive offer with the id $driveOfferId."))
+                    throw BadRequestError(listOf(localizationService.getMessage("driveOffer.seats.taken", driveOfferId)))
                 } catch (_: RepeatedActionError) {
-                    throw BadRequestError(listOf("The user is already a passenger of the drive offer."))
+                    throw BadRequestError(listOf(localizationService.getMessage("driveOffer.user.alreadyPassengerOf", actingUser.id, driveOfferId)))
                 } catch (_: ConflictingActionError) {
-                    throw ConflictError("The Driver with id ${actingUser.id} of this drive offer with id $driveOfferId cannot be a passenger at the same time.")
+                    throw ConflictError(localizationService.getMessage("driveOffer.user.alreadyDriverOf", actingUser.id, driveOfferId))
                 }
             }
         }
@@ -302,10 +302,10 @@ class DriveOffersCommunicator(
     @CommonApiResponses @UnprocessableContentApiResponse @NoContentApiResponse @NotFoundApiResponse @ConflictApiResponse
     @PostMapping("{driveOfferId}/requesting-users/{requestingUserId}/acceptances") //TODO Manchmal werden Nutzer ohne Anahme angenommen
     fun acceptRequestingUser(@PathVariable @UUID driveOfferId: String, @PathVariable @UUID requestingUserId: String, userToken: UserToken): ResponseEntity<Void> {
-        val actingUser: User = usersRepository.findById(UUIDType.fromString(userToken.id)).getOrNull() ?: throw ForbiddenError("User with id ${userToken.id} does not exist in resource server.")
-        val requestingUser: User = usersRepository.findById(UUIDType.fromString(requestingUserId)).getOrNull() ?: throw NotFoundError("The requesting user with the id $requestingUserId could not be found.")
-        val driveOfferInEditing: DriveOffer = driveOffersRepository.findById(UUIDType.fromString(driveOfferId)).getOrNull() ?: throw NotFoundError("The drive offer with the id $driveOfferId could not be found.")
-        if (driveOfferInEditing.driver.id != actingUser.id) throw ForbiddenError("A user who is not the driver cannot accept requests")
+        val actingUser: User = usersRepository.findById(UUIDType.fromString(userToken.id)).getOrNull() ?: throw ForbiddenError(localizationService.getMessage("user.notExists", userToken.id))
+        val requestingUser: User = usersRepository.findById(UUIDType.fromString(requestingUserId)).getOrNull() ?: throw NotFoundError(localizationService.getMessage("user.notExists", requestingUserId))
+        val driveOfferInEditing: DriveOffer = driveOffersRepository.findById(UUIDType.fromString(driveOfferId)).getOrNull() ?: throw NotFoundError(localizationService.getMessage("driveOffer.notFound", driveOfferId))
+        if (driveOfferInEditing.driver.id != actingUser.id) throw ForbiddenError(localizationService.getMessage("driveOffer.user.notDriverOf", actingUser.id, driveOfferId))
 
         when (driveOfferInEditing) {
             is PublicDriveOffer -> {
@@ -318,16 +318,16 @@ class DriveOffersCommunicator(
                         driveOfferInEditing.route.destination
                     )
                 } catch (_: MissingActionError) {
-                    throw NotFoundError("The requesting user with the id $requestingUserId could not be found in the drive offer with the id $driveOfferId.")
+                    throw NotFoundError(localizationService.getMessage("driveOffer.user.notRequested", requestingUserId, driveOfferId))
                 } catch (_: NotAvailableError) {
-                    throw BadRequestError(listOf("No free seats left in the drive offer with the id $driveOfferId."))
+                    throw BadRequestError(listOf(localizationService.getMessage("driveOffer.seats.taken", driveOfferId)))
                 } catch (_: RepeatedActionError) {
-                    throw BadRequestError(listOf("The user with the id $requestingUserId is already a passenger of the drive offer with the id $driveOfferId."))
+                    throw BadRequestError(listOf(localizationService.getMessage("driveOffer.user.alreadyPassengerOf", requestingUserId, driveOfferId)))
                 } catch (_: ConflictingActionError) {
-                    throw ConflictError("The Driver with id $requestingUserId of this drive offer with id $driveOfferId cannot be a passenger at the same time.")
+                    throw ConflictError(localizationService.getMessage("driveOffer.user.alreadyDriverOf", requestingUserId, driveOfferId))
                 }
             }
-            is CarpoolDriveOffer -> throw UnprocessableContentError("The drive offer with the ID $driveOfferId is a carpool drive offer, so requests are automatically accepted.")
+            is CarpoolDriveOffer -> throw UnprocessableContentError(localizationService.getMessage("driveOffer.carpool.requests.automaticallyAccepted", driveOfferId))
         }
         usersRepository.save(actingUser)
         driveOffersRepository.save(driveOfferInEditing)
@@ -341,18 +341,18 @@ class DriveOffersCommunicator(
     fun rejectRequestingUser(@PathVariable @UUID driveOfferId: String, @PathVariable @UUID requestingUserId: String, userToken: UserToken):ResponseEntity<Void> {
         logger.info("User with id ${userToken.id} made request to reject user with id $requestingUserId in drive offer with id $driveOfferId.")
 
-        val actingUser: User = usersRepository.findById(UUIDType.fromString(userToken.id)).getOrNull() ?: throw ForbiddenError("User with id ${userToken.id} does not exist in resource server.")
+        val actingUser: User = usersRepository.findById(UUIDType.fromString(userToken.id)).getOrNull() ?: throw ForbiddenError(localizationService.getMessage("user.notExists", userToken.id))
         logger.trace("Rejecting user does exist.")
 
-        val requestingUser: User = usersRepository.findById(UUIDType.fromString(requestingUserId)).getOrNull() ?: throw NotFoundError("The requesting user with the id $requestingUserId could not be found.")
+        val requestingUser: User = usersRepository.findById(UUIDType.fromString(requestingUserId)).getOrNull() ?: throw NotFoundError(localizationService.getMessage("user.notExists", requestingUserId))
         logger.trace("User to reject does exist.")
 
-        val driveOfferInEditing: DriveOffer = driveOffersRepository.findById(UUIDType.fromString(driveOfferId)).getOrNull() ?: throw NotFoundError("The drive offer with the id $driveOfferId could not be found.")
+        val driveOfferInEditing: DriveOffer = driveOffersRepository.findById(UUIDType.fromString(driveOfferId)).getOrNull() ?: throw NotFoundError(localizationService.getMessage("driveOffer.notFound", driveOfferId))
         logger.trace("Drive offer does exist.")
 
         if (driveOfferInEditing.driver.id != actingUser.id) {
             logger.error("Rejecting user with id ${userToken.id} is not the driver of the drive offer with id $driveOfferId.")
-            throw ForbiddenError("A user who is not the driver cannot accept requests")
+            throw ForbiddenError(localizationService.getMessage("driveOffer.user.notDriverOf", actingUser.id, driveOfferId))
         }
 
         when (driveOfferInEditing) {
@@ -360,15 +360,15 @@ class DriveOffersCommunicator(
                 try {
                     requestingUser.leaveDriveOfferAsRequestingUser(driveOfferInEditing)
                     driveOfferInEditing.rejectRequestFromUser(requestingUser.id)
-                    logger.trace("Requesting user was removed from drive offer and drive offer was remove from user to reject account.")
+                    logger.trace("Requesting user was removed from drive offer and drive offer was removed from account of user to reject.")
                 } catch (_: MissingActionError) {
-                    logger.warn("The user to reject with the id $requestingUserId could not be found in the drive offer with the id $driveOfferId.")
-                    throw NotFoundError("The requesting user with the id $requestingUserId could not be found in the drive offer with the id $driveOfferId.")
+                    logger.warn("User to reject with id $requestingUserId has not requested a seat in drive offer with id $driveOfferId.")
+                    throw NotFoundError(localizationService.getMessage("driveOffer.user.notRequested", requestingUserId, driveOfferId))
                 }
             }
             is CarpoolDriveOffer -> {
-                logger.warn("The drive offer with the ID $driveOfferId is a carpool drive offer, so requests are automatically accepted.")
-                throw UnprocessableContentError("The drive offer with the ID $driveOfferId is a carpool drive offer, so requests are automatically accepted.")
+                logger.warn("Drive offer with id $driveOfferId is a carpool drive offer, so requests are automatically accepted.")
+                throw UnprocessableContentError(localizationService.getMessage("driveOffer.carpool.requests.automaticallyAccepted", driveOfferId))
             }
         }
         usersRepository.save(actingUser)
