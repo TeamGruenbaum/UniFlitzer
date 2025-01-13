@@ -43,28 +43,28 @@ class Carpool(name: Name, users: MutableList<User>){
 
     @Throws(RepeatedActionError::class)
     fun sendInvite(user: User) {
-        if(user in _users) throw RepeatedActionError("User with id ${user.id} is already a member of carpool with id ${this.id}.")
-        if(user in _sentInvites) throw RepeatedActionError("User with id ${user.id} has already been invited to carpool with id ${this.id}.")
+        if(user in _users) throw RepeatedActionError("Passed user is already a member.")
+        if(user in _sentInvites) throw RepeatedActionError("Passed user has already been invited.")
         _sentInvites.add(user)
     }
 
     @Throws(RepeatedActionError::class, MissingActionError::class)
     fun acceptInvite(user: User) {
-        if(user in _users) throw RepeatedActionError("User with id ${user.id} is already a member of carpool with id ${this.id}.")
-        if(user !in _sentInvites) throw MissingActionError("User with id ${user.id} has not been invited to carpool with id ${this.id}.")
+        if(user in _users) throw RepeatedActionError("Passed user is already a member.")
+        if(user !in _sentInvites) throw MissingActionError("Passed user has not been invited.")
         _users.add(user)
         _sentInvites.remove(user)
     }
 
     @Throws(RepeatedActionError::class, MissingActionError::class)
     fun rejectInvite(user: User) {
-        if(user in _users) throw RepeatedActionError("User with id ${user.id} is already a member of carpool with id ${this.id}.")
-        if(user !in _sentInvites) throw MissingActionError("User with id ${user.id} has not been invited to carpool with id ${this.id}.")
+        if(user in _users) throw RepeatedActionError("Passed user is already a member.")
+        if(user !in _sentInvites) throw MissingActionError("Passed user has not been invited.")
         _sentInvites.remove(user)
     }
 
     fun addDrive(drive: Drive) {
-        if(drive in _drives) throw RepeatedActionError("Drive with id ${drive.id} already exists in carpool.")
+        if(drive in _drives) throw RepeatedActionError("Passed drive already exists.")
         _drives.add(drive)
     }
 

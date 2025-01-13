@@ -25,7 +25,7 @@ class User(id: UUID, firstName: FirstName, lastName: LastName, birthday: ZonedDa
     var birthday: ZonedDateTime = birthday
         @Throws(ImpossibleActionError::class)
         set(value) {
-            if (value.isAfter(ZonedDateTime.now())) throw ImpossibleActionError("The birthday must be in the past.")
+            if (value.isAfter(ZonedDateTime.now())) throw ImpossibleActionError("Passed value must be in the past.")
             field = value
         }
 
@@ -112,27 +112,30 @@ class User(id: UUID, firstName: FirstName, lastName: LastName, birthday: ZonedDa
 
     @Throws(NotAvailableError::class)
     fun removeCarAtIndex(index: UInt) {
-        if (index.toInt() >= _cars.size) throw NotAvailableError("Index $index is out of bounds.")
+        if (index.toInt() >= _cars.size) throw NotAvailableError("Passed index is out of bounds.")
         _cars.removeAt(index.toInt())
     }
 
     @Throws(NotAvailableError::class)
     fun getCarByIndex(index: UInt): Car {
-        return cars.getOrNull(index.toInt()) ?: throw NotAvailableError("The car with index $index does not exist.")
+        return cars.getOrNull(index.toInt()) ?: throw NotAvailableError("Passed index does not exist.")
     }
 
     @Throws(RepeatedActionError::class)
     fun refillAnimals(animals: List<Animal>) {
-        if(animals.distinct().count() != animals.count()) throw RepeatedActionError("The list of animals contains duplicates.")
+        if(animals.distinct().count() != animals.count()) throw RepeatedActionError("Passed list of animals contains duplicates.")
         _animals.clear()
         _animals.addAll(animals)
     }
 
-    fun addFavoritePosition(position: Position) = _favoritePositions.add(position)
+    fun addFavoritePosition(position: Position) {
+        if(position in _favoritePositions) throw RepeatedActionError("Passed position is already a favorite position.")
+        _favoritePositions.add(position)
+    }
 
     @Throws(NotAvailableError::class)
     fun removeFavoritePositionByIndex(index: UInt) {
-        if (index.toInt() >= _favoritePositions.size) throw NotAvailableError("Favorite position index $index is out of bounds of user with id $id.")
+        if (index.toInt() >= _favoritePositions.size) throw NotAvailableError("Passed index is out of bounds.")
         _favoritePositions.removeAt(index.toInt())
     }
 
@@ -142,48 +145,48 @@ class User(id: UUID, firstName: FirstName, lastName: LastName, birthday: ZonedDa
         get(): Double? = if (ratings.isEmpty()) null else ratings.map { it.stars.value.toDouble() }.sum() / ratings.size
 
     fun addFavoriteUser(user: User) {
-        if(user in _favoriteUsers) throw RepeatedActionError("The user with id ${user.id} is already a favorite user of user with id $id.")
-        if(user == this) throw ConflictingActionError("The user with id $id cannot be a favorite user of itself.")
+        if(user in _favoriteUsers) throw RepeatedActionError("Passed user is already a favorite user.")
+        if(user == this) throw ConflictingActionError("Passed user cannot be a favorite user of itself.")
 
         _favoriteUsers.add(user)
     }
 
     @Throws(NotAvailableError::class)
     fun removeFavoriteUser(user: User) {
-        if(user !in _favoriteUsers)throw NotAvailableError("The user with id ${user.id} is not a favorite user of user with id $id.")
+        if(user !in _favoriteUsers)throw NotAvailableError("Passed user is not a favorite user.")
         _favoriteUsers.remove(user)
     }
 
     fun addBlockedUser(user: User) {
-        if(user in _blockedUsers) throw RepeatedActionError("The user with id ${user.id} is already a blocked user of user with id $id.")
-        if(user == this) throw ConflictingActionError("The user with id $id cannot be a blocked user of itself.")
+        if(user in _blockedUsers) throw RepeatedActionError("Passed user is already a blocked user.")
+        if(user == this) throw ConflictingActionError("Passed user cannot be a blocked user of itself.")
 
         _blockedUsers.add(user)
     }
 
     @Throws(NotAvailableError::class)
     fun removeBlockedUser(user: User) {
-        if(user !in _blockedUsers) throw NotAvailableError("The user with id ${user.id} is not a blocked user of user with id $id.")
+        if(user !in _blockedUsers) throw NotAvailableError("Passed user is not a blocked user.")
         _blockedUsers.remove(user)
     }
 
     @Throws(RepeatedActionError::class)
     fun joinDriveOfferAsRequestingUser(driveOffer: PublicDriveOffer) {
-        if(driveOffer in driveOffersAsRequestingUser) throw RepeatedActionError("The user is already a requesting user of the drive offer.")
+        if(driveOffer in driveOffersAsRequestingUser) throw RepeatedActionError("User is already a requesting user of the passed public drive offer.")
 
         _driveOffersAsRequestingUser.add(driveOffer)
     }
 
     @Throws(MissingActionError::class)
     fun leaveDriveOfferAsRequestingUser(driveOffer: DriveOffer) {
-        if(driveOffer !in driveOffersAsRequestingUser) throw MissingActionError("The user is not a passenger of the drive offer.")
+        if(driveOffer !in driveOffersAsRequestingUser) throw MissingActionError("User is not a passenger of the passed drive offer.")
 
         _driveOffersAsRequestingUser.remove(driveOffer)
     }
 
     @Throws(RepeatedActionError::class)
     fun joinDriveOfferAsPassenger(driveOffer: DriveOffer) {
-        if(driveOffer in driveOffersAsPassenger) throw RepeatedActionError("The user is already a passenger of the drive offer.")
+        if(driveOffer in driveOffersAsPassenger) throw RepeatedActionError("User is already a passenger of the passed drive offer.")
 
         _driveOffersAsPassenger.add(driveOffer)
         _driveOffersAsRequestingUser.remove(driveOffer)
@@ -191,7 +194,7 @@ class User(id: UUID, firstName: FirstName, lastName: LastName, birthday: ZonedDa
 
     @Throws(NotAvailableError::class)
     fun leaveDriveOfferAsPassenger(driveOffer: DriveOffer) {
-        if(driveOffer !in driveOffersAsPassenger) throw NotAvailableError("The user is not a passenger of the drive offer.")
+        if(driveOffer !in driveOffersAsPassenger) throw NotAvailableError("User is not a passenger of passed driver offer.")
 
         _driveOffersAsPassenger.remove(driveOffer)
     }

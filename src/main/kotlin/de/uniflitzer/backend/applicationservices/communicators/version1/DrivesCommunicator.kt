@@ -187,7 +187,7 @@ class DrivesCommunicator(
         if(UUIDType.fromString(userToken.id) != currentDrive.driver.id) throw ForbiddenError("Only the driver can update the current driver position.")
 
         currentDrive.currentPosition = Coordinate(coordinate.latitude, coordinate.longitude)
-        messagingTemplate.convertAndSend("v1/drives/${currentDrive.id}/current-driver-position", CoordinateDP.fromCoordinate(currentDrive.currentPosition!!))
+        messagingTemplate.convertAndSend("/v1/drives/${currentDrive.id}/current-driver-position", CoordinateDP.fromCoordinate(currentDrive.currentPosition!!))
 
         return ResponseEntity.noContent().build<Void>()
     }
@@ -196,7 +196,7 @@ class DrivesCommunicator(
     fun subscribeToCurrentDriverPosition(userToken: UserToken, @DestinationVariable @UUID driveId: String): CoordinateDP? {
         val currentDrive: Drive = drivesRepository.findById(UUIDType.fromString(driveId)).getOrNull() ?: throw StompError(listOf("Drive with id $driveId not found."))
         val actingUser: User = usersRepository.findById(UUIDType.fromString(userToken.id)).getOrNull() ?: throw StompError(listOf("User with id ${userToken.id} does not exist in resource server."))
-        if(actingUser !in currentDrive.passengers || actingUser != currentDrive.driver) throw StompError(listOf("User is not part of this drive with id ${userToken.id}"))
+        if(actingUser !in currentDrive.passengers && actingUser != currentDrive.driver) throw StompError(listOf("User is not part of this drive with id ${userToken.id}"))
 
         return currentDrive.currentPosition?.let { CoordinateDP.fromCoordinate(it) }
     }

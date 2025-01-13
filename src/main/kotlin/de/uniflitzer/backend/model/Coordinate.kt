@@ -9,13 +9,13 @@ import org.gavaghan.geodesy.GlobalCoordinates
 class Coordinate(latitude: Double, longitude: Double) {
     final var latitude: Double = latitude
         private set(value) {
-            require(value in (-90.0..90.0)) { "Property latitude with value $value is not between -90 and 90." }
+            require(value in (-90.0..90.0)) { "Passed value is not between -90 and 90." }
             field = value
         }
 
     final var longitude: Double = longitude
         private set(value) {
-            require(value in (-180.0..180.0)) { "Property longitude with value $value is not between -180 and 180." }
+            require(value in (-180.0..180.0)) { "Passed value is not between -180 and 180." }
             field = value
         }
 

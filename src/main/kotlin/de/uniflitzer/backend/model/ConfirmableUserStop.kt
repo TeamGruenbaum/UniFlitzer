@@ -46,7 +46,7 @@ class ConfirmableUserStop(user: User, start: Position, destination: Position, wa
     @Throws(RepeatedActionError::class)
     fun confirm()
     {
-        if(waitingConfirmed) throw RepeatedActionError("User already confirmed his stop.")
+        if(waitingConfirmed) throw RepeatedActionError("Confirmable user stop is already confirmed.")
         this.waitingConfirmed = true
     }
 

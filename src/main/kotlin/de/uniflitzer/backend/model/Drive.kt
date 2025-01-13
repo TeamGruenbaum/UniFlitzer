@@ -33,7 +33,7 @@ class Drive(driver: User, car: Car, route: CompleteRoute, passenger: List<User>,
 
     @Throws(NotAvailableError::class)
     fun removePassenger(user: User) {
-        if (user !in _passengers) throw NotAvailableError("User with id ${user.id} is not a passenger of drive with id $id.")
+        if (user !in _passengers) throw NotAvailableError("Passed user is not a passenger.")
         _passengers.remove(user)
     }
 

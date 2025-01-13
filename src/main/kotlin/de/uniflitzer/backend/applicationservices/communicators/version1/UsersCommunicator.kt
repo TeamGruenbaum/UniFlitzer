@@ -18,7 +18,6 @@ import de.uniflitzer.backend.model.errors.RepeatedActionError
 import de.uniflitzer.backend.repositories.*
 import de.uniflitzer.backend.repositories.errors.*
 import io.swagger.v3.oas.annotations.Operation
-import io.swagger.v3.oas.annotations.media.Schema
 import io.swagger.v3.oas.annotations.media.Content as MediaContent
 import io.swagger.v3.oas.annotations.responses.ApiResponse
 import io.swagger.v3.oas.annotations.responses.ApiResponses
@@ -66,8 +65,8 @@ class UsersCommunicator(
     @CommonApiResponses @OkApiResponse @NotFoundApiResponse
     @GetMapping("{userId}")
     fun getUser(@PathVariable @UUID userId: String, userToken: UserToken): ResponseEntity<DetailedUserDP> {
-        if(!usersRepository.existsById(UUIDType.fromString(userToken.id))) throw ForbiddenError("User with id ${userToken.id} does not exist in resource server.")
-        val searchedUser: User = usersRepository.findById(UUIDType.fromString(userId)).getOrNull() ?: throw NotFoundError("User with id $userId not found.")
+        if(!usersRepository.existsById(UUIDType.fromString(userToken.id))) throw ForbiddenError(localizationService.getMessage("user.notExists", userToken.id))
+        val searchedUser: User = usersRepository.findById(UUIDType.fromString(userId)).getOrNull() ?: throw NotFoundError(localizationService.getMessage("user.notFound", userId))
         val isActingUserLookingAtHisOwnProfile: Boolean = searchedUser.id == UUIDType.fromString(userToken.id)
 
         return ResponseEntity.ok(
@@ -97,7 +96,7 @@ class UsersCommunicator(
     @CommonApiResponses @CreatedApiResponse
     @PostMapping("")
     fun createUser(@RequestBody @Valid userCreation: UserCreationDP, userToken: UserToken): ResponseEntity<IdDP> {
-        if (usersRepository.existsById(UUIDType.fromString(userToken.id))) throw ForbiddenError("User with id ${userToken.id} already exists in resource server.")
+        if (usersRepository.existsById(UUIDType.fromString(userToken.id))) throw ForbiddenError(localizationService.getMessage("user.exists", userToken.id))
 
         val newUser: User = User(
             UUIDType.fromString(userToken.id),
@@ -126,13 +125,13 @@ class UsersCommunicator(
     @CommonApiResponses @NoContentApiResponse
     @PatchMapping("{userId}")
     fun updateUser(@PathVariable @UUID userId: String, @RequestBody @Valid userUpdate: UserUpdateDP, userToken: UserToken): ResponseEntity<Void> {
-        if(userToken.id != userId) throw ForbiddenError("The User can only update their own data.")
-        val actingUser: User = usersRepository.findById(UUIDType.fromString(userId)).getOrNull() ?: throw ForbiddenError("User with id $userId does not exist in resource server.")
+        if(userToken.id != userId) throw ForbiddenError(localizationService.getMessage("user.account.updateOthers", userToken.id))
+        val actingUser: User = usersRepository.findById(UUIDType.fromString(userId)).getOrNull() ?: throw ForbiddenError(localizationService.getMessage("user.notExists", userId))
 
         actingUser.apply{
             userUpdate.firstName?.let { actingUser.firstName = FirstName(it) }
             userUpdate.lastName?.let { actingUser.lastName = LastName(it) }
-            try { userUpdate.birthday?.let { actingUser.birthday = ZonedDateTime.parse(it) } } catch (_: ImpossibleActionError) { throw BadRequestError(listOf("Birthday must be in past")) }
+            try { userUpdate.birthday?.let { actingUser.birthday = ZonedDateTime.parse(it) } } catch (_: ImpossibleActionError) { throw BadRequestError(listOf(localizationService.getMessage("user.birthday.inFuture"))) }
             userUpdate.gender?.let { actingUser.gender = it.toGender() }
             userUpdate.address?.let { actingUser.address = it.toAddress() }
             userUpdate.studyProgramme?.let { actingUser.studyProgramme = StudyProgramme(it) }
@@ -147,7 +146,7 @@ class UsersCommunicator(
                                 .map { animal -> animal.toAnimal() }
                         )
                 }
-            } catch (_: RepeatedActionError) { throw BadRequestError(listOf("Duplicate animal values")) }
+            } catch (_: RepeatedActionError) { throw BadRequestError(listOf(localizationService.getMessage("user.animals.duplicateValues"))) }
             userUpdate.drivingStyle?.let { drivingStyleOptional -> actingUser.drivingStyle = drivingStyleOptional.getOrNull()?.toDrivingStyle() }
         }
         usersRepository.save(actingUser)
@@ -224,8 +223,8 @@ class UsersCommunicator(
     @CommonApiResponses @CreatedApiResponse
     @PostMapping("{userId}/cars")
     fun createCarForUser(@PathVariable @UUID userId: String, @RequestBody @Valid carCreation: CarCreationDP, userToken: UserToken): ResponseEntity<Void> {
-        if(userToken.id != userId) throw ForbiddenError("The user can only create a car for themselves.")
-        val actingUser: User = usersRepository.findById(UUIDType.fromString(userId)).getOrNull() ?: throw ForbiddenError("User with id $userId does not exist in resource server.")
+        if(userToken.id != userId) throw ForbiddenError(localizationService.getMessage("user.car.createOthers", userToken.id))
+        val actingUser: User = usersRepository.findById(UUIDType.fromString(userId)).getOrNull() ?: throw ForbiddenError(localizationService.getMessage("user.notExists", userId))
 
         actingUser.addCar(carCreation.toCar())
         usersRepository.save(actingUser)
@@ -286,12 +285,12 @@ class UsersCommunicator(
     @CommonApiResponses @NoContentApiResponse @NotFoundApiResponse
     @DeleteMapping("{userId}/cars/{carIndex}")
     fun deleteCarOfUser(@PathVariable @UUID userId: String, @PathVariable @Min(0) carIndex: Int, userToken: UserToken): ResponseEntity<Void> {
-        if(userToken.id != userId) throw ForbiddenError("The user can only delete their own car.")
-        val actingUser: User = usersRepository.findById(UUIDType.fromString(userId)).getOrNull() ?: throw ForbiddenError("User with id $userId does not exist in resource server.")
-        val carToDelete: Car = try { actingUser.getCarByIndex(carIndex.toUInt()) } catch (_: NotAvailableError) { throw NotFoundError("Car with index $carIndex not found.") }
+        if(userToken.id != userId) throw ForbiddenError(localizationService.getMessage("user.car.deleteOthers", userToken.id))
+        val actingUser: User = usersRepository.findById(UUIDType.fromString(userId)).getOrNull() ?: throw ForbiddenError(localizationService.getMessage("user.notExists", userId))
+        val carToDelete: Car = try { actingUser.getCarByIndex(carIndex.toUInt()) } catch (_: NotAvailableError) { throw NotFoundError(localizationService.getMessage("user.car.index.notExists", carIndex, userId)) }
 
-        try { actingUser.removeCarAtIndex(carIndex.toUInt()) } catch (_: NotAvailableError) { throw NotFoundError("Car with index $carIndex not found.") }
-        imagesRepository.deleteById(carToDelete.image?.id ?: throw NotFoundError("Image of car with index $carIndex not found."))
+        try { actingUser.removeCarAtIndex(carIndex.toUInt()) } catch (_: NotAvailableError) { throw NotFoundError(localizationService.getMessage("user.car.index.notExists", carIndex, userId)) }
+        imagesRepository.deleteById(carToDelete.image?.id ?: throw NotFoundError(localizationService.getMessage("user.car.index.image.notExists", carIndex, userId)))
         usersRepository.save(actingUser)
 
         return ResponseEntity.noContent().build<Void>()
@@ -301,10 +300,14 @@ class UsersCommunicator(
     @CommonApiResponses @CreatedApiResponse
     @PostMapping("{userId}/favorite-positions")
     fun addFavoritePositionForUser(@PathVariable @UUID userId: String, @RequestBody @Valid coordinate: CoordinateDP, userToken: UserToken): ResponseEntity<Void> {
-        if (userToken.id != userId) throw ForbiddenError("Users can only add favorite positions to their own account.")
-        val actingUser: User = usersRepository.findById(UUIDType.fromString(userId)).getOrNull() ?: throw ForbiddenError("User with id $userId does not exist in resource server.")
+        if (userToken.id != userId) throw ForbiddenError(localizationService.getMessage("user.favoritePosition.addOthers", userToken.id))
+        val actingUser: User = usersRepository.findById(UUIDType.fromString(userId)).getOrNull() ?: throw ForbiddenError(localizationService.getMessage("user.notExists", userId))
 
-        actingUser.addFavoritePosition(geographyService.createPosition(coordinate.toCoordinate()))
+        try {
+            actingUser.addFavoritePosition(geographyService.createPosition(coordinate.toCoordinate()))
+        } catch (_: RepeatedActionError) {
+            throw BadRequestError(listOf(localizationService.getMessage("user.favoritePosition.alreadyExists")))
+        }
         usersRepository.save(actingUser)
 
         return ResponseEntity.status(HttpStatus.CREATED).build<Void>()
@@ -314,13 +317,13 @@ class UsersCommunicator(
     @CommonApiResponses @NoContentApiResponse @NotFoundApiResponse
     @DeleteMapping("{userId}/favorite-positions/{positionIndex}")
     fun deleteFavoritePositionOfUser(@PathVariable @UUID userId: String, @PathVariable @Min(0) positionIndex: Int, userToken: UserToken): ResponseEntity<Void> {
-        if (userToken.id != userId) throw ForbiddenError("Users can only delete favorite positions from their own account.")
-        val actingUser: User = usersRepository.findById(UUIDType.fromString(userId)).getOrNull() ?: throw ForbiddenError("User with id $userId does not exist in resource server.")
+        if (userToken.id != userId) throw ForbiddenError(localizationService.getMessage("user.favoritePosition.index.deleteOthers", userToken.id))
+        val actingUser: User = usersRepository.findById(UUIDType.fromString(userId)).getOrNull() ?: throw ForbiddenError(localizationService.getMessage("user.notExists", userId))
 
         try {
             actingUser.removeFavoritePositionByIndex(positionIndex.toUInt())
         } catch (_: NotAvailableError) {
-            throw NotFoundError("Favorite position with index $positionIndex not found.")
+            throw NotFoundError(localizationService.getMessage("user.favoritePosition.index.notFound", positionIndex, userId))
         }
         usersRepository.save(actingUser)
 
@@ -329,18 +332,18 @@ class UsersCommunicator(
 
     @Operation(description = "Add favorite user to a specific user")
     @CommonApiResponses @NoContentApiResponse @NotFoundApiResponse @ConflictApiResponse
-    @PostMapping("/{userId}/favorite-users/")
+    @PostMapping("{userId}/favorite-users")
     fun addFavoriteUserToUser(@PathVariable @UUID userId: String, @RequestBody @Valid favoriteUserAddition: UserAdditionDP, userToken: UserToken): ResponseEntity<Void> {
-        if (userToken.id != userId) throw ForbiddenError("Users can only add favorite users to their own account.")
-        val actingUser: User = usersRepository.findById(UUIDType.fromString(userId)).getOrNull() ?: throw ForbiddenError("Acting user with id $userId does not exist in resource server.")
-        val userToFavorite = usersRepository.findById(UUIDType.fromString(favoriteUserAddition.id)).getOrNull() ?: throw NotFoundError("User to favorite with id ${favoriteUserAddition.id} was not found")
+        if (userToken.id != userId) throw ForbiddenError(localizationService.getMessage("user.favoriteUser.addOthers", userToken.id))
+        val actingUser: User = usersRepository.findById(UUIDType.fromString(userId)).getOrNull() ?: throw ForbiddenError(localizationService.getMessage("user.notExists", userId))
+        val userToFavorite = usersRepository.findById(UUIDType.fromString(favoriteUserAddition.id)).getOrNull() ?: throw NotFoundError(localizationService.getMessage("user.notFound", favoriteUserAddition.id))
 
         try {
             actingUser.addFavoriteUser(userToFavorite)
         } catch (_: RepeatedActionError) {
-            throw BadRequestError(listOf("User with id ${actingUser.id} is already a favorite user."))
+            throw BadRequestError(listOf(localizationService.getMessage("user.favoriteUser.alreadyExists", userToFavorite.id, userId)))
         } catch (_: ConflictingActionError) {
-            throw ConflictError("User with id ${actingUser.id} cannot be a favorite user of itself.")
+            throw ConflictError(localizationService.getMessage("user.favoriteUser.conflict", userId))
         }
         usersRepository.save(actingUser)
 
@@ -349,16 +352,16 @@ class UsersCommunicator(
 
     @Operation(description = "Delete favorite user of a specific user")
     @CommonApiResponses @NoContentApiResponse @NotFoundApiResponse
-    @DeleteMapping("/{userId}/favorite-users/{favoriteUserId}")
+    @DeleteMapping("{userId}/favorite-users/{favoriteUserId}")
     fun deleteFavoriteUserOfUser(@PathVariable @UUID userId: String, @PathVariable @UUID favoriteUserId: String, userToken: UserToken): ResponseEntity<Void> {
-        if (userToken.id != userId) throw ForbiddenError("Users can only delete favorite users of their own account.")
-        val actingUser: User = usersRepository.findById(UUIDType.fromString(userId)).getOrNull() ?: throw ForbiddenError("Acting user with id $userId does not exist in resource server.")
-        val favoriteUserToDelete = usersRepository.findById(UUIDType.fromString(favoriteUserId)).getOrNull() ?: throw NotFoundError("Favorite user to delete with id $favoriteUserId was not found")
+        if (userToken.id != userId) throw ForbiddenError(localizationService.getMessage("user.favoriteUser.deleteOthers", userToken.id))
+        val actingUser: User = usersRepository.findById(UUIDType.fromString(userId)).getOrNull() ?: throw ForbiddenError(localizationService.getMessage("user.notExists", userId))
+        val favoriteUserToDelete = usersRepository.findById(UUIDType.fromString(favoriteUserId)).getOrNull() ?: throw NotFoundError(localizationService.getMessage("user.favoriteUser.notFound", favoriteUserId, userId))
 
         try {
             actingUser.removeFavoriteUser(favoriteUserToDelete)
         } catch (_: NotAvailableError) {
-            throw NotFoundError("Favorite user with id $favoriteUserId was not found.")
+            throw NotFoundError(localizationService.getMessage("user.notFound", favoriteUserId))
         }
         usersRepository.save(actingUser)
 
@@ -367,18 +370,18 @@ class UsersCommunicator(
 
     @Operation(description = "Add blocked user to a specific user")
     @CommonApiResponses @NoContentApiResponse @NotFoundApiResponse @ConflictApiResponse
-    @PostMapping("/{userId}/blocked-users/")
+    @PostMapping("{userId}/blocked-users")
     fun addBlockedUserToUser(@PathVariable @UUID userId: String, @RequestBody @Valid blockedUserAddition: UserAdditionDP, userToken: UserToken): ResponseEntity<Void> {
-        if (userToken.id != userId) throw ForbiddenError("Users can only add blocked users to their own account.")
-        val actingUser: User = usersRepository.findById(UUIDType.fromString(userId)).getOrNull() ?: throw ForbiddenError("Acting user with id $userId does not exist in resource server.")
-        val userToBlock = usersRepository.findById(UUIDType.fromString(blockedUserAddition.id)).getOrNull() ?: throw NotFoundError("User to block with ${blockedUserAddition.id} was not found")
+        if (userToken.id != userId) throw ForbiddenError(localizationService.getMessage("user.blockedUser.addOthers", userToken.id))
+        val actingUser: User = usersRepository.findById(UUIDType.fromString(userId)).getOrNull() ?: throw ForbiddenError(localizationService.getMessage("user.notExists", userId))
+        val userToBlock = usersRepository.findById(UUIDType.fromString(blockedUserAddition.id)).getOrNull() ?: throw NotFoundError(localizationService.getMessage("user.notExists", blockedUserAddition.id))
 
         try {
             actingUser.addBlockedUser(userToBlock)
         } catch (_: RepeatedActionError) {
-            throw BadRequestError(listOf("User with id ${actingUser.id} is already a blocked user."))
+            throw BadRequestError(listOf(localizationService.getMessage("user.blockedUser.alreadyExists", userToBlock.id, actingUser.id)))
         } catch (_: ConflictingActionError) {
-            throw ConflictError("User with id ${actingUser.id} cannot be a blocked user of itself.")
+            throw ConflictError(localizationService.getMessage("user.blockedUser.conflict", actingUser.id))
         }
         usersRepository.save(actingUser)
 
@@ -387,16 +390,16 @@ class UsersCommunicator(
 
     @Operation(description = "Delete blocked user of a specific user")
     @CommonApiResponses @NoContentApiResponse @NotFoundApiResponse
-    @DeleteMapping("/{userId}/blocked-users/{blockedUserId}")
+    @DeleteMapping("{userId}/blocked-users/{blockedUserId}")
     fun deleteBlockedUserOfUser(@PathVariable @UUID userId: String, @PathVariable @UUID blockedUserId: String,  userToken: UserToken): ResponseEntity<Void> {
-        if (userToken.id != userId) throw ForbiddenError("Users can only delete blocked users of their own account.")
-        val actingUser: User = usersRepository.findById(UUIDType.fromString(userId)).getOrNull() ?: throw ForbiddenError("Acting user with id $userId does not exist in resource server.")
-        val blockedUserToDelete = usersRepository.findById(UUIDType.fromString(blockedUserId)).getOrNull() ?: throw NotFoundError("Blocked user to delete with id $blockedUserId was not found")
+        if (userToken.id != userId) throw ForbiddenError(localizationService.getMessage("user.blockedUser.deleteOthers", userToken.id))
+        val actingUser: User = usersRepository.findById(UUIDType.fromString(userId)).getOrNull() ?: throw ForbiddenError(localizationService.getMessage("user.notExists", userId))
+        val blockedUserToDelete = usersRepository.findById(UUIDType.fromString(blockedUserId)).getOrNull() ?: throw NotFoundError(localizationService.getMessage("user.notFound", blockedUserId))
 
         try {
             actingUser.removeBlockedUser(blockedUserToDelete)
         } catch (_: NotAvailableError) {
-            throw NotFoundError("Blocked user with id $blockedUserId was not found.")
+            throw NotFoundError(localizationService.getMessage("user.blockedUser.notFound", blockedUserId, actingUser.id))
         }
         usersRepository.save(actingUser)
 
@@ -407,8 +410,8 @@ class UsersCommunicator(
     @CommonApiResponses @OkApiResponse
     @GetMapping("{userId}/drive-offers")
     fun getDriveOffersOfUser(@PathVariable @UUID userId: String, @RequestParam @Min(1) pageNumber: Int, @RequestParam @Min(1) @Max(200) perPage: Int, @RequestParam sortingDirection: SortingDirectionDP = SortingDirectionDP.Ascending, role: DriverOfferRoleDP? = null, userToken: UserToken): ResponseEntity<PageDP<PartialDriveOfferDP>> {
-        val actingUser: User = usersRepository.findById(UUIDType.fromString(userToken.id)).getOrNull() ?: throw ForbiddenError("User with id ${userToken.id} does not exist in resource server.")
-        if(actingUser.id != UUIDType.fromString(userId)) throw ForbiddenError("The user can only get their own drive offers.")
+        val actingUser: User = usersRepository.findById(UUIDType.fromString(userToken.id)).getOrNull() ?: throw ForbiddenError(localizationService.getMessage("user.notExists", userToken.id))
+        if(actingUser.id != UUIDType.fromString(userId)) throw ForbiddenError(localizationService.getMessage("user.resource.driveOffers.getOthers", userId))
 
         val resultingDriveOffersOfUser: List<DriveOffer> =
             if(role == null) {
