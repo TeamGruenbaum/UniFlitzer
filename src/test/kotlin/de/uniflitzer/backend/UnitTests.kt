@@ -24,6 +24,8 @@ class UnitTests {
 
     @Test
     fun `test coordinate value range`(){
+        val correctCoordinate: Coordinate = Assertions.assertDoesNotThrow(ThrowingSupplier{ Coordinate(0.0, 0.0) })
+
         val wrongUpperLatitudeException: IllegalArgumentException = Assertions.assertThrows(IllegalArgumentException::class.java, { Coordinate(91.0, 0.0) })
         Assertions.assertEquals("Property latitude with value 91.0 is not between -90 and 90.", wrongUpperLatitudeException.message)
 

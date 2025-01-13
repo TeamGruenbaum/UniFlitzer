@@ -1,3 +1,4 @@
+name: "uniflitzer-test"
 services:
   database:
     image: "postgres:17"

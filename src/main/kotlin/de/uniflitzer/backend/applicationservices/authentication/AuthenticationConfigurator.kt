@@ -30,6 +30,7 @@ import org.springframework.security.oauth2.jwt.Jwt
 import org.springframework.security.web.SecurityFilterChain
 import org.springframework.web.cors.CorsConfiguration
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource
+import java.util.UUID
 import kotlin.system.exitProcess
 
 @Configuration
@@ -111,11 +112,13 @@ class AuthenticationConfigurator(
     }
 
     private fun recreateAuthenticationData() {
+        val logId: UUID = UUID.randomUUID()
+
         try {
             try { authenticationConfigurator.realm(newRealmName).remove() }
             catch(_: NotFoundException){}
             catch(exception: Exception){ throw exception }
-            logger.info("Keycloak realm with name $newRealmName was removed.")
+            logger.info("$logId: Keycloak realm with name $newRealmName was removed.")
 
             authenticationConfigurator.realms().create(
                 RealmRepresentation().apply {
@@ -183,7 +186,7 @@ class AuthenticationConfigurator(
                     )
                 }
             )
-            logger.info("Keycloak realm with name $newRealmName was created.")
+            logger.info("$logId: Keycloak realm with name $newRealmName was created.")
 
             authenticationConfigurator.realm(newRealmName).clientScopes().create(
                 ClientScopeRepresentation().apply {
@@ -212,7 +215,7 @@ class AuthenticationConfigurator(
                     )
                 }
             )
-            logger.info("Client scope resource_server in Keycloak realm with name $newRealmName was added.")
+            logger.info("$logId: Client scope resource_server in Keycloak realm with name $newRealmName was added.")
 
             authenticationConfigurator.realm(newRealmName).clients().create(
                 ClientRepresentation().apply {
@@ -226,7 +229,7 @@ class AuthenticationConfigurator(
                     defaultClientScopes = listOf("basic", "profile", "email", "roles", "web-origins", "resource_server")
                 }
             )
-            logger.info("Client with Client ID uniflitzer_frontend in Keycloak realm with name $newRealmName was set up.")
+            logger.info("$logId: Client with Client ID uniflitzer_frontend in Keycloak realm with name $newRealmName was set up.")
 
             (authenticationConfigurator
                 .realm(newRealmName)
@@ -237,13 +240,13 @@ class AuthenticationConfigurator(
                 .apply { isEnabled = false }
                 .let{
                     authenticationConfigurator.realm(newRealmName).flows().updateRequiredAction("CONFIGURE_TOTP", it)
-                    logger.info("Authentication was set up")
+                    logger.info("$logId: Required actions in Keycloak realm with name $newRealmName were configured.")
                 }
 
-            logger.info("Keycloak realm with name $newRealmName was fully set up.")
+            logger.info("$logId: Keycloak realm with name $newRealmName was fully set up.")
         }
         catch (exception: Exception) {
-            logger.error("Failed to setup Keycloak.", exception)
+            logger.error("$logId: Failed to setup Keycloak.", exception)
             exitProcess(1)
         }
     }

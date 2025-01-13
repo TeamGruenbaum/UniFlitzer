@@ -1,3 +1,4 @@
+name: "uniflitzer-local"
 services:
   database:
     image: "postgres:17"

@@ -224,7 +224,7 @@ class DriveOffersCommunicator(
         val driveOfferToDelete: DriveOffer = driveOffersRepository.findById(UUIDType.fromString(driveOfferId)).getOrNull() ?: throw NotFoundError(localizationService.getMessage("driveOffer.notFound", driveOfferId))
         if (driveOfferToDelete.driver.id != UUIDType.fromString(userToken.id)) throw ForbiddenError(localizationService.getMessage("driveOffer.user.notDriverOf", userToken.id, driveOfferId))
 
-        driveOfferToDelete.throwAllUsersOut()
+        driveOfferToDelete.removeAllRequestingUsersAndPassengers()
         driveOffersRepository.delete(driveOfferToDelete)
         driveOffersRepository.flush()
 
@@ -339,16 +339,27 @@ class DriveOffersCommunicator(
     @CommonApiResponses @UnprocessableContentApiResponse @NoContentApiResponse @NotFoundApiResponse
     @PostMapping("{driveOfferId}/requesting-users/{requestingUserId}/rejections")
     fun rejectRequestingUser(@PathVariable @UUID driveOfferId: String, @PathVariable @UUID requestingUserId: String, userToken: UserToken):ResponseEntity<Void> {
-        logger.info("User with id ${userToken.id} made request to reject user with id $requestingUserId in drive offer with id $driveOfferId.")
+        val logId: UUIDType = UUIDType.randomUUID()
 
-        val actingUser: User = usersRepository.findById(UUIDType.fromString(userToken.id)).getOrNull() ?: throw ForbiddenError(localizationService.getMessage("user.notExists", userToken.id))
-        logger.trace("Rejecting user does exist.")
+        logger.info("$logId: User with id ${userToken.id} made request to reject user with id $requestingUserId in drive offer with id $driveOfferId.")
 
-        val requestingUser: User = usersRepository.findById(UUIDType.fromString(requestingUserId)).getOrNull() ?: throw NotFoundError(localizationService.getMessage("user.notExists", requestingUserId))
-        logger.trace("User to reject does exist.")
+        val actingUser: User = usersRepository.findById(UUIDType.fromString(userToken.id)).getOrNull() ?: run {
+            logger.warn("$logId: Rejecting user with id ${userToken.id} does not exist in resource server.")
+            throw ForbiddenError(localizationService.getMessage("user.notExists", userToken.id))
+        }
+        logger.trace("$logId: Rejecting user does exist.")
 
-        val driveOfferInEditing: DriveOffer = driveOffersRepository.findById(UUIDType.fromString(driveOfferId)).getOrNull() ?: throw NotFoundError(localizationService.getMessage("driveOffer.notFound", driveOfferId))
-        logger.trace("Drive offer does exist.")
+        val requestingUser: User = usersRepository.findById(UUIDType.fromString(requestingUserId)).getOrNull() ?: run {
+            logger.warn("$logId: User to reject with id $requestingUserId does not exist.")
+            throw NotFoundError(localizationService.getMessage("user.notExists", requestingUserId))
+        }
+        logger.trace("$logId: User to reject does exist.")
+
+        val driveOfferInEditing: DriveOffer = driveOffersRepository.findById(UUIDType.fromString(driveOfferId)).getOrNull() ?:run {
+            logger.warn("$logId: Drive offer with id $driveOfferId does not exist.")
+            throw NotFoundError(localizationService.getMessage("driveOffer.notFound", driveOfferId))
+        }
+        logger.trace("$logId: Drive offer does exist.")
 
         if (driveOfferInEditing.driver.id != actingUser.id) {
             logger.error("Rejecting user with id ${userToken.id} is not the driver of the drive offer with id $driveOfferId.")
@@ -360,22 +371,22 @@ class DriveOffersCommunicator(
                 try {
                     requestingUser.leaveDriveOfferAsRequestingUser(driveOfferInEditing)
                     driveOfferInEditing.rejectRequestFromUser(requestingUser.id)
-                    logger.trace("Requesting user was removed from drive offer and drive offer was removed from account of user to reject.")
+                    logger.trace("$logId: Requesting user was removed from drive offer and drive offer was removed from account of user to reject.")
                 } catch (_: MissingActionError) {
                     logger.warn("User to reject with id $requestingUserId has not requested a seat in drive offer with id $driveOfferId.")
                     throw NotFoundError(localizationService.getMessage("driveOffer.user.notRequested", requestingUserId, driveOfferId))
                 }
             }
             is CarpoolDriveOffer -> {
-                logger.warn("Drive offer with id $driveOfferId is a carpool drive offer, so requests are automatically accepted.")
+                logger.warn("$logId: Drive offer with id $driveOfferId is a carpool drive offer, so requests are automatically accepted.")
                 throw UnprocessableContentError(localizationService.getMessage("driveOffer.carpool.requests.automaticallyAccepted", driveOfferId))
             }
         }
         usersRepository.save(actingUser)
         driveOffersRepository.save(driveOfferInEditing)
-        logger.trace("User to reject and drive offer were saved.")
+        logger.trace("$logId: User to reject and drive offer were saved.")
 
-        logger.info("Rejecting user with id ${userToken.id} successfully rejected user with id $requestingUserId in drive offer with id $driveOfferId.")
+        logger.info("$logId: Rejecting user with id ${userToken.id} successfully rejected user with id $requestingUserId in drive offer with id $driveOfferId.")
         return ResponseEntity.noContent().build()
     }
 
