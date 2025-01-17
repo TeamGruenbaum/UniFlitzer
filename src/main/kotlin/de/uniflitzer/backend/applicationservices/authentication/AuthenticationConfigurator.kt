@@ -127,6 +127,8 @@ class AuthenticationConfigurator(
                     isEditUsernameAllowed = true
                     isRegistrationAllowed = true
                     accessTokenLifespan = 3600
+                    ssoSessionIdleTimeout = 1209600
+                    clientSessionIdleTimeout = 1209600
                 }
             )
             authenticationConfigurator.realm(newRealmName).users().userProfile().update(

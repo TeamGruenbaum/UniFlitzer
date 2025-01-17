@@ -310,7 +310,7 @@ class DriveOffersCommunicator(
 
     @Operation(description = "Accept a requesting user for a specific drive offer.")
     @CommonApiResponses @UnprocessableContentApiResponse @NoContentApiResponse @NotFoundApiResponse @ConflictApiResponse
-    @PostMapping("{driveOfferId}/requesting-users/{requestingUserId}/acceptances") //TODO Manchmal werden Nutzer ohne Anahme angenommen
+    @PostMapping("{driveOfferId}/requesting-users/{requestingUserId}/acceptances")
     fun acceptRequestingUser(@PathVariable @UUID driveOfferId: String, @PathVariable @UUID requestingUserId: String, userToken: UserToken): ResponseEntity<Void> {
         val actingUser: User = usersRepository.findById(UUIDType.fromString(userToken.id)).getOrNull() ?: throw ForbiddenError(localizationService.getMessage("user.notExists", userToken.id))
         val requestingUser: User = usersRepository.findById(UUIDType.fromString(requestingUserId)).getOrNull() ?: throw NotFoundError(localizationService.getMessage("user.notExists", requestingUserId))
