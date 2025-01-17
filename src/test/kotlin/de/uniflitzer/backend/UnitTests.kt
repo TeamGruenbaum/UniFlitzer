@@ -27,16 +27,16 @@ class UnitTests {
         val correctCoordinate: Coordinate = Assertions.assertDoesNotThrow(ThrowingSupplier{ Coordinate(0.0, 0.0) })
 
         val wrongUpperLatitudeException: IllegalArgumentException = Assertions.assertThrows(IllegalArgumentException::class.java, { Coordinate(91.0, 0.0) })
-        Assertions.assertEquals("Property latitude with value 91.0 is not between -90 and 90.", wrongUpperLatitudeException.message)
+        Assertions.assertEquals("Passed value is not between -90 and 90.", wrongUpperLatitudeException.message)
 
         val wrongLowerLatitudeException: IllegalArgumentException = Assertions.assertThrows(IllegalArgumentException::class.java, { Coordinate(-91.0, 0.0) })
-        Assertions.assertEquals("Property latitude with value -91.0 is not between -90 and 90.", wrongLowerLatitudeException.message)
+        Assertions.assertEquals("Passed value is not between -90 and 90.", wrongLowerLatitudeException.message)
 
         val wrongUpperLongitudeException: IllegalArgumentException = Assertions.assertThrows(IllegalArgumentException::class.java, { Coordinate(0.0, 181.0) })
-        Assertions.assertEquals("Property longitude with value 181.0 is not between -180 and 180.", wrongUpperLongitudeException.message)
+        Assertions.assertEquals("Passed value is not between -180 and 180.", wrongUpperLongitudeException.message)
 
         val wrongLowerLongitudeException: IllegalArgumentException = Assertions.assertThrows(IllegalArgumentException::class.java, { Coordinate(0.0, -181.0) })
-        Assertions.assertEquals("Property longitude with value -181.0 is not between -180 and 180.", wrongLowerLongitudeException.message)
+        Assertions.assertEquals("Passed value is not between -180 and 180.", wrongLowerLongitudeException.message)
     }
 
     @Test
@@ -49,28 +49,28 @@ class UnitTests {
         val correctAddress: Address = Assertions.assertDoesNotThrow(ThrowingSupplier { Address(validStreet, validHouseNumber, validPostalCode, validCity) } )
 
         val wrongUpperAddressException: IllegalArgumentException = Assertions.assertThrows(IllegalArgumentException::class.java, { Address("a".repeat(101), validHouseNumber, validPostalCode, validCity) })
-        Assertions.assertEquals("Property street with value ${"a".repeat(101)} is not between 2 and 100 characters long.", wrongUpperAddressException.message)
+        Assertions.assertEquals("Passed value is not between 2 and 100 characters long.", wrongUpperAddressException.message)
 
         val wrongLowerAddressException: IllegalArgumentException = Assertions.assertThrows(IllegalArgumentException::class.java, { Address("", validHouseNumber, validPostalCode, validCity) })
-        Assertions.assertEquals("Property street with value ${""} is not between 2 and 100 characters long.", wrongLowerAddressException.message)
+        Assertions.assertEquals("Passed value is not between 2 and 100 characters long.", wrongLowerAddressException.message)
 
         val wrongUpperHouseNumberException: IllegalArgumentException = Assertions.assertThrows(IllegalArgumentException::class.java, { Address(validStreet, "123456", validPostalCode, validCity) })
-        Assertions.assertEquals("Property houseNumber with value 123456 is not between 1 and 5 characters long.", wrongUpperHouseNumberException.message)
+        Assertions.assertEquals("Passed value is not between 1 and 5 characters long.", wrongUpperHouseNumberException.message)
 
         val wrongLowerHouseNumberException: IllegalArgumentException = Assertions.assertThrows(IllegalArgumentException::class.java, { Address(validStreet, "", validPostalCode, validCity) })
-        Assertions.assertEquals("Property houseNumber with value ${""} is not between 1 and 5 characters long.", wrongLowerHouseNumberException.message)
+        Assertions.assertEquals("Passed value is not between 1 and 5 characters long.", wrongLowerHouseNumberException.message)
 
         val wrongUpperPostalCodeException: IllegalArgumentException = Assertions.assertThrows(IllegalArgumentException::class.java, { Address(validStreet, validHouseNumber, "123456", validCity) })
-        Assertions.assertEquals("Property postalCode with value 123456 is not between 5 and 5 characters long.", wrongUpperPostalCodeException.message)
+        Assertions.assertEquals("Passed value is not between 5 and 5 characters long.", wrongUpperPostalCodeException.message)
 
         val wrongLowerPostalCodeException: IllegalArgumentException = Assertions.assertThrows(IllegalArgumentException::class.java, { Address(validStreet, validHouseNumber, "1234", validCity) })
-        Assertions.assertEquals("Property postalCode with value 1234 is not between 5 and 5 characters long.", wrongLowerPostalCodeException.message)
+        Assertions.assertEquals("Passed value is not between 5 and 5 characters long.", wrongLowerPostalCodeException.message)
 
         val wrongUpperCityException: IllegalArgumentException = Assertions.assertThrows(IllegalArgumentException::class.java, { Address(validStreet, validHouseNumber, validPostalCode, "a".repeat(101)) })
-        Assertions.assertEquals("Property city with value ${"a".repeat(101)} is not between 2 and 100 characters long.", wrongUpperCityException.message)
+        Assertions.assertEquals("Passed value is not between 2 and 100 characters long.", wrongUpperCityException.message)
 
         val wrongLowerCityException: IllegalArgumentException = Assertions.assertThrows(IllegalArgumentException::class.java, { Address(validStreet, validHouseNumber, validPostalCode, "a") })
-        Assertions.assertEquals("Property city with value a is not between 2 and 100 characters long.", wrongLowerCityException.message)
+        Assertions.assertEquals("Passed value is not between 2 and 100 characters long.", wrongLowerCityException.message)
     }
 
     @Test

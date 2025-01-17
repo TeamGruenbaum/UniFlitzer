@@ -5,11 +5,13 @@ import de.uniflitzer.backend.model.Car
 import de.uniflitzer.backend.model.CarpoolDriveOffer
 import de.uniflitzer.backend.model.CompleteRoute
 import de.uniflitzer.backend.model.Drive
+import de.uniflitzer.backend.model.PublicDriveOffer
 import de.uniflitzer.backend.model.ScheduleTimeType
 import de.uniflitzer.backend.repositories.CarpoolsRepository
 import de.uniflitzer.backend.repositories.DriveOffersRepository
 import de.uniflitzer.backend.repositories.DrivesRepository
 import de.uniflitzer.backend.repositories.ImagesRepository
+import de.uniflitzer.backend.repositories.UsersRepository
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.scheduling.annotation.Scheduled
 import org.springframework.stereotype.Component
@@ -22,6 +24,7 @@ class DriveOffersToDrivesConverter(
     @field:Autowired private val geographyService: GeographyService,
     @field:Autowired private val driveOffersRepository: DriveOffersRepository,
     @field:Autowired private val drivesRepository: DrivesRepository,
+    @field:Autowired private val usersRepository: UsersRepository,
     @field:Autowired private val imagesRepository: ImagesRepository,
     @field:Autowired private val carpoolsRepository: CarpoolsRepository
 ) {
@@ -36,37 +39,47 @@ class DriveOffersToDrivesConverter(
                     null -> false
                 }
             }
-            .forEach {
-                val completeRoute: CompleteRoute = geographyService.createCompleteRouteBasedOnUserStops(it.route.start, it.passengers, it.route.destination)
+            .forEach { driveOfferToConvert ->
+                val completeRoute: CompleteRoute = geographyService.createCompleteRouteBasedOnUserStops(driveOfferToConvert.route.start, driveOfferToConvert.passengers, driveOfferToConvert.route.destination)
 
                 val newDrive: Drive = Drive(
-                        it.driver,
-                        Car(
-                            it.car.brand,
-                            it.car.model,
-                            it.car.color,
-                            it.car.licencePlate
-                        ),
-                        completeRoute,
-                        it.passengers.map{it.user},
-                        when(it.scheduleTime?.type) {
-                            ScheduleTimeType.Arrival -> it.scheduleTime?.time?.minus(completeRoute.duration) ?: return@forEach
-                            ScheduleTimeType.Departure -> it.scheduleTime?.time ?: return@forEach
-                            null -> return@forEach
-                        },
-                        when(it.scheduleTime?.type) {
-                            ScheduleTimeType.Arrival -> it.scheduleTime?.time ?: return@forEach
-                            ScheduleTimeType.Departure -> it.scheduleTime?.time?.plus(completeRoute.duration) ?: return@forEach
-                            null -> return@forEach
-                        }
-                    )
-                it.car.image?.let { driveOfferCarImage -> newDrive.car.image = imagesRepository.copy(driveOfferCarImage) }
+                    driveOfferToConvert.driver,
+                    Car(
+                        driveOfferToConvert.car.brand,
+                        driveOfferToConvert.car.model,
+                        driveOfferToConvert.car.color,
+                        driveOfferToConvert.car.licencePlate
+                    ),
+                    completeRoute,
+                    driveOfferToConvert.passengers.map { it.user },
+                    when(driveOfferToConvert.scheduleTime?.type) {
+                        ScheduleTimeType.Arrival -> driveOfferToConvert.scheduleTime?.time?.minus(completeRoute.duration) ?: return@forEach
+                        ScheduleTimeType.Departure -> driveOfferToConvert.scheduleTime?.time ?: return@forEach
+                        null -> return@forEach
+                    },
+                    when(driveOfferToConvert.scheduleTime?.type) {
+                        ScheduleTimeType.Arrival -> driveOfferToConvert.scheduleTime?.time ?: return@forEach
+                        ScheduleTimeType.Departure -> driveOfferToConvert.scheduleTime?.time?.plus(completeRoute.duration) ?: return@forEach
+                        null -> return@forEach
+                    }
+                )
+                driveOfferToConvert.car.image?.let { it -> newDrive.car.image = imagesRepository.copy(it) }
                 val storedDrive = drivesRepository.saveAndFlush(newDrive)
-                if(it is CarpoolDriveOffer) {
-                    it.carpool.addDrive(storedDrive)
-                    carpoolsRepository.save(it.carpool)
+
+                if(driveOfferToConvert is CarpoolDriveOffer) {
+                    driveOfferToConvert.carpool.addDrive(storedDrive)
+                    carpoolsRepository.save(driveOfferToConvert.carpool)
                 }
-                driveOffersRepository.delete(it)
+
+                driveOfferToConvert.passengers.forEach { it.user.leaveDriveOfferAsPassenger(driveOfferToConvert) }
+                usersRepository.saveAll(driveOfferToConvert.passengers.map { it.user })
+                usersRepository.flush()
+                if(driveOfferToConvert is PublicDriveOffer) {
+                    driveOfferToConvert.requestingUsers.forEach { it.user.leaveDriveOfferAsRequestingUser(driveOfferToConvert) }
+                    usersRepository.saveAll(driveOfferToConvert.requestingUsers.map { it.user })
+                    usersRepository.flush()
+                }
+                driveOffersRepository.delete(driveOfferToConvert)
             }
 
         drivesRepository.flush()

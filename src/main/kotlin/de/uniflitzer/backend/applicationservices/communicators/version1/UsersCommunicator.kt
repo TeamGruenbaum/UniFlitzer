@@ -420,13 +420,13 @@ class UsersCommunicator(
     @Operation(description = "Get all drive offers of a specific user.")
     @CommonApiResponses @OkApiResponse
     @GetMapping("{userId}/drive-offers")
-    fun getDriveOffersOfUser(@PathVariable @UUID userId: String, @RequestParam @Min(1) pageNumber: Int, @RequestParam @Min(1) @Max(200) perPage: Int, @RequestParam sortingDirection: SortingDirectionDP = SortingDirectionDP.Ascending, role: DriverOfferRoleDP? = null, userToken: UserToken): ResponseEntity<PageDP<PartialDriveOfferDP>> {
+    fun getDriveOffersOfUser(@PathVariable @UUID userId: String, @RequestParam @Min(1) pageNumber: Int, @RequestParam @Min(1) @Max(200) perPage: Int, @RequestParam sortingDirection: SortingDirectionDP = SortingDirectionDP.Ascending, @RequestParam role: DriverOfferRoleDP? = null, userToken: UserToken): ResponseEntity<PageDP<PartialDriveOfferDP>> {
         val actingUser: User = usersRepository.findById(UUIDType.fromString(userToken.id)).getOrNull() ?: throw ForbiddenError(localizationService.getMessage("user.notExists", userToken.id))
         if(actingUser.id != UUIDType.fromString(userId)) throw ForbiddenError(localizationService.getMessage("user.resource.driveOffers.getOthers", userId))
 
         val resultingDriveOffersOfUser: List<DriveOffer> =
             if(role == null) {
-                actingUser.driveOffersAsRequestingUser + actingUser.driveOffersAsPassenger + actingUser.driveOffersAsDriver
+                actingUser.driveOffersAsRequestingUser.plus(actingUser.driveOffersAsPassenger).plus(actingUser.driveOffersAsDriver)
             }
             else {
                 when (role) {

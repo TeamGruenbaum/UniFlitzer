@@ -81,48 +81,51 @@ class DriveOffersCommunicator(
         val destinationCoordinate: Coordinate = Coordinate(destinationLatitude, destinationLongitude)
         val tolerance: Meters = Meters(1000.0)
 
-        val searchedDriveOffers: List<DriveOffer> =
-            driveOffersRepository.findAll(
-                allowedAnimals?.map { it.toAnimal() },
-                isSmoking,
-                allowedDrivingStyles?.map { it.toDrivingStyle() },
-                allowedGenders?.map { it.toGender() },
-                actingUser.blockedUsers,
-                actingUser,
-                Sort.by(
-                    when (sortingDirection) {
-                        SortingDirectionDP.Ascending -> Sort.Direction.ASC
-                        SortingDirectionDP.Descending -> Sort.Direction.DESC
-                    },
-                    "scheduleTime.time"
-                )
-            )
-            .filter {
-                if(scheduleTime == null) return@filter true
+        val allowedAnimalsConverted: List<Animal>? = allowedAnimals?.map { it.toAnimal() }
+        val allowedDrivingStylesConverted: List<DrivingStyle>? = allowedDrivingStyles?.map { it.toDrivingStyle() }
+        val allowedGendersConverted: List<Gender>? = allowedGenders?.map { it.toGender() }
 
-                when(scheduleTimeType) {
-                    ScheduleTimeTypeDP.Arrival -> {
-                        when (it.scheduleTime?.type) {
-                            ScheduleTimeType.Arrival -> it.scheduleTime?.time?.isBefore(scheduleTime) ?: true
-                            ScheduleTimeType.Departure -> it.scheduleTime?.time?.plus(it.route.duration)?.isBefore(scheduleTime) ?: true
-                            else -> true
+        val searchedDriveOffers: List<DriveOffer> =
+            driveOffersRepository
+                .findAll()
+                .filter { driveOffer ->
+                    if(allowedAnimalsConverted == null) return@filter true
+                    driveOffer.driver.animals.any { it !in allowedAnimalsConverted }
+                }
+                .filter { driveOffer -> isSmoking?.let { it == driveOffer.driver.isSmoking } ?: true }
+                .filter { driveOffer -> allowedGendersConverted?.contains(driveOffer.driver.gender) ?: true  }
+                .filter { driveOffer -> allowedDrivingStylesConverted?.contains(driveOffer.driver.drivingStyle) ?: true }
+                .filter { it.driver !in actingUser.blockedUsers }
+                .filter { it.driver != actingUser }
+                .filter { it !is CarpoolDriveOffer }
+                .filter {
+                    if(scheduleTime == null) return@filter true
+
+                    when(scheduleTimeType) {
+                        ScheduleTimeTypeDP.Arrival -> {
+                            when (it.scheduleTime?.type) {
+                                ScheduleTimeType.Arrival -> it.scheduleTime?.time?.isBefore(scheduleTime) ?: true
+                                ScheduleTimeType.Departure -> it.scheduleTime?.time?.plus(it.route.duration)?.isBefore(scheduleTime) ?: true
+                                else -> true
+                            }
                         }
-                    }
-                    ScheduleTimeTypeDP.Departure -> {
-                        when (it.scheduleTime?.type) {
-                            ScheduleTimeType.Arrival -> it.scheduleTime?.time?.minus(it.route.duration)?.isAfter(scheduleTime) ?: true
-                            ScheduleTimeType.Departure -> it.scheduleTime?.time?.isAfter(scheduleTime) ?: true
-                            else -> true
+                        ScheduleTimeTypeDP.Departure -> {
+                            when (it.scheduleTime?.type) {
+                                ScheduleTimeType.Arrival -> it.scheduleTime?.time?.minus(it.route.duration)?.isAfter(scheduleTime) ?: true
+                                ScheduleTimeType.Departure -> it.scheduleTime?.time?.isAfter(scheduleTime) ?: true
+                                else -> true
+                            }
                         }
                     }
                 }
-            }
-            .filter { it.route.isCoordinateOnRoute(startCoordinate, tolerance) && it.route.isCoordinateOnRoute(destinationCoordinate, tolerance) }
-            .filter { it.route.areCoordinatesInCorrectDirection(startCoordinate, destinationCoordinate) }
+                .filter { it.route.isCoordinateOnRoute(startCoordinate, tolerance) && it.route.isCoordinateOnRoute(destinationCoordinate, tolerance) }
+                .filter { it.route.areCoordinatesInCorrectDirection(startCoordinate, destinationCoordinate) }
+
+        val sortedSearchedDriveOffers: List<DriveOffer> = if(sortingDirection == SortingDirectionDP.Ascending) searchedDriveOffers.sortedBy { it.scheduleTime?.time } else searchedDriveOffers.sortedByDescending { it.scheduleTime?.time }
 
         return ResponseEntity.ok(
             PartialDriveOfferPageDP.fromList(
-                searchedDriveOffers.map { PartialDriveOfferDP.fromDriveOffer(it, it.driver in actingUser.favoriteUsers) },
+                sortedSearchedDriveOffers.map { PartialDriveOfferDP.fromDriveOffer(it, it.driver in actingUser.favoriteUsers) },
                 pageNumber.toUInt(),
                 perPage.toUInt()
             )
@@ -224,7 +227,14 @@ class DriveOffersCommunicator(
         val driveOfferToDelete: DriveOffer = driveOffersRepository.findById(UUIDType.fromString(driveOfferId)).getOrNull() ?: throw NotFoundError(localizationService.getMessage("driveOffer.notFound", driveOfferId))
         if (driveOfferToDelete.driver.id != UUIDType.fromString(userToken.id)) throw ForbiddenError(localizationService.getMessage("driveOffer.user.notDriverOf", userToken.id, driveOfferId))
 
-        driveOfferToDelete.removeAllRequestingUsersAndPassengers()
+        driveOfferToDelete.passengers.forEach { it.user.leaveDriveOfferAsPassenger(driveOfferToDelete) }
+        usersRepository.saveAll(driveOfferToDelete.passengers.map { it.user })
+        usersRepository.flush()
+        if(driveOfferToDelete is PublicDriveOffer) {
+            driveOfferToDelete.requestingUsers.forEach { it.user.leaveDriveOfferAsRequestingUser(driveOfferToDelete) }
+            usersRepository.saveAll(driveOfferToDelete.requestingUsers.map { it.user })
+            usersRepository.flush()
+        }
         driveOffersRepository.delete(driveOfferToDelete)
         driveOffersRepository.flush()
 

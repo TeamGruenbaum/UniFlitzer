@@ -57,17 +57,6 @@ class DriveOffer(driver: User, car: Car, freeSeats: Seats, route: Route, schedul
         _passengers.remove(searcherUserStop)
     }
 
-    fun removeAllRequestingUsersAndPassengers() {
-        _passengers.forEach {
-            try {
-                it.user.leaveDriveOfferAsRequestingUser(this)
-                it.user.leaveDriveOfferAsPassenger(this)
-            }
-            catch (_: NotAvailableError) {}
-            catch (_: MissingActionError) {}
-        }
-    }
-
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
         if (other !is DriveOffer) return false

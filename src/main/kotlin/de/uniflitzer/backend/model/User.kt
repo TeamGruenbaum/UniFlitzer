@@ -174,21 +174,21 @@ class User(id: UUID, firstName: FirstName, lastName: LastName, birthday: ZonedDa
 
     @Throws(RepeatedActionError::class)
     fun joinDriveOfferAsRequestingUser(driveOffer: PublicDriveOffer) {
-        if(driveOffer in driveOffersAsRequestingUser) throw RepeatedActionError("User is already a requesting user of the passed public drive offer.")
+        if(driveOffer in _driveOffersAsRequestingUser) throw RepeatedActionError("User is already a requesting user of the passed public drive offer.")
 
         _driveOffersAsRequestingUser.add(driveOffer)
     }
 
     @Throws(MissingActionError::class)
     fun leaveDriveOfferAsRequestingUser(driveOffer: DriveOffer) {
-        if(driveOffer !in driveOffersAsRequestingUser) throw MissingActionError("User is not a passenger of the passed drive offer.")
+        if(driveOffer !in _driveOffersAsRequestingUser) throw MissingActionError("User is not a passenger of the passed drive offer.")
 
         _driveOffersAsRequestingUser.remove(driveOffer)
     }
 
     @Throws(RepeatedActionError::class)
     fun joinDriveOfferAsPassenger(driveOffer: DriveOffer) {
-        if(driveOffer in driveOffersAsPassenger) throw RepeatedActionError("User is already a passenger of the passed drive offer.")
+        if(driveOffer in _driveOffersAsPassenger) throw RepeatedActionError("User is already a passenger of the passed drive offer.")
 
         _driveOffersAsPassenger.add(driveOffer)
         _driveOffersAsRequestingUser.remove(driveOffer)
@@ -196,7 +196,7 @@ class User(id: UUID, firstName: FirstName, lastName: LastName, birthday: ZonedDa
 
     @Throws(NotAvailableError::class)
     fun leaveDriveOfferAsPassenger(driveOffer: DriveOffer) {
-        if(driveOffer !in driveOffersAsPassenger) throw NotAvailableError("User is not a passenger of passed driver offer.")
+        if(driveOffer !in _driveOffersAsPassenger) throw NotAvailableError("User is not a passenger of passed driver offer.")
 
         _driveOffersAsPassenger.remove(driveOffer)
     }
