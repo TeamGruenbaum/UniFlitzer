@@ -7,6 +7,8 @@ import jakarta.persistence.EntityManager
 import jakarta.persistence.PersistenceContext
 import net.coobird.thumbnailator.Thumbnails
 import org.apache.tika.Tika
+import org.slf4j.Logger
+import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.core.env.Environment
 import org.springframework.stereotype.Component
@@ -23,19 +25,19 @@ import java.util.*
 class ImagesRepositoryImpl(@field:Autowired private val environment:Environment): ImagesRepository {
     @PersistenceContext
     private lateinit var entityManager: EntityManager
+    private val logger: Logger = LoggerFactory.getLogger(this::class.java)
 
     override fun save(data:ByteArray, fileEnding:String?): Image {
-        val reply: ByteArray
+        val logId: UUID = UUID.randomUUID()
         try {
-            reply = ClamAVClient(
+            val reply: ByteArray = ClamAVClient(
                 environment.getProperty("clamav.ip") ?: throw IllegalStateException("clamav.ip is not set."),
                 environment.getProperty("clamav.port")?.toInt() ?: throw IllegalStateException("clamav.port is not set.")
             ).scan(data)
+            if (!ClamAVClient.isCleanReply(reply)) throw FileCorruptedError("Uploaded file is infected.")
         } catch (exception: Exception) {
-            throw FileCheckError("Uploaded file could not be scanned for infections.")
+            logger.warn("$logId: Uploaded file could not be scanned for infections.")
         }
-        if (!ClamAVClient.isCleanReply(reply)) throw FileCorruptedError("Uploaded file is infected.")
-
 
         var fileType = try {
             Tika().detect(data)

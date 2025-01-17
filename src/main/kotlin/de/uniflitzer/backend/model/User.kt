@@ -146,7 +146,8 @@ class User(id: UUID, firstName: FirstName, lastName: LastName, birthday: ZonedDa
 
     fun addFavoriteUser(user: User) {
         if(user in _favoriteUsers) throw RepeatedActionError("Passed user is already a favorite user.")
-        if(user == this) throw ConflictingActionError("Passed user cannot be a favorite user of itself.")
+        if(user == this) throw ConflictingActionError("Passed user cannot be a favorite user of himself.")
+        if(user in _blockedUsers) throw ConflictingActionError("Passed user cannot be a favorite user and a blocked user at the same time.")
 
         _favoriteUsers.add(user)
     }
@@ -159,7 +160,8 @@ class User(id: UUID, firstName: FirstName, lastName: LastName, birthday: ZonedDa
 
     fun addBlockedUser(user: User) {
         if(user in _blockedUsers) throw RepeatedActionError("Passed user is already a blocked user.")
-        if(user == this) throw ConflictingActionError("Passed user cannot be a blocked user of itself.")
+        if(user == this) throw ConflictingActionError("Passed user cannot be a blocked user of himself.")
+        if(user in _favoriteUsers) throw ConflictingActionError("Passed user cannot be a favorite user and a blocked user at the same time.")
 
         _blockedUsers.add(user)
     }

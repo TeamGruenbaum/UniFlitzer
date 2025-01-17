@@ -290,7 +290,18 @@ class UsersCommunicator(
         val carToDelete: Car = try { actingUser.getCarByIndex(carIndex.toUInt()) } catch (_: NotAvailableError) { throw NotFoundError(localizationService.getMessage("user.car.index.notExists", carIndex, userId)) }
 
         try { actingUser.removeCarAtIndex(carIndex.toUInt()) } catch (_: NotAvailableError) { throw NotFoundError(localizationService.getMessage("user.car.index.notExists", carIndex, userId)) }
-        imagesRepository.deleteById(carToDelete.image?.id ?: throw NotFoundError(localizationService.getMessage("user.car.index.image.notExists", carIndex, userId)))
+        if (carToDelete.image != null)
+        {
+            try {
+                val imageId:UUIDType = carToDelete.image!!.id
+                carToDelete.image = null
+                usersRepository.save(actingUser)
+                imagesRepository.deleteById(imageId)
+            }
+            catch (error: FileMissingError) {
+                throw NotFoundError(localizationService.getMessage("user.car.index.image.notFound", carIndex, userId))
+            }
+        }
         usersRepository.save(actingUser)
 
         return ResponseEntity.noContent().build<Void>()
@@ -343,7 +354,7 @@ class UsersCommunicator(
         } catch (_: RepeatedActionError) {
             throw BadRequestError(listOf(localizationService.getMessage("user.favoriteUser.alreadyExists", userToFavorite.id, userId)))
         } catch (_: ConflictingActionError) {
-            throw ConflictError(localizationService.getMessage("user.favoriteUser.conflict", userId))
+            throw ConflictError(localizationService.getMessage("user.favoriteUser.conflict", userToFavorite.id, userId))
         }
         usersRepository.save(actingUser)
 
@@ -381,7 +392,7 @@ class UsersCommunicator(
         } catch (_: RepeatedActionError) {
             throw BadRequestError(listOf(localizationService.getMessage("user.blockedUser.alreadyExists", userToBlock.id, actingUser.id)))
         } catch (_: ConflictingActionError) {
-            throw ConflictError(localizationService.getMessage("user.blockedUser.conflict", actingUser.id))
+            throw ConflictError(localizationService.getMessage("user.blockedUser.conflict", userToBlock.id, actingUser.id))
         }
         usersRepository.save(actingUser)
 
