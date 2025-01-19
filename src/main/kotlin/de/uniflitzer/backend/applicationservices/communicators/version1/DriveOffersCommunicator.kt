@@ -88,16 +88,16 @@ class DriveOffersCommunicator(
         val searchedDriveOffers: List<DriveOffer> =
             driveOffersRepository
                 .findAll()
+                .filter { it !is CarpoolDriveOffer }
+                .filter { driveOffer -> isSmoking?.let { it == driveOffer.driver.isSmoking } ?: true }
                 .filter { driveOffer ->
                     if(allowedAnimalsConverted == null) return@filter true
-                    driveOffer.driver.animals.any { it !in allowedAnimalsConverted }
+                    driveOffer.driver.animals.all { it in allowedAnimalsConverted }
                 }
-                .filter { driveOffer -> isSmoking?.let { it == driveOffer.driver.isSmoking } ?: true }
-                .filter { driveOffer -> allowedGendersConverted?.contains(driveOffer.driver.gender) ?: true  }
                 .filter { driveOffer -> allowedDrivingStylesConverted?.contains(driveOffer.driver.drivingStyle) ?: true }
+                .filter { driveOffer -> allowedGendersConverted?.contains(driveOffer.driver.gender) ?: true  }
                 .filter { it.driver !in actingUser.blockedUsers }
                 .filter { it.driver != actingUser }
-                .filter { it !is CarpoolDriveOffer }
                 .filter {
                     if(scheduleTime == null) return@filter true
 
