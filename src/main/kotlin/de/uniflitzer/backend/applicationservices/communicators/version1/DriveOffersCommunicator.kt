@@ -21,7 +21,9 @@ import de.uniflitzer.backend.repositories.DriveOffersRepository
 import de.uniflitzer.backend.repositories.ImagesRepository
 import de.uniflitzer.backend.repositories.UsersRepository
 import io.swagger.v3.oas.annotations.Operation
+import io.swagger.v3.oas.annotations.Parameter
 import io.swagger.v3.oas.annotations.media.Content
+import io.swagger.v3.oas.annotations.media.Schema
 import io.swagger.v3.oas.annotations.responses.ApiResponse
 import io.swagger.v3.oas.annotations.responses.ApiResponses
 import io.swagger.v3.oas.annotations.security.SecurityRequirement
@@ -166,10 +168,49 @@ class DriveOffersCommunicator(
         return ResponseEntity.ok().contentType(MediaType.IMAGE_JPEG).body(image)
     }
 
-    @Operation(description = "Create a new drive offer.")
-    @CommonApiResponses @CreatedApiResponse
+    @Operation(
+        summary = "Create a new drive offer.",
+        description = "Endpoint for a user to create a new drive offer. If the drive offer is a public drive offer, it will be open for seat requests from all users. If it is a carpool drive offer, it will be linked to a specific carpool. It is important to note that the car specified for the drive offer including its image is copied and not referenced."
+    )
+    @ApiResponses(
+        value = [
+            ApiResponse(
+                responseCode = "201",
+                description = "Created - Sent when a new drive offer is successfully created."
+            ),
+            ApiResponse(
+                responseCode = "400",
+                description = "Bad Request - Sent if the provided data has a wrong format or is invalid.",
+                content = [Content(schema = Schema(implementation = ErrorsDP::class))]
+            ),
+            ApiResponse(
+                responseCode = "401",
+                description = "Unauthorized - Sent if no user token is provided or the user token is invalid.",
+                content = [Content(schema = Schema(implementation = ErrorDP::class))]
+            ),
+            ApiResponse(
+                responseCode = "403",
+                description = "Forbidden - Sent if the user does not exist in the resource server.",
+                content = [Content(schema = Schema(implementation = ErrorDP::class))]
+            ),
+            ApiResponse(
+                responseCode = "404",
+                description = "Not Found - Sent if the specified car or carpool is not found.",
+                content = [Content(schema = Schema(implementation = ErrorDP::class))]
+            ),
+            ApiResponse(
+                responseCode = "500",
+                description = "Internal Server Error - Sent if an unexpected error occurred.",
+                content = [Content(schema = Schema(implementation = ErrorDP::class))]
+            )
+        ]
+    )
     @PostMapping
-    fun createDriveOffer(@RequestBody @Valid driveOfferCreation: DriveOfferCreationDP, userToken: UserToken): ResponseEntity<IdDP> {
+    fun createDriveOffer(
+        @Parameter(description = "The data to create a new drive offer.")
+        @RequestBody @Valid driveOfferCreation: DriveOfferCreationDP,
+        userToken: UserToken
+    ): ResponseEntity<IdDP> {
         val actingUser: User = usersRepository.findById(UUIDType.fromString(userToken.id)).getOrNull() ?: throw ForbiddenError(localizationService.getMessage("user.notExists", userToken.id))
         val selectedCarForDriverOffer: Car = actingUser.cars.getOrNull(driveOfferCreation.carIndex) ?: throw NotFoundError(localizationService.getMessage("user.car.index.notExists", driveOfferCreation.carIndex, actingUser.id))
         val driveOfferRoute: Route = geographyService.createRoute(
@@ -259,10 +300,54 @@ class DriveOffersCommunicator(
         return ResponseEntity.noContent().build()
     }
 
-    @Operation(description = "Request the ride for a specific drive offer.")
-    @CommonApiResponses @NoContentApiResponse @NotFoundApiResponse @ConflictApiResponse
+    @Operation(
+        summary = "Request a seat for a specific drive offer.",
+        description = "Endpoint for a user to request a seat for a specific drive offer. If the drive offer is a public drive offer, the user will be added to the requesting users. If the drive offer is a carpool drive offer, the user will be added to the passengers.",
+    )
+    @ApiResponses(
+        value = [
+            ApiResponse(
+                responseCode = "204",
+                description = "No Content - Sent when the user's request was successful."
+            ),
+            ApiResponse(
+                responseCode = "400",
+                description = "Bad Request - Sent if a public drive offer is requested and the user already requested a seat. Also sent if a carpool drive offer is requested and either all seats are taken or the user is already a passenger. Sent in any case if the provided data has a wrong format.",
+                content = [Content(schema = Schema(implementation = ErrorsDP::class))]
+            ),
+            ApiResponse(
+                responseCode = "401",
+                description = "Unauthorized - Sent if no user token is provided or the user token is invalid.",
+                content = [Content(schema = Schema(implementation = ErrorDP::class))]
+            ),
+            ApiResponse(
+                responseCode = "403",
+                description = "Forbidden - Sent if the user does not exist in the resource server or if the user is blocked by the driver of the drive offer.",
+                content = [Content(schema = Schema(implementation = ErrorDP::class))]
+            ),
+            ApiResponse(
+                responseCode = "404",
+                description = "Not Found - Sent if the drive offer is not found.",
+                content = [Content(schema = Schema(implementation = ErrorDP::class))]
+            ),
+            ApiResponse(
+                responseCode = "409",
+                description = "Conflict - Sent if a drive offer is requested but the user is already the driver of the drive offer.",
+                content = [Content(schema = Schema(implementation = ErrorDP::class))]
+            ),
+            ApiResponse(
+                responseCode = "500",
+                description = "Internal Server Error - Sent if an unexpected error occurred.",
+                content = [Content(schema = Schema(implementation = ErrorDP::class))]
+            )
+        ]
+    )
     @PostMapping("{driveOfferId}/requests")
-    fun requestSeat(@PathVariable @UUID driveOfferId: String, @RequestBody @Valid userStopCreation: UserStopCreationDP, userToken: UserToken): ResponseEntity<Void> {
+    fun requestSeat(
+        @Parameter(name = "driveOfferId", description = "The id of the drive offer the user wants to request.") @PathVariable @UUID driveOfferId: String,
+        @Parameter(name = "userStopCreation", description = "The data to create a user stop including the start, where the user wants to get into the car, and the destination, where the user wants to get off the car.") @RequestBody @Valid userStopCreation: UserStopCreationDP,
+        userToken: UserToken
+    ): ResponseEntity<Void> {
         val actingUser: User = usersRepository.findById(UUIDType.fromString(userToken.id)).getOrNull() ?: throw ForbiddenError(localizationService.getMessage("user.notExists", userToken.id))
         val driveOfferInEditing: DriveOffer = driveOffersRepository.findById(UUIDType.fromString(driveOfferId)).getOrNull() ?: throw NotFoundError(localizationService.getMessage("driveOffer.notFound", driveOfferId))
 
@@ -308,10 +393,61 @@ class DriveOffersCommunicator(
         return ResponseEntity.noContent().build()
     }
 
-    @Operation(description = "Accept a requesting user for a specific drive offer.")
-    @CommonApiResponses @UnprocessableContentApiResponse @NoContentApiResponse @NotFoundApiResponse @ConflictApiResponse
+    @Operation(
+        summary = "Accept a requesting user for a specific drive offer.",
+        description = "Endpoint that allows the driver of the specified drive offer to accept a user who has requested a seat in a public drive offer. If the operation is successful, the requesting user becomes a passenger, and the route is updated accordingly. If the drive offer is a carpool drive offer, the request has already been automatically accepted, leading to an unprocessable content error."
+    )
+    @ApiResponses(
+        value = [
+            ApiResponse(
+                responseCode = "204",
+                description = "No Content - Sent if the requesting user is successfully accepted."
+            ),
+            ApiResponse(
+                responseCode = "400",
+                description = "Bad Request - Sent if all seats are taken, the user is already a passenger or the provided data has a wrong format.",
+                content = [Content(schema = Schema(implementation = ErrorsDP::class))]
+            ),
+            ApiResponse(
+                responseCode = "401",
+                description = "Unauthorized - Sent if no user token is provided or if the user token is invalid.",
+                content = [Content(schema = Schema(implementation = ErrorDP::class))]
+            ),
+            ApiResponse(
+                responseCode = "403",
+                description = "Forbidden - Sent if the user does not exist in the resource server or if the user is not the driver of the specified drive offer.",
+                content = [Content(schema = Schema(implementation = ErrorDP::class))]
+            ),
+            ApiResponse(
+                responseCode = "404",
+                description = "Not Found - Sent if the requesting user of the drive offer does not exist in the resource server, if the drive offer is not found or if the requesting user has not requested the drive offer.",
+                content = [Content(schema = Schema(implementation = ErrorDP::class))]
+            ),
+            ApiResponse(
+                responseCode = "409",
+                description = "Conflict - Sent if the requesting user is already the driver of the drive offer.",
+                content = [Content(schema = Schema(implementation = ErrorDP::class))]
+            ),
+            ApiResponse(
+                responseCode = "422",
+                description = "Unprocessable Content - Sent if the drive offer is a carpool drive offer, where seat requests are automatically accepted.",
+                content = [Content(schema = Schema(implementation = ErrorDP::class))]
+            ),
+            ApiResponse(
+                responseCode = "500",
+                description = "Internal Server Error - Sent if an unexpected error occurred.",
+                content = [Content(schema = Schema(implementation = ErrorDP::class))]
+            )
+        ]
+    )
     @PostMapping("{driveOfferId}/requesting-users/{requestingUserId}/acceptances")
-    fun acceptRequestingUser(@PathVariable @UUID driveOfferId: String, @PathVariable @UUID requestingUserId: String, userToken: UserToken): ResponseEntity<Void> {
+    fun acceptRequestingUser(
+        @Parameter(description = "The ID of the drive offer for which the user is requesting a seat.")
+        @PathVariable @UUID driveOfferId: String,
+        @Parameter(description = "The ID of the user requesting to join the drive offer.")
+        @PathVariable @UUID requestingUserId: String,
+        userToken: UserToken
+    ): ResponseEntity<Void> {
         val actingUser: User = usersRepository.findById(UUIDType.fromString(userToken.id)).getOrNull() ?: throw ForbiddenError(localizationService.getMessage("user.notExists", userToken.id))
         val requestingUser: User = usersRepository.findById(UUIDType.fromString(requestingUserId)).getOrNull() ?: throw NotFoundError(localizationService.getMessage("user.notExists", requestingUserId))
         val driveOfferInEditing: DriveOffer = driveOffersRepository.findById(UUIDType.fromString(driveOfferId)).getOrNull() ?: throw NotFoundError(localizationService.getMessage("driveOffer.notFound", driveOfferId))
