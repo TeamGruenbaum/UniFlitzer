@@ -69,9 +69,7 @@ class ImagesRepositoryImpl(@field:Autowired private val environment:Environment)
         try {
             setFilePermissions(fileFullQuality)
             setFilePermissions(filePreviewQuality)
-        } catch (exception: Exception) {
-            throw FilePermissionsError("File permissions could not be set.")
-        }
+        } catch (_: Exception) {}
 
         entityManager.persist(image)
         entityManager.flush()
@@ -133,9 +131,7 @@ class ImagesRepositoryImpl(@field:Autowired private val environment:Environment)
         try {
             setFilePermissions(copiedFileFullQuality)
             setFilePermissions(copiedFilePreviewQuality)
-        } catch (exception: Exception) {
-            throw FilePermissionsError("File permissions could not be set.")
-        }
+        } catch (exception: Exception) {}
 
         entityManager.persist(copiedImage)
         entityManager.flush()

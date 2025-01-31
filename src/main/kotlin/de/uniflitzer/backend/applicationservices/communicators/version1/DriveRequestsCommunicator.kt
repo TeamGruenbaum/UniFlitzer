@@ -130,7 +130,6 @@ class DriveRequestsCommunicator(
                             else -> true
                         }
                     }
-                    null -> true
                 }
             }
         }
