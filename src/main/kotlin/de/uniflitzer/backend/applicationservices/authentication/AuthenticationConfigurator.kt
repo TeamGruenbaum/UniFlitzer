@@ -2,7 +2,7 @@ package de.uniflitzer.backend.applicationservices.authentication
 
 import com.fasterxml.jackson.databind.ObjectMapper
 import de.uniflitzer.backend.applicationservices.communicators.version1.datapackages.ErrorDP
-import de.uniflitzer.backend.applicationservices.communicators.version1.errors.InternalServerError
+import de.uniflitzer.backend.applicationservices.communicators.version1.localization.LocalizationService
 import jakarta.servlet.http.HttpServletResponse
 import jakarta.ws.rs.NotFoundException
 import org.keycloak.admin.client.Keycloak
@@ -23,12 +23,14 @@ import org.springframework.context.annotation.Configuration
 import org.springframework.core.convert.converter.Converter
 import org.springframework.core.env.Environment
 import org.springframework.security.authentication.AbstractAuthenticationToken
-import org.springframework.security.config.Customizer
 import org.springframework.security.config.annotation.web.builders.HttpSecurity
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity
 import org.springframework.security.config.http.SessionCreationPolicy
 import org.springframework.security.oauth2.jwt.Jwt
 import org.springframework.security.web.SecurityFilterChain
+import org.springframework.web.cors.CorsConfiguration
+import org.springframework.web.cors.UrlBasedCorsConfigurationSource
+import java.util.UUID
 import kotlin.system.exitProcess
 
 @Configuration
@@ -36,9 +38,18 @@ import kotlin.system.exitProcess
 class AuthenticationConfigurator(
     @field:Autowired private val environment: Environment,
     @field:Autowired private val authenticationConfigurator: Keycloak,
+    @field:Autowired private val localizationService: LocalizationService
 ):InitializingBean {
     private val logger: Logger = LoggerFactory.getLogger(this::class.java)
-    private val newRealmName: String? = environment.getProperty("keycloak.realm.name") ?: throw IllegalStateException("keycloak.realm.name is not set.")
+    private val newRealmName: String? = environment.getProperty("keycloak.realm.name")
+        .let {
+            if(it == null){
+                logger.error("keycloak.realm.name is not set.")
+                exitProcess(1)
+            }
+
+            return@let it
+        }
 
     @Bean
     fun configureAuthentication(http: HttpSecurity, authenticationConverter: Converter<Jwt?, AbstractAuthenticationToken?>?): SecurityFilterChain {
@@ -59,7 +70,8 @@ class AuthenticationConfigurator(
                     response.apply {
                         status = HttpServletResponse.SC_UNAUTHORIZED
                         contentType = "application/json"
-                        writer.write(ObjectMapper().writeValueAsString(ErrorDP("You need to provide a valid token to access this resource.")))
+                        characterEncoding = "UTF-8"
+                        writer.write(ObjectMapper().writeValueAsString(ErrorDP(localizationService.getMessage("error.unauthorized"))))
                     }
                 }
             }
@@ -69,9 +81,20 @@ class AuthenticationConfigurator(
                 requests
                     .requestMatchers("/swagger-ui/**").permitAll()
                     .requestMatchers("/api-documentation/**").permitAll()
+                    .requestMatchers("/authenticationClientCallback").permitAll()
                     .anyRequest().authenticated()
             }
-            .cors(Customizer.withDefaults())
+            .cors {
+                it.configurationSource(
+                    UrlBasedCorsConfigurationSource().apply {
+                        registerCorsConfiguration(
+                            "/**",
+                            CorsConfiguration().apply {
+                                allowedOrigins = listOf(environment.getProperty("keycloak.url") ?: throw IllegalStateException("keycloak.webOrigins is not set."));
+                        });
+                    }
+                )
+            }
 
         return http.build()
     }
@@ -79,18 +102,23 @@ class AuthenticationConfigurator(
     override fun afterPropertiesSet() {
         when (environment.getProperty("keycloak.setup")) {
             "disabled" -> return@afterPropertiesSet
-            "recreate-if-not-exists" -> if (runCatching{authenticationConfigurator.realm(newRealmName)}.exceptionOrNull() is NotFoundException) recreateAuthenticationData()
+            "recreate-if-not-exists" -> {
+                try { authenticationConfigurator.realm(newRealmName).toRepresentation() }
+                catch (_: NotFoundException) { recreateAuthenticationData() }
+            }
             "recreate-always" -> recreateAuthenticationData()
-            else -> logger.warn("Invalid value for keycloak.setup")
+            else -> logger.warn("keycloak.setup is not set.")
         }
     }
 
     private fun recreateAuthenticationData() {
+        val logId: UUID = UUID.randomUUID()
+
         try {
             try { authenticationConfigurator.realm(newRealmName).remove() }
             catch(_: NotFoundException){}
-            catch(exception:Exception){ throw exception }
-            logger.info("Realm '$newRealmName' was removed")
+            catch(exception: Exception){ throw exception }
+            logger.info("$logId: Keycloak realm with name $newRealmName was removed.")
 
             authenticationConfigurator.realms().create(
                 RealmRepresentation().apply {
@@ -98,6 +126,9 @@ class AuthenticationConfigurator(
                     isEnabled = true
                     isEditUsernameAllowed = true
                     isRegistrationAllowed = true
+                    accessTokenLifespan = 3600
+                    ssoSessionIdleTimeout = 1209600
+                    clientSessionIdleTimeout = 1209600
                 }
             )
             authenticationConfigurator.realm(newRealmName).users().userProfile().update(
@@ -131,6 +162,12 @@ class AuthenticationConfigurator(
                             validations = mapOf(
                                 "length" to mapOf("max" to 255),
                                 "email" to mapOf(),
+                                "pattern" to mapOf(
+                                    "min" to "",
+                                    "max" to "",
+                                    "pattern" to "^[^\\s@]+@hof-university\\.de\$",
+                                    "error-message" to "Value must end with @hof-university.de"
+                                )
                             )
                         },
                         UPAttribute().apply {
@@ -151,7 +188,7 @@ class AuthenticationConfigurator(
                     )
                 }
             )
-            logger.info("Realm was set up")
+            logger.info("$logId: Keycloak realm with name $newRealmName was created.")
 
             authenticationConfigurator.realm(newRealmName).clientScopes().create(
                 ClientScopeRepresentation().apply {
@@ -180,7 +217,7 @@ class AuthenticationConfigurator(
                     )
                 }
             )
-            logger.info("Client scope was set up")
+            logger.info("$logId: Client scope resource_server in Keycloak realm with name $newRealmName was added.")
 
             authenticationConfigurator.realm(newRealmName).clients().create(
                 ClientRepresentation().apply {
@@ -194,7 +231,7 @@ class AuthenticationConfigurator(
                     defaultClientScopes = listOf("basic", "profile", "email", "roles", "web-origins", "resource_server")
                 }
             )
-            logger.info("Client was set up")
+            logger.info("$logId: Client with Client ID uniflitzer_frontend in Keycloak realm with name $newRealmName was set up.")
 
             (authenticationConfigurator
                 .realm(newRealmName)
@@ -205,14 +242,13 @@ class AuthenticationConfigurator(
                 .apply { isEnabled = false }
                 .let{
                     authenticationConfigurator.realm(newRealmName).flows().updateRequiredAction("CONFIGURE_TOTP", it)
-                    logger.info("Authentication was set up")
+                    logger.info("$logId: Required actions in Keycloak realm with name $newRealmName were configured.")
                 }
 
-            logger.info("Keycloak has been fully set up")
+            logger.info("$logId: Keycloak realm with name $newRealmName was fully set up.")
         }
         catch (exception: Exception) {
-            logger.error("Failed to setup Keycloak")
-            println(exception.stackTraceToString())
+            logger.error("$logId: Failed to setup Keycloak.", exception)
             exitProcess(1)
         }
     }

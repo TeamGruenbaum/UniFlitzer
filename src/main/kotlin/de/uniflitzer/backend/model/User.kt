@@ -1,6 +1,10 @@
 package de.uniflitzer.backend.model
 
+import de.uniflitzer.backend.model.errors.ConflictingActionError
+import de.uniflitzer.backend.model.errors.ImpossibleActionError
+import de.uniflitzer.backend.model.errors.MissingActionError
 import de.uniflitzer.backend.model.errors.NotAvailableError
+import de.uniflitzer.backend.model.errors.RepeatedActionError
 import jakarta.persistence.*
 import java.time.ZonedDateTime
 import java.util.*
@@ -19,6 +23,11 @@ class User(id: UUID, firstName: FirstName, lastName: LastName, birthday: ZonedDa
     var firstName: FirstName = firstName
     var lastName: LastName = lastName
     var birthday: ZonedDateTime = birthday
+        @Throws(ImpossibleActionError::class)
+        set(value) {
+            if (value.isAfter(ZonedDateTime.now())) throw ImpossibleActionError("Passed value must be in the past.")
+            field = value
+        }
 
     @field:Enumerated(EnumType.STRING)
     var gender: Gender = gender
@@ -44,8 +53,8 @@ class User(id: UUID, firstName: FirstName, lastName: LastName, birthday: ZonedDa
     val cars: List<Car> get() = _cars
 
     @field:ElementCollection
-    private var _favoriteAddresses: MutableList<Address> = mutableListOf()
-    val favoriteAddresses: List<Address> get() = _favoriteAddresses
+    private var _favoritePositions: MutableList<Position> = mutableListOf()
+    val favoritePositions: List<Position> get() = _favoritePositions
 
     @field:ManyToMany(fetch = FetchType.LAZY)
     private var _favoriteUsers: MutableList<User> = mutableListOf()
@@ -55,18 +64,21 @@ class User(id: UUID, firstName: FirstName, lastName: LastName, birthday: ZonedDa
     private var _blockedUsers: MutableList<User> = mutableListOf()
     val blockedUsers: List<User> get() = _blockedUsers
 
-    @field:OneToMany(mappedBy = "requestingUser", fetch = FetchType.LAZY) //TODO: jetzt nicht mehr cascading
+    @field:OneToMany(mappedBy = "requestingUser", fetch = FetchType.LAZY, cascade = [CascadeType.ALL])
     private var _driveRequests: MutableList<DriveRequest> = mutableListOf()
     val driveRequests: List<DriveRequest> get() = _driveRequests
 
     @field:OneToMany(mappedBy = "driver", fetch = FetchType.LAZY, cascade = [CascadeType.ALL])
-    var driveOffersAsDriver: MutableList<DriveOffer> = mutableListOf()
+    private var _driveOffersAsDriver: MutableList<DriveOffer> = mutableListOf()
+    val driveOffersAsDriver: List<DriveOffer> get () = _driveOffersAsDriver
 
-    @field:OneToMany(fetch = FetchType.LAZY)
-    var driveOffersAsPassenger: MutableList<DriveOffer> = mutableListOf()
+    @field:ManyToMany(fetch = FetchType.LAZY)
+    private var _driveOffersAsPassenger: MutableList<DriveOffer> = mutableListOf() //Manual bidirectional relationship 2
+    val driveOffersAsPassenger: List<DriveOffer> get() = _driveOffersAsPassenger
 
-    @field:OneToMany(fetch = FetchType.LAZY)
-    var driveOffersAsRequestingUser: MutableList<PublicDriveOffer> = mutableListOf()
+    @field:ManyToMany(fetch = FetchType.LAZY)
+    private var _driveOffersAsRequestingUser: MutableList<PublicDriveOffer> = mutableListOf() //Manual bidirectional relationship 1
+    val driveOffersAsRequestingUser: List<PublicDriveOffer> get() = _driveOffersAsRequestingUser
 
     @field:ManyToMany(mappedBy = "_users", fetch = FetchType.LAZY)
     private var _carpools: MutableList<Carpool> = mutableListOf()
@@ -100,61 +112,96 @@ class User(id: UUID, firstName: FirstName, lastName: LastName, birthday: ZonedDa
 
     @Throws(NotAvailableError::class)
     fun removeCarAtIndex(index: UInt) {
-        if (index.toInt() >= _cars.size) throw NotAvailableError("Index $index is out of bounds.")
+        if (index.toInt() >= _cars.size) throw NotAvailableError("Passed index is out of bounds.")
         _cars.removeAt(index.toInt())
     }
 
     @Throws(NotAvailableError::class)
-    fun getCarByIndex(index: Int): Car {
-        return cars.getOrNull(index) ?: throw NotAvailableError("The car with index $index does not exist.")
+    fun getCarByIndex(index: UInt): Car {
+        return cars.getOrNull(index.toInt()) ?: throw NotAvailableError("Passed index does not exist.")
     }
 
+    @Throws(RepeatedActionError::class)
     fun refillAnimals(animals: List<Animal>) {
+        if(animals.distinct().count() != animals.count()) throw RepeatedActionError("Passed list of animals contains duplicates.")
         _animals.clear()
         _animals.addAll(animals)
     }
 
-    fun addFavoriteAddress(address: Address) = _favoriteAddresses.add(address)
+    fun addFavoritePosition(position: Position) {
+        if(position in _favoritePositions) throw RepeatedActionError("Passed position is already a favorite position.")
+        _favoritePositions.add(position)
+    }
 
     @Throws(NotAvailableError::class)
-    fun removeFavoriteAddressByIndex(index: UInt) {
-        if (index.toInt() >= _favoriteAddresses.size) throw NotAvailableError("Car index $index is out of bounds of user with id $id.")
-        _favoriteAddresses.removeAt(index.toInt())
+    fun removeFavoritePositionByIndex(index: UInt) {
+        if (index.toInt() >= _favoritePositions.size) throw NotAvailableError("Passed index is out of bounds.")
+        _favoritePositions.removeAt(index.toInt())
     }
 
     fun addRating(rating: Rating) = _ratings.add(rating)
 
-    fun getAverageStars(): Double? {
-        return if (ratings.isEmpty()) null else ratings.map { it.stars.value.toDouble() }.sum() / ratings.size
-    }
+    val averageStars
+        get(): Double? = if (ratings.isEmpty()) null else ratings.map { it.stars.value.toDouble() }.sum() / ratings.size
 
-    fun addFavoriteUser(user: User) = _favoriteUsers.add(user)
+    fun addFavoriteUser(user: User) {
+        if(user in _favoriteUsers) throw RepeatedActionError("Passed user is already a favorite user.")
+        if(user == this) throw ConflictingActionError("Passed user cannot be a favorite user of himself.")
+        if(user in _blockedUsers) throw ConflictingActionError("Passed user cannot be a favorite user and a blocked user at the same time.")
+
+        _favoriteUsers.add(user)
+    }
 
     @Throws(NotAvailableError::class)
     fun removeFavoriteUser(user: User) {
-        if(user !in _favoriteUsers)throw NotAvailableError("The user with id ${user.id} is not a favorite user of user with id $id.")
+        if(user !in _favoriteUsers)throw NotAvailableError("Passed user is not a favorite user.")
         _favoriteUsers.remove(user)
     }
 
-    fun addBlockedUser(user: User) = _blockedUsers.add(user)
+    fun addBlockedUser(user: User) {
+        if(user in _blockedUsers) throw RepeatedActionError("Passed user is already a blocked user.")
+        if(user == this) throw ConflictingActionError("Passed user cannot be a blocked user of himself.")
+        if(user in _favoriteUsers) throw ConflictingActionError("Passed user cannot be a favorite user and a blocked user at the same time.")
+
+        _blockedUsers.add(user)
+    }
 
     @Throws(NotAvailableError::class)
     fun removeBlockedUser(user: User) {
-        if(user !in _blockedUsers) throw NotAvailableError("The user with id ${user.id} is not a blocked user of user with id $id.")
+        if(user !in _blockedUsers) throw NotAvailableError("Passed user is not a blocked user.")
         _blockedUsers.remove(user)
     }
 
+    @Throws(RepeatedActionError::class)
+    fun joinDriveOfferAsRequestingUser(driveOffer: PublicDriveOffer) {
+        if(driveOffer in _driveOffersAsRequestingUser) throw RepeatedActionError("User is already a requesting user of the passed public drive offer.")
+
+        _driveOffersAsRequestingUser.add(driveOffer)
+    }
+
+    @Throws(MissingActionError::class)
     fun leaveDriveOfferAsRequestingUser(driveOffer: DriveOffer) {
-        if(driveOffer !in driveOffersAsRequestingUser)  throw NotAvailableError("The user is not a passenger of the drive offer.")
-        driveOffersAsPassenger.remove(driveOffer)
+        if(driveOffer !in _driveOffersAsRequestingUser) throw MissingActionError("User is not a passenger of the passed drive offer.")
+
+        _driveOffersAsRequestingUser.remove(driveOffer)
     }
 
+    @Throws(RepeatedActionError::class)
+    fun joinDriveOfferAsPassenger(driveOffer: DriveOffer) {
+        if(driveOffer in _driveOffersAsPassenger) throw RepeatedActionError("User is already a passenger of the passed drive offer.")
+
+        _driveOffersAsPassenger.add(driveOffer)
+        _driveOffersAsRequestingUser.remove(driveOffer)
+    }
+
+    @Throws(NotAvailableError::class)
     fun leaveDriveOfferAsPassenger(driveOffer: DriveOffer) {
-        if(driveOffer !in driveOffersAsPassenger) throw NotAvailableError("The user is not a requesting user of the drive offer.")
-        driveOffersAsRequestingUser.remove(driveOffer)
+        if(driveOffer !in _driveOffersAsPassenger) throw NotAvailableError("User is not a passenger of passed driver offer.")
+
+        _driveOffersAsPassenger.remove(driveOffer)
     }
 
-    fun removeRatingOfUser(user: User) = _ratings.removeIf { it.author == user }
+    fun removeRatingsOfUser(user: User) = _ratings.removeIf { it.author == user }
 
     override fun equals(other: Any?): Boolean {
         if (this === other) return true

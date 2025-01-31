@@ -9,7 +9,7 @@ import de.uniflitzer.backend.model.Model
 import jakarta.validation.constraints.Pattern
 import jakarta.validation.constraints.Size
 
-data class CarDP constructor(
+data class CarDP private constructor(
     @field:Size(min = 2, max = 50) val brand: String,
     @field:Size(min = 1, max = 50) val model: String,
     @field:Size(min = 3, max = 50) val color: String,

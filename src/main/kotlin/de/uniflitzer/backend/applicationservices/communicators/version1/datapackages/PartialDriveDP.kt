@@ -10,7 +10,7 @@ import jakarta.validation.constraints.Max
 import jakarta.validation.constraints.Min
 import jakarta.validation.constraints.Pattern
 
-data class PartialDriveDP(
+data class PartialDriveDP private constructor(
     @field:UUID val id: String,
     @field:Valid val driver: PartialUserDP,
     @field:Min(1) @field:Max(8) val passengersCount: Int,

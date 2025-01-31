@@ -4,7 +4,7 @@ import de.uniflitzer.backend.model.GeoJsonLineString
 import io.swagger.v3.oas.annotations.media.Schema
 import jakarta.validation.Valid
 
-data class GeoJsonLineStringDP(
+data class GeoJsonLineStringDP private constructor(
     @field:Schema(description = "Has always the value LineString.") var type: String = "LineString",
     @field:Valid val coordinates: List<CoordinateDP>
 ) {

@@ -4,7 +4,7 @@ import de.uniflitzer.backend.applicationservices.communicators.version1.valueche
 import de.uniflitzer.backend.model.ConfirmableUserStop
 import jakarta.validation.Valid
 
-data class PartialConfirmableUserStop(
+data class PartialConfirmableUserStop private constructor(
     @field:UUID val userId: String,
     @field:Valid val start: PositionDP,
     @field:Valid val destination: PositionDP,

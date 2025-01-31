@@ -1,8 +1,12 @@
 package de.uniflitzer.backend.model
 
+import de.uniflitzer.backend.model.errors.MissingActionError
+import de.uniflitzer.backend.model.errors.NotAvailableError
+import de.uniflitzer.backend.model.errors.RepeatedActionError
 import jakarta.persistence.*
 import java.time.ZonedDateTime
 import java.util.*
+import kotlin.jvm.Throws
 
 @Entity
 class Drive(driver: User, car: Car, route: CompleteRoute, passenger: List<User>, plannedDeparture: ZonedDateTime, plannedArrival: ZonedDateTime) {
@@ -26,6 +30,12 @@ class Drive(driver: User, car: Car, route: CompleteRoute, passenger: List<User>,
     var actualArrival: ZonedDateTime? = null
     var currentPosition: Coordinate? = null
     var isCancelled: Boolean = false
+
+    @Throws(NotAvailableError::class)
+    fun removePassenger(user: User) {
+        if (user !in _passengers) throw NotAvailableError("Passed user is not a passenger.")
+        _passengers.remove(user)
+    }
 
     override fun equals(other: Any?): Boolean {
         if (this === other) return true

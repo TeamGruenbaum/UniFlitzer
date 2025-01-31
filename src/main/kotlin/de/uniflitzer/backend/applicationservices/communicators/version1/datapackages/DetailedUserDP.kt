@@ -22,9 +22,10 @@ data class DetailedUserDP(
     val isSmoking: Boolean?,
     @field:Valid @field:Size(min = 0, max = 10) val animals: List<AnimalDP>,
     val drivingStyle: DrivingStyleDP?,
-    @field:Valid @field:Size(min = 0, max = 5) val cars: List<CarDP>,
+    @field:Valid @field:Size(min = 0, max = 5) val cars: List<CarDP>?,
     @field:Valid @field:Size(min = 0) val favoriteUsers: List<PartialUserDP>?,
     @field:Valid @field:Size(min = 0) val blockedUsers: List<PartialUserDP>?,
-    @field:Valid @field:Size(min = 0) val favoriteAddresses: List<AddressDP>,
-    @field:Valid val ratings: List<RatingDP>
+    @field:Valid @field:Size(min = 0) val favoritePositions: List<PositionDP>?,
+    @field:Valid val ratings: List<RatingDP>,
+    @field:Valid val receivedInvites: List<PartialCarpoolDP>?
 )

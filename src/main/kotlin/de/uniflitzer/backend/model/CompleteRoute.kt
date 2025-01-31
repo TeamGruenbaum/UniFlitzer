@@ -47,18 +47,42 @@ class CompleteRoute(start: Position, destination: Position, userStops: List<Conf
         this.duration = duration
         this.polyline = polyline
     }
-    
+
     @Throws(NotAvailableError::class, RepeatedActionError::class)
-    fun confirmUserStop(userId: UUID)
+    fun confirmUserStop(userStopUserId: UUID)
     {
-        if(userStops.none { it.user.id == userId }) throw NotAvailableError("No user stop for user with id $userId available.")
-        userStops.first { it.user.id == userId }.confirm()
+        if(userStops.none { it.user.id == userStopUserId }) throw NotAvailableError("No user stop with passed user id is available.")
+        userStops.first { it.user.id == userStopUserId }.confirm()
     }
 
     @Throws(NotAvailableError::class)
-    fun cancelUserStop(userId: UUID)
+    fun cancelUserStop(userStopUserId: UUID)
     {
-        if(userStops.none { it.user.id == userId }) throw NotAvailableError("No user stop for user with id $userId available.")
-        _userStops.remove(userStops.first { it.user.id == userId })
+        if(userStops.none { it.user.id == userStopUserId }) throw NotAvailableError("No user stop with passed user id is available.")
+        _userStops.remove(userStops.first { it.user.id == userStopUserId })
+    }
+
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (other !is CompleteRoute) return false
+
+        if (start != other.start) return false
+        if (destination != other.destination) return false
+        if (_userStops != other._userStops) return false
+        if (duration != other.duration) return false
+        if (polyline != other.polyline) return false
+        if (userStops != other.userStops) return false
+
+        return true
+    }
+
+    override fun hashCode(): Int {
+        var result = start.hashCode()
+        result = 31 * result + destination.hashCode()
+        result = 31 * result + _userStops.hashCode()
+        result = 31 * result + duration.hashCode()
+        result = 31 * result + polyline.hashCode()
+        result = 31 * result + userStops.hashCode()
+        return result
     }
 }

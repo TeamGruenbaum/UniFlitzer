@@ -1,11 +1,11 @@
 package de.uniflitzer.backend.model
 
+import de.uniflitzer.backend.model.errors.ConflictingActionError
 import de.uniflitzer.backend.model.errors.MissingActionError
 import de.uniflitzer.backend.model.errors.NotAvailableError
 import de.uniflitzer.backend.model.errors.RepeatedActionError
 import jakarta.persistence.*
 import java.util.UUID
-import kotlin.jvm.Throws
 
 @Entity
 @Inheritance(strategy = InheritanceType.SINGLE_TABLE)
@@ -26,7 +26,7 @@ class DriveOffer(driver: User, car: Car, freeSeats: Seats, route: Route, schedul
     var route: Route = route
 
     @field:ElementCollection
-    private var _passengers: MutableList<UserStop> = mutableListOf()
+    private var _passengers: MutableList<UserStop> = mutableListOf() //Manual bidirectional relationship 2
     val passengers: List<UserStop> get() = _passengers
 
     @AttributeOverrides(
@@ -42,30 +42,19 @@ class DriveOffer(driver: User, car: Car, freeSeats: Seats, route: Route, schedul
         this.scheduleTime = scheduleTime
     }
 
-    @Throws(MissingActionError::class, NotAvailableError::class, RepeatedActionError::class)
+    @Throws(ConflictingActionError::class, NotAvailableError::class, RepeatedActionError::class)
     fun addPassenger(userStop: UserStop) {
-        if (userStop.user in _passengers.map { it.user }) throw RepeatedActionError("User with id ${userStop.user.id} is already a passenger of this drive offer with id $id.")
-        if (userStop.user == driver) throw MissingActionError("The Driver id ${userStop.user.id} of this drive offer with id $id cannot be a passenger at the same time.")
-        if (freeSeats.value == _passengers.count().toUInt()) throw NotAvailableError("No more seats available for this drive offer with id $id.")
+        if (userStop.user in _passengers.map { it.user }) throw RepeatedActionError("User in passed user stop is already a passenger.")
+        if (userStop.user == driver) throw ConflictingActionError("User in passed user stop is already the driver.")
+        if (freeSeats.value == _passengers.count().toUInt()) throw NotAvailableError("No more seats available.")
 
         _passengers.add(userStop)
     }
 
     @Throws(NotAvailableError::class)
     fun removePassenger(user: User) {
-        val searcherUserStop: UserStop = _passengers.find { it.user == user } ?: throw NotAvailableError("User with id ${user.id} is not a passenger of this drive offer with id $id.")
+        val searcherUserStop: UserStop = _passengers.find { it.user == user } ?: throw NotAvailableError("Passed user is not a passenger.")
         _passengers.remove(searcherUserStop)
-    }
-
-    @PostRemove
-    private fun doAfterRemove() {
-        _passengers.forEach {
-            try {
-                it.user.leaveDriveOfferAsRequestingUser(this)
-                it.user.leaveDriveOfferAsPassenger(this)
-            }
-            catch (_: NotAvailableError) {}
-        }
     }
 
     override fun equals(other: Any?): Boolean {

@@ -5,7 +5,7 @@ import org.springframework.web.multipart.MultipartFile
 import java.util.*
 
 interface ImagesRepository {
-    fun save(multipartFile: MultipartFile): Image
+    fun save(data:ByteArray, fileEnding:String?): Image
     fun getById(id:UUID, quality: Quality): Optional<ByteArray>
     fun deleteById(id:UUID)
     fun copy(image: Image): Image

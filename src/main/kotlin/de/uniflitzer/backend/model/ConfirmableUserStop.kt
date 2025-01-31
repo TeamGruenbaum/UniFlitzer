@@ -46,7 +46,27 @@ class ConfirmableUserStop(user: User, start: Position, destination: Position, wa
     @Throws(RepeatedActionError::class)
     fun confirm()
     {
-        if(waitingConfirmed) throw RepeatedActionError("User already confirmed his stop.")
+        if(waitingConfirmed) throw RepeatedActionError("Confirmable user stop is already confirmed.")
         this.waitingConfirmed = true
+    }
+
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (other !is ConfirmableUserStop) return false
+
+        if (waitingConfirmed != other.waitingConfirmed) return false
+        if (user != other.user) return false
+        if (start != other.start) return false
+        if (destination != other.destination) return false
+
+        return true
+    }
+
+    override fun hashCode(): Int {
+        var result = waitingConfirmed.hashCode()
+        result = 31 * result + user.hashCode()
+        result = 31 * result + start.hashCode()
+        result = 31 * result + destination.hashCode()
+        return result
     }
 }

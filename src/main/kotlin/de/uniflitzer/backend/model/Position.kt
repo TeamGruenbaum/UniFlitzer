@@ -14,4 +14,24 @@ class Position(coordinate: Coordinate, nearestAddress: Address?){
         this.coordinate = coordinate
         this.nearestAddress = nearestAddress
     }
+
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (other !is Position) return false
+
+        if (coordinate != other.coordinate) return false
+        if (nearestAddress != other.nearestAddress) return false
+
+        return true
+    }
+
+    override fun hashCode(): Int {
+        var result = coordinate.hashCode()
+        result = 31 * result + (nearestAddress?.hashCode() ?: 0)
+        return result
+    }
+
+    override fun toString(): String {
+        return "Position(coordinate=$coordinate, nearestAddress=$nearestAddress)"
+    }
 }

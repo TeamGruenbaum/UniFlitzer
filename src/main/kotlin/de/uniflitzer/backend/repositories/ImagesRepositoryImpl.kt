@@ -5,12 +5,14 @@ import de.uniflitzer.backend.repositories.errors.*
 import fi.solita.clamav.ClamAVClient
 import jakarta.persistence.EntityManager
 import jakarta.persistence.PersistenceContext
-import jakarta.transaction.Transactional
 import net.coobird.thumbnailator.Thumbnails
 import org.apache.tika.Tika
+import org.slf4j.Logger
+import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.core.env.Environment
 import org.springframework.stereotype.Component
+import org.springframework.transaction.annotation.Transactional
 import org.springframework.web.multipart.MultipartFile
 import java.io.File
 import java.nio.file.Files
@@ -19,25 +21,26 @@ import java.nio.file.attribute.PosixFilePermission
 import java.util.*
 
 @Component
+@Transactional(rollbackFor = [Throwable::class])
 class ImagesRepositoryImpl(@field:Autowired private val environment:Environment): ImagesRepository {
     @PersistenceContext
     private lateinit var entityManager: EntityManager
+    private val logger: Logger = LoggerFactory.getLogger(this::class.java)
 
-    @Transactional
-    override fun save(multipartFile: MultipartFile): Image {
-        val reply: ByteArray
+    override fun save(data:ByteArray, fileEnding:String?): Image {
+        val logId: UUID = UUID.randomUUID()
         try {
-            reply = ClamAVClient("127.0.0.1", 3310).scan(multipartFile.getBytes())
+            val reply: ByteArray = ClamAVClient(
+                environment.getProperty("clamav.ip") ?: throw IllegalStateException("clamav.ip is not set."),
+                environment.getProperty("clamav.port")?.toInt() ?: throw IllegalStateException("clamav.port is not set.")
+            ).scan(data)
+            if (!ClamAVClient.isCleanReply(reply)) throw FileCorruptedError("Uploaded file is infected.")
         } catch (exception: Exception) {
-            throw FileCheckError("Uploaded file could not be scanned for infections.")
+            logger.warn("$logId: Uploaded file could not be scanned for infections.")
         }
-        if (!ClamAVClient.isCleanReply(reply)) throw FileCorruptedError("Uploaded file is infected.")
 
-
-        val fileEnding: String = multipartFile.originalFilename!!.substringAfterLast(".")
-        var fileType = ""
-        try {
-            fileType = Tika().detect(multipartFile.getBytes())
+        var fileType = try {
+            Tika().detect(data)
         } catch (exception: Exception) {
             throw FileCheckError("File type could not be detected.")
         }
@@ -54,7 +57,7 @@ class ImagesRepositoryImpl(@field:Autowired private val environment:Environment)
 
         val image: Image = Image(".$fileEnding")
         val fileFullQuality = File(imagesDirectory.toString(), image.fileNameFullQuality)
-        multipartFile.transferTo(fileFullQuality)
+        fileFullQuality.writeBytes(data)
 
         val filePreviewQuality = File(imagesDirectory.toString(), image.fileNamePreviewQuality)
         Thumbnails
@@ -66,16 +69,13 @@ class ImagesRepositoryImpl(@field:Autowired private val environment:Environment)
         try {
             setFilePermissions(fileFullQuality)
             setFilePermissions(filePreviewQuality)
-        } catch (exception: Exception) {
-            throw FilePermissionsError("File permissions could not be set.")
-        }
+        } catch (_: Exception) {}
 
         entityManager.persist(image)
         entityManager.flush()
         return image
     }
 
-    @Transactional
     override fun getById(id: UUID, quality: ImagesRepository.Quality): Optional<ByteArray> {
         val image: Image = entityManager.find(Image::class.java, id)
 
@@ -90,7 +90,6 @@ class ImagesRepositoryImpl(@field:Autowired private val environment:Environment)
         return Optional.of(Files.readAllBytes(file.toPath()))
     }
 
-    @Transactional
     override fun deleteById(id: UUID) {
         val image: Image = entityManager.find(Image::class.java, id)
 
@@ -99,20 +98,19 @@ class ImagesRepositoryImpl(@field:Autowired private val environment:Environment)
 
         val fileFullQuality: File = File(imagesDirectory.toString(), image.fileNameFullQuality)
         if (!fileFullQuality.exists()) {
-            throw FileMissingError("Full quality image does not exist.")
+            throw FileMissingError("Full quality image with id $id does not exist.")
         }
         val filePreviewQuality: File = File(imagesDirectory.toString(), image.fileNamePreviewQuality)
         if (!filePreviewQuality.exists()) {
-            throw FileMissingError("Preview quality image does not exist.")
+            throw FileMissingError("Preview quality image with id $id does not exist.")
         }
 
-        fileFullQuality.delete()
-        filePreviewQuality.delete()
+        if (!fileFullQuality.delete()) throw FileDeletionError("Full quality image with id $id could not be deleted.")
+        if (!filePreviewQuality.delete()) throw FileDeletionError("Preview quality image with id $id could not be deleted.")
 
         entityManager.remove(image)
     }
 
-    @Transactional
     override fun copy(image: Image): Image {
         val imagesDirectory = Paths.get(environment.getProperty("directory.images") ?: throw ApplicationPropertyMissingError("Property directory.images is missing."))
         if (!Files.exists(imagesDirectory)) throw ImageDirectoryMissingError("Image directory does not exist.")
@@ -121,7 +119,10 @@ class ImagesRepositoryImpl(@field:Autowired private val environment:Environment)
 
         val copiedFileFullQuality = File(imagesDirectory.toString(), copiedImage.fileNameFullQuality)
         val copiedFilePreviewQuality = File(imagesDirectory.toString(), copiedImage.fileNamePreviewQuality)
-        Files.copy(File(imagesDirectory.toString(), image.fileNameFullQuality).toPath(), copiedFileFullQuality.toPath())
+        Files.copy(
+            File(imagesDirectory.toString(), image.fileNameFullQuality).toPath(),
+            copiedFileFullQuality.toPath()
+        )
         Files.copy(
             File(imagesDirectory.toString(), image.fileNamePreviewQuality).toPath(),
             copiedFilePreviewQuality.toPath()
@@ -130,9 +131,7 @@ class ImagesRepositoryImpl(@field:Autowired private val environment:Environment)
         try {
             setFilePermissions(copiedFileFullQuality)
             setFilePermissions(copiedFilePreviewQuality)
-        } catch (exception: Exception) {
-            throw FilePermissionsError("File permissions could not be set.")
-        }
+        } catch (exception: Exception) {}
 
         entityManager.persist(copiedImage)
         entityManager.flush()

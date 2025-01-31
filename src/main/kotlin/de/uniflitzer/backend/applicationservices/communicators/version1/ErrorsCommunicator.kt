@@ -6,34 +6,25 @@ import de.uniflitzer.backend.applicationservices.communicators.version1.datapack
 import de.uniflitzer.backend.applicationservices.communicators.version1.datapackages.ErrorsDP
 import de.uniflitzer.backend.applicationservices.communicators.version1.datapackages.TraceableErrorDP
 import de.uniflitzer.backend.applicationservices.communicators.version1.datapackages.TraceableErrorsDP
-import de.uniflitzer.backend.applicationservices.communicators.version1.errors.BadRequestError
-import de.uniflitzer.backend.applicationservices.communicators.version1.errors.ForbiddenError
-import de.uniflitzer.backend.applicationservices.communicators.version1.errors.InternalServerError
-import de.uniflitzer.backend.applicationservices.communicators.version1.errors.NotFoundError
-import de.uniflitzer.backend.applicationservices.communicators.version1.errors.StompError
-import de.uniflitzer.backend.applicationservices.communicators.version1.errors.UnprocessableContentError
+import de.uniflitzer.backend.applicationservices.communicators.version1.errors.*
+import de.uniflitzer.backend.applicationservices.communicators.version1.localization.LocalizationService
 import jakarta.servlet.http.HttpServletRequest
 import jakarta.validation.ConstraintViolationException
 import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.beans.factory.annotation.Qualifier
+import org.springframework.context.NoSuchMessageException
 import org.springframework.http.HttpStatus
 import org.springframework.http.MediaType
 import org.springframework.http.ResponseEntity
 import org.springframework.http.converter.HttpMessageNotReadableException
 import org.springframework.messaging.Message
 import org.springframework.messaging.MessageChannel
-import org.springframework.messaging.converter.MessageConversionException
 import org.springframework.messaging.handler.annotation.Header
 import org.springframework.messaging.handler.annotation.MessageExceptionHandler
 import org.springframework.messaging.simp.stomp.StompCommand
 import org.springframework.messaging.simp.stomp.StompHeaderAccessor
-import org.springframework.messaging.simp.user.SimpUserRegistry
 import org.springframework.messaging.support.MessageBuilder
-import org.springframework.scheduling.annotation.Scheduled
-import org.springframework.stereotype.Component
-import org.springframework.stereotype.Service
-import org.springframework.transaction.annotation.Transactional
 import org.springframework.web.HttpRequestMethodNotSupportedException
 import org.springframework.web.bind.MethodArgumentNotValidException
 import org.springframework.web.bind.MissingServletRequestParameterException
@@ -43,17 +34,22 @@ import org.springframework.web.method.annotation.MethodArgumentTypeMismatchExcep
 import org.springframework.web.multipart.MaxUploadSizeExceededException
 import org.springframework.web.servlet.resource.NoResourceFoundException
 import java.util.*
-import kotlin.collections.toList
 
 @ControllerAdvice
-private class ErrorsCommunicator(
-    @field:Autowired private val clientOutboundChannel: MessageChannel
+class ErrorsCommunicator(
+    @field:Autowired private val clientOutboundChannel: MessageChannel,
+    @field:Autowired private val localizationService: LocalizationService
 ) {
     private val logger = LoggerFactory.getLogger(ErrorsCommunicator::class.java)
 
     @ExceptionHandler(ForbiddenError::class)
     fun handleForbiddenErrors(forbiddenError: ForbiddenError): ResponseEntity<ErrorDP> {
         return ResponseEntity.status(HttpStatus.FORBIDDEN).contentType(MediaType.APPLICATION_JSON).body(ErrorDP(forbiddenError.error))
+    }
+
+    @ExceptionHandler(ConflictError::class)
+    fun handleConflictErrors(conflictError: ConflictError): ResponseEntity<ErrorDP> {
+        return ResponseEntity.status(HttpStatus.CONFLICT).contentType(MediaType.APPLICATION_JSON).body(ErrorDP(conflictError.error))
     }
 
     @ExceptionHandler(
@@ -64,8 +60,8 @@ private class ErrorsCommunicator(
         return ResponseEntity.status(HttpStatus.NOT_FOUND).contentType(MediaType.APPLICATION_JSON).body(
             when(exception) {
                 is NotFoundError -> ErrorDP(exception.error)
-                is NoResourceFoundException -> ErrorDP("Resource not found.")
-                else -> throw InternalServerError("Unexpected error occurred.")
+                is NoResourceFoundException -> ErrorDP(localizationService.getMessage("resource.notFound"))
+                else -> throw InternalServerError(localizationService.getMessage("error.unexpected"))
             }
         )
     }
@@ -83,20 +79,23 @@ private class ErrorsCommunicator(
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).contentType(MediaType.APPLICATION_JSON).body(
             when (error) {
                 is BadRequestError -> ErrorsDP(error.errors)
-                is ConstraintViolationException -> ErrorsDP(error.toList())
+                is ConstraintViolationException -> ErrorsDP(error.constraintViolations.map { "\"${it.propertyPath.toList().last().name}\": ${it.message}" }.toList())
                 is MethodArgumentNotValidException -> ErrorsDP(error.toList())
-                is MethodArgumentTypeMismatchException -> ErrorsDP(listOf("Value for parameter \"${error.name}\" has wrong type."))
-                is MissingServletRequestParameterException -> ErrorsDP(listOf("Value for parameter \"${error.parameterName}\" is missing."))
-                is HttpMessageNotReadableException -> ErrorsDP(listOf("Request body is missing or has wrong format."))
-                is MaxUploadSizeExceededException -> ErrorsDP(listOf("File size exceeds the limit of 5MB."))
-                else -> throw InternalServerError("Unexpected error occurred.")
+                is MethodArgumentTypeMismatchException -> ErrorsDP(listOf(localizationService.getMessage("parameter.invalid", error.name)))
+                is MissingServletRequestParameterException -> ErrorsDP(listOf(localizationService.getMessage("parameter.missing", error.parameterName)))
+                is HttpMessageNotReadableException -> {
+                    error.printStackTrace()
+                    ErrorsDP(listOf(localizationService.getMessage("requestBody.missingInvalidOrWrongTypeValue")))
+                }
+                is MaxUploadSizeExceededException -> ErrorsDP(listOf(localizationService.getMessage("error.fileSize")))
+                else -> throw InternalServerError(localizationService.getMessage("error.unexpected"))
             }
         )
     }
 
     @ExceptionHandler(HttpRequestMethodNotSupportedException::class)
     fun handleMethodNotSupportedErrors(error: HttpRequestMethodNotSupportedException): ResponseEntity<ErrorDP> {
-        return ResponseEntity.status(HttpStatus.METHOD_NOT_ALLOWED).contentType(MediaType.APPLICATION_JSON).body(ErrorDP("Method not supported on this endpoint."))
+        return ResponseEntity.status(HttpStatus.METHOD_NOT_ALLOWED).contentType(MediaType.APPLICATION_JSON).body(ErrorDP(localizationService.getMessage("error.notSupported")))
     }
 
     @ExceptionHandler(UnprocessableContentError::class)
@@ -105,7 +104,9 @@ private class ErrorsCommunicator(
     }
 
     @ExceptionHandler(
+        NoSuchMessageException::class,
         IllegalArgumentException::class,
+        IllegalStateException::class,
         InternalServerError::class,
         Exception::class
     )
@@ -118,7 +119,7 @@ Headers: ${ObjectMapper().writeValueAsString(request.headerNames.toList().associ
 Method: ${request.method}
 Path: ${request.requestURI}
 QueryParams: ${request.queryString ?: "None"}
-Body: ${try{ request.reader.readText() }catch(_: Exception){ request.contentType }}
+Body: ${try{ request.reader.readText() }catch(_: Exception){ "Text could not be read (Content type: ${request.contentType}" }}
 
 STACKTRACE:
 ${error.stackTraceToString()}
@@ -128,7 +129,7 @@ ${error.stackTraceToString()}
         return ResponseEntity<TraceableErrorDP>(
             when (error) {
                 is InternalServerError -> TraceableErrorDP(traceId.toString(), error.error)
-                else -> TraceableErrorDP(traceId.toString(), "Unexpected error occurred.")
+                else -> TraceableErrorDP(traceId.toString(), localizationService.getMessage("error.unexpected"))
             },
             HttpStatus.INTERNAL_SERVER_ERROR
         )
@@ -161,7 +162,7 @@ ${error.stackTraceToString()}
                     is StompError -> ErrorsDP(error.errors)
                     is ConstraintViolationException -> ErrorsDP(error.toList())
                     is MethodArgumentNotValidException -> ErrorsDP(error.toList())
-                    is MethodArgumentTypeMismatchException -> ErrorsDP(listOf("Value for parameter \"${error.name}\" has wrong type."))
+                    is MethodArgumentTypeMismatchException -> ErrorsDP(listOf(localizationService.getMessage("parameter.invalid", error.name)))
                     else -> {
                         val traceId: UUID = UUID.randomUUID()
                         logger.error(
@@ -175,7 +176,7 @@ ${error.stackTraceToString()}
 """
                         )
 
-                        TraceableErrorsDP(traceId.toString(), listOf<String>("An unexpected error occurred."))
+                        TraceableErrorsDP(traceId.toString(), listOf<String>(localizationService.getMessage("error.unexpected")))
                     }
                 }
             )

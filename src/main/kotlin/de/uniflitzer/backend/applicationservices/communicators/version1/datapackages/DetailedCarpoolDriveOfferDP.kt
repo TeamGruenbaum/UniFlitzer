@@ -1,15 +1,14 @@
 package de.uniflitzer.backend.applicationservices.communicators.version1.datapackages
 
-import de.uniflitzer.backend.model.ScheduleTime
 import jakarta.validation.Valid
 
-class DetailedCarpoolDriveOfferDP constructor(
+class DetailedCarpoolDriveOfferDP(
     containsFavoriteDriver: Boolean,
     id: String,
     driver: PartialUserDP,
     car: CarDP,
     freeSeats: Int,
-    route: RouteDP,
+    route: DetailedRouteDP,
     passengers: List<UserStopDP>,
     scheduleTime: ScheduleTimeDP?,
     @field:Valid val carpool: PartialCarpoolDP,

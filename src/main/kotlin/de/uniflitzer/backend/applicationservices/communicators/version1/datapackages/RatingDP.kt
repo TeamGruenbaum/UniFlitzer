@@ -10,7 +10,7 @@ import jakarta.validation.constraints.Min
 import jakarta.validation.constraints.Pattern
 import jakarta.validation.constraints.Size
 
-data class RatingDP(
+data class RatingDP private constructor(
     @field:Valid val author: PartialUserDP,
     @field:Valid val role: RoleDP,
     @Size(min = 1, max = 300) val content: String,

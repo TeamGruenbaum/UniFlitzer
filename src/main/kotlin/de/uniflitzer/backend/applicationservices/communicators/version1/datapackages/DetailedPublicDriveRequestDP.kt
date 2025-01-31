@@ -7,7 +7,7 @@ class DetailedPublicDriveRequestDP(
     id: String,
     containsFavoriteRequestingUser: Boolean,
     requestingUser: PartialUserDP,
-    route: RouteDP,
+    route: DetailedRouteDP,
     scheduleTime: ScheduleTimeDP?,
     @field:Valid @field:Size(min = 0) val driveOffers: List<PartialDriveOfferDP>
 ) : DetailedDriveRequestDP(id, containsFavoriteRequestingUser, requestingUser, route, scheduleTime)

@@ -16,7 +16,7 @@ annotation class UUID(
     val payload: Array<KClass<out Payload>> = []
 )
 
-private class UUIDValidator private constructor() : ConstraintValidator<UUID?, String?> {
+class UUIDValidator private constructor() : ConstraintValidator<UUID?, String?> {
     override fun isValid(value: String?, constraintValidatorContext: ConstraintValidatorContext): Boolean =
         runCatching { java.util.UUID.fromString(value) }.isSuccess
 }

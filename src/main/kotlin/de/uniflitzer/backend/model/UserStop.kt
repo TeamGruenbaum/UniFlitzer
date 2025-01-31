@@ -26,4 +26,22 @@ class UserStop(user: User, start: Position, destination: Position) {
         AttributeOverride(name = "nearestAddress.city", column = Column(name = "userstop_destination_nearestAddress_city"))
     )
     var destination: Position = destination
+
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (other !is UserStop) return false
+
+        if (user != other.user) return false
+        if (start != other.start) return false
+        if (destination != other.destination) return false
+
+        return true
+    }
+
+    override fun hashCode(): Int {
+        var result = user.hashCode()
+        result = 31 * result + start.hashCode()
+        result = 31 * result + destination.hashCode()
+        return result
+    }
 }

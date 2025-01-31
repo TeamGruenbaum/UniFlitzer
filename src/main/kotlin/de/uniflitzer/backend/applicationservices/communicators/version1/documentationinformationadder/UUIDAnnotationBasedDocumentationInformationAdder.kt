@@ -4,4 +4,4 @@ import de.uniflitzer.backend.applicationservices.communicators.version1.valueche
 import org.springframework.stereotype.Component
 
 @Component
-private class UUIDAnnotationBasedDocumentationInformationAdder private constructor() : AnnotationBasedDocumentationInformationAdder<UUID>(UUID::class, "uuid")
+class UUIDAnnotationBasedDocumentationInformationAdder private constructor() : AnnotationBasedDocumentationInformationAdder<UUID>(UUID::class, "uuid")

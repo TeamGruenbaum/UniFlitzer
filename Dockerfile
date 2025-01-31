@@ -4,7 +4,7 @@ COPY . /application
 RUN gradle dependencies --no-daemon
 RUN gradle bootJar --no-daemon
 
-FROM eclipse-temurin:23-jre
+FROM eclipse-temurin:21-jre
 WORKDIR /application
 COPY --from=building /application/build/libs/*.jar app.jar
 EXPOSE 8080

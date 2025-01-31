@@ -2,13 +2,12 @@ package de.uniflitzer.backend.applicationservices.communicators.version1.datapac
 
 import de.uniflitzer.backend.model.CompleteRoute
 import jakarta.validation.Valid
-import java.time.Duration
 
-data class CompleteRouteDP(
+data class CompleteRouteDP private constructor(
     @field:Valid val start: PositionDP,
     @field:Valid val destination: PositionDP,
     @field:Valid val userStops: List<PartialConfirmableUserStop>,
-    val duration: Duration,
+    val duration: Long,
     @field:Valid val polyline: GeoJsonLineStringDP
 ) {
     companion object {
@@ -17,7 +16,7 @@ data class CompleteRouteDP(
                 PositionDP.fromPosition(completeRoute.start),
                 PositionDP.fromPosition(completeRoute.destination),
                 completeRoute.userStops.map { PartialConfirmableUserStop.fromConfirmableUserStop(it) },
-                completeRoute.duration,
+                completeRoute.duration.seconds,
                 GeoJsonLineStringDP.fromGeoJsonLineString(completeRoute.polyline)
             )
         }

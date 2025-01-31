@@ -6,7 +6,7 @@ class DetailedCarpoolDriveRequestDP(
     id: String,
     containsFavoriteRequestingUser: Boolean,
     requestingUser: PartialUserDP,
-    route: RouteDP,
+    route: DetailedRouteDP,
     scheduleTime: ScheduleTimeDP?,
     @field:Valid val carpool: PartialCarpoolDP
 ) : DetailedDriveRequestDP(id, containsFavoriteRequestingUser, requestingUser, route, scheduleTime)

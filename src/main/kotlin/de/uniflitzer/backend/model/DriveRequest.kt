@@ -12,7 +12,7 @@ class DriveRequest(requestingUser: User, route: Route, scheduleTime: ScheduleTim
     @field:GeneratedValue(strategy = GenerationType.UUID)
     lateinit var id: UUID
 
-    @field:ManyToOne
+    @field:ManyToOne(cascade = [CascadeType.PERSIST, CascadeType.MERGE])
     var requestingUser: User = requestingUser
 
     var route: Route = route

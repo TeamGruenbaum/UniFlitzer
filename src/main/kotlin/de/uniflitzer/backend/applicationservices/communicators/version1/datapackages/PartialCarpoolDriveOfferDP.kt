@@ -3,16 +3,16 @@ package de.uniflitzer.backend.applicationservices.communicators.version1.datapac
 import de.uniflitzer.backend.applicationservices.communicators.version1.valuechecker.UUID
 import de.uniflitzer.backend.model.CarpoolDriveOffer
 
-class PartialCarpoolDriveOfferDP (
+class PartialCarpoolDriveOfferDP private constructor(
     containsFavoriteDriver: Boolean,
     id: String,
     driver: PartialUserDP,
     freeSeats: Int,
-    route: RouteDP,
+    route: PartialRouteDP,
     passengersCount: Int,
-    scheduleTimeDP: ScheduleTimeDP?,
+    scheduleTime: ScheduleTimeDP?,
     @field:UUID val carpoolId: String,
-): PartialDriveOfferDP(containsFavoriteDriver, id, driver, freeSeats, route, passengersCount, scheduleTimeDP) {
+): PartialDriveOfferDP(containsFavoriteDriver, id, driver, freeSeats, route, passengersCount, scheduleTime) {
     companion object {
         fun fromCarpoolDriveOffer(carpoolDriveOffer: CarpoolDriveOffer, containsFavoriteDriver: Boolean): PartialCarpoolDriveOfferDP =
             PartialCarpoolDriveOfferDP(
@@ -20,7 +20,7 @@ class PartialCarpoolDriveOfferDP (
                 carpoolDriveOffer.id.toString(),
                 PartialUserDP.fromUser(carpoolDriveOffer.driver),
                 carpoolDriveOffer.freeSeats.value.toInt(),
-                RouteDP.fromRoute(carpoolDriveOffer.route),
+                PartialRouteDP.fromRoute(carpoolDriveOffer.route),
                 carpoolDriveOffer.passengers.size,
                 carpoolDriveOffer.scheduleTime?.let { ScheduleTimeDP.fromScheduleTime(it) },
                 carpoolDriveOffer.carpool.id.toString()

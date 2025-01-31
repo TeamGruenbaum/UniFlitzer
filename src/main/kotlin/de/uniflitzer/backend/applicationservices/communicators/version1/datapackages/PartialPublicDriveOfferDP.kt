@@ -1,15 +1,14 @@
 package de.uniflitzer.backend.applicationservices.communicators.version1.datapackages
 
 import de.uniflitzer.backend.model.PublicDriveOffer
-import de.uniflitzer.backend.model.ScheduleTime
 import jakarta.validation.constraints.Size
 
-class PartialPublicDriveOfferDP constructor(
+class PartialPublicDriveOfferDP private constructor(
     containsFavoriteDriver: Boolean,
     id: String,
     driver: PartialUserDP,
     freeSeats: Int,
-    route: RouteDP,
+    route: PartialRouteDP,
     passengersCount: Int,
     scheduleTime: ScheduleTimeDP?,
     @field:Size(min = 0) val requestingUserIds: List<String>?
@@ -21,7 +20,7 @@ class PartialPublicDriveOfferDP constructor(
                 publicDriveOffer.id.toString(),
                 PartialUserDP.fromUser(publicDriveOffer.driver),
                 publicDriveOffer.freeSeats.value.toInt(),
-                RouteDP.fromRoute(publicDriveOffer.route),
+                PartialRouteDP.fromRoute(publicDriveOffer.route),
                 publicDriveOffer.passengers.size,
                 publicDriveOffer.scheduleTime?.let { ScheduleTimeDP.fromScheduleTime(it) },
                 publicDriveOffer.requestingUsers.map { it.user.id.toString() }
