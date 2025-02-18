@@ -10,4 +10,4 @@
 
 You can find the API documentation [here](https://teamgruenbaum.github.io/UniFlitzer/).
 
-The project is created during our Master‘s programme at Hof University of Applied Sciences.
+The project was created during our Master‘s programme at Hof University of Applied Sciences.
