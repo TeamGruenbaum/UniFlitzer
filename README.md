@@ -1,7 +1,7 @@
 # UniFlitzer
 
 **UniFlitzer** is an innovative API designed to facilitate ride-sharing among university students. 
-- User accounts: Users can provide detailed information about themselves including their age, cars, driving style and animals. Furthermore, Users can rate, favourite and block each other. Verification through university login ensures a safe, student-only community.
+- User accounts: Users can provide detailed information about themselves including their age, cars, driving style and animals. Furthermore, Users can rate, favourite and block each other. Verification through university e-mail ensures a safe, student-only community.
 - Create drive offers: The API allows drivers to create detailed drive offers with customizable settings. 
 - Request rides: Other users can search and view drive offers and request a ride, whereby the driver decides which users he accepts as passengers. 
 - Drive requests: The creation of drive requests to inspire drivers to create drive offers is also supported. 
