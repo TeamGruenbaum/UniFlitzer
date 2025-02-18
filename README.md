@@ -8,6 +8,6 @@
 - Drives: The participants of a drive can also see the route including all stops and the driver's current position so they can coordinate with each other.
 - Carpools: Moreover, UniFlitzer promotes the formation of long-term carpools, simplifying future planning and communication.
 
-You can find the API documentation [here](https://uniflitzer.github.io/UniFlitzer/).
+You can find the API documentation [here](https://teamgruenbaum.github.io/UniFlitzer/).
 
 The project is created during our Master‘s programme at Hof University of Applied Sciences.
